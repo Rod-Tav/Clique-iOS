@@ -1,0 +1,661 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 70;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		50873D992DA4642100C4F83A /* Mixpanel in Frameworks */ = {isa = PBXBuildFile; productRef = 50873D982DA4642100C4F83A /* Mixpanel */; };
+		550079E02D45274D00D9D974 /* AdvancedList in Frameworks */ = {isa = PBXBuildFile; productRef = 550079DF2D45274D00D9D974 /* AdvancedList */; };
+		550565A82D01014300164F05 /* SwiftUINavigationTransitions in Frameworks */ = {isa = PBXBuildFile; productRef = 550565A72D01014300164F05 /* SwiftUINavigationTransitions */; };
+		5506200C2D78D0BB000E5F2F /* openapi.yaml in Resources */ = {isa = PBXBuildFile; fileRef = 5506200B2D78D0BB000E5F2F /* openapi.yaml */; };
+		550620C42D793C72000E5F2F /* PhoneNumberKit in Frameworks */ = {isa = PBXBuildFile; productRef = 550620C32D793C72000E5F2F /* PhoneNumberKit */; };
+		550620C82D793C72000E5F2F /* PhoneNumberKit-Static in Frameworks */ = {isa = PBXBuildFile; productRef = 550620C72D793C72000E5F2F /* PhoneNumberKit-Static */; };
+		552D73632D4B42BB004D1A44 /* Toasts in Frameworks */ = {isa = PBXBuildFile; productRef = 552D73622D4B42BB004D1A44 /* Toasts */; };
+		552D736A2D4B4D0E004D1A44 /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 552D73692D4B4D0E004D1A44 /* Kingfisher */; };
+		55714B032D507A6D00C6A10F /* openapi-generator-config.yaml in Resources */ = {isa = PBXBuildFile; fileRef = 55714B022D507A6D00C6A10F /* openapi-generator-config.yaml */; };
+		557E81522CB5980B00842496 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 557E81512CB5980B00842496 /* FirebaseAuth */; };
+		557E81582CB5A24500842496 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 557E81572CB5A24500842496 /* FirebaseCore */; };
+		55AA50952D069E2400539615 /* BezelKit in Frameworks */ = {isa = PBXBuildFile; productRef = 55AA50942D069E2400539615 /* BezelKit */; };
+		55CAA7792C7530D300B7C444 /* LazyPager in Frameworks */ = {isa = PBXBuildFile; productRef = 55CAA7782C7530D300B7C444 /* LazyPager */; };
+		55E810E42D3FDC5A00594253 /* OpenAPIRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = 55E810E32D3FDC5A00594253 /* OpenAPIRuntime */; };
+		55E810E72D3FDC6F00594253 /* OpenAPIURLSession in Frameworks */ = {isa = PBXBuildFile; productRef = 55E810E62D3FDC6F00594253 /* OpenAPIURLSession */; };
+		55EC03AA2D0B3D15000569B0 /* PopupView in Frameworks */ = {isa = PBXBuildFile; productRef = 55EC03A92D0B3D15000569B0 /* PopupView */; };
+		55FCDB562D778F99004F3375 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 55FCDB552D778F99004F3375 /* FirebaseFirestore */; };
+		55FCDB6F2D779985004F3375 /* MarkdownUI in Frameworks */ = {isa = PBXBuildFile; productRef = 55FCDB6E2D779985004F3375 /* MarkdownUI */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		5506200B2D78D0BB000E5F2F /* openapi.yaml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = openapi.yaml; sourceTree = "<group>"; };
+		55714B022D507A6D00C6A10F /* openapi-generator-config.yaml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = "openapi-generator-config.yaml"; sourceTree = "<group>"; };
+		55D2355C2C16D178004E6602 /* Clique.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Clique.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		553AF0EE2D30D83500D8001A /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 55D2355B2C16D178004E6602 /* Clique */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		553AF0332D30D83500D8001A /* Clique */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (553AF0EE2D30D83500D8001A /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Clique; sourceTree = "<group>"; };
+		55B237192D74C57B00CB5FC1 /* ci_scripts */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = ci_scripts; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		55D235592C16D178004E6602 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				55AA50952D069E2400539615 /* BezelKit in Frameworks */,
+				55FCDB6F2D779985004F3375 /* MarkdownUI in Frameworks */,
+				55FCDB562D778F99004F3375 /* FirebaseFirestore in Frameworks */,
+				55CAA7792C7530D300B7C444 /* LazyPager in Frameworks */,
+				550079E02D45274D00D9D974 /* AdvancedList in Frameworks */,
+				55E810E42D3FDC5A00594253 /* OpenAPIRuntime in Frameworks */,
+				550620C42D793C72000E5F2F /* PhoneNumberKit in Frameworks */,
+				55EC03AA2D0B3D15000569B0 /* PopupView in Frameworks */,
+				552D73632D4B42BB004D1A44 /* Toasts in Frameworks */,
+				55E810E72D3FDC6F00594253 /* OpenAPIURLSession in Frameworks */,
+				557E81522CB5980B00842496 /* FirebaseAuth in Frameworks */,
+				50873D992DA4642100C4F83A /* Mixpanel in Frameworks */,
+				550565A82D01014300164F05 /* SwiftUINavigationTransitions in Frameworks */,
+				550620C82D793C72000E5F2F /* PhoneNumberKit-Static in Frameworks */,
+				552D736A2D4B4D0E004D1A44 /* Kingfisher in Frameworks */,
+				557E81582CB5A24500842496 /* FirebaseCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		55D235532C16D178004E6602 = {
+			isa = PBXGroup;
+			children = (
+				55B237192D74C57B00CB5FC1 /* ci_scripts */,
+				55714B022D507A6D00C6A10F /* openapi-generator-config.yaml */,
+				5506200B2D78D0BB000E5F2F /* openapi.yaml */,
+				553AF0332D30D83500D8001A /* Clique */,
+				55FCDB542D778F99004F3375 /* Frameworks */,
+				55D2355D2C16D178004E6602 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		55D2355D2C16D178004E6602 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				55D2355C2C16D178004E6602 /* Clique.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		55FCDB542D778F99004F3375 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		55D2355B2C16D178004E6602 /* Clique */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 55D2356A2C16D178004E6602 /* Build configuration list for PBXNativeTarget "Clique" */;
+			buildPhases = (
+				55D235582C16D178004E6602 /* Sources */,
+				55D235592C16D178004E6602 /* Frameworks */,
+				55D2355A2C16D178004E6602 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				55E810E92D3FDC7D00594253 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				553AF0332D30D83500D8001A /* Clique */,
+				55B237192D74C57B00CB5FC1 /* ci_scripts */,
+			);
+			name = Clique;
+			packageProductDependencies = (
+				55CAA7782C7530D300B7C444 /* LazyPager */,
+				557E81512CB5980B00842496 /* FirebaseAuth */,
+				557E81572CB5A24500842496 /* FirebaseCore */,
+				550565A72D01014300164F05 /* SwiftUINavigationTransitions */,
+				55AA50942D069E2400539615 /* BezelKit */,
+				55EC03A92D0B3D15000569B0 /* PopupView */,
+				55E810E32D3FDC5A00594253 /* OpenAPIRuntime */,
+				55E810E62D3FDC6F00594253 /* OpenAPIURLSession */,
+				550079DF2D45274D00D9D974 /* AdvancedList */,
+				552D73622D4B42BB004D1A44 /* Toasts */,
+				552D73692D4B4D0E004D1A44 /* Kingfisher */,
+				55FCDB552D778F99004F3375 /* FirebaseFirestore */,
+				55FCDB6E2D779985004F3375 /* MarkdownUI */,
+				550620C32D793C72000E5F2F /* PhoneNumberKit */,
+				550620C72D793C72000E5F2F /* PhoneNumberKit-Static */,
+				50873D982DA4642100C4F83A /* Mixpanel */,
+			);
+			productName = Clique;
+			productReference = 55D2355C2C16D178004E6602 /* Clique.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		55D235542C16D178004E6602 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1540;
+				LastUpgradeCheck = 1640;
+				TargetAttributes = {
+					55D2355B2C16D178004E6602 = {
+						CreatedOnToolsVersion = 15.4;
+					};
+				};
+			};
+			buildConfigurationList = 55D235572C16D178004E6602 /* Build configuration list for PBXProject "Clique" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 55D235532C16D178004E6602;
+			packageReferences = (
+				55CAA7772C7530D300B7C444 /* XCRemoteSwiftPackageReference "LazyPager" */,
+				557E81502CB5980B00842496 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+				550565A62D01014300164F05 /* XCRemoteSwiftPackageReference "swiftui-navigation-transitions" */,
+				55AA50932D069E2400539615 /* XCRemoteSwiftPackageReference "BezelKit" */,
+				55EC03A82D0B3D15000569B0 /* XCRemoteSwiftPackageReference "PopupView" */,
+				55E810E12D3FDC4C00594253 /* XCRemoteSwiftPackageReference "swift-openapi-generator" */,
+				55E810E22D3FDC5A00594253 /* XCRemoteSwiftPackageReference "swift-openapi-runtime" */,
+				55E810E52D3FDC6F00594253 /* XCRemoteSwiftPackageReference "swift-openapi-urlsession" */,
+				550079DE2D45274D00D9D974 /* XCRemoteSwiftPackageReference "AdvancedList" */,
+				552D73612D4B42BB004D1A44 /* XCRemoteSwiftPackageReference "swiftui-toasts" */,
+				552D73682D4B4D0E004D1A44 /* XCRemoteSwiftPackageReference "Kingfisher" */,
+				55FCDB6D2D779985004F3375 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */,
+				550620C22D793C72000E5F2F /* XCRemoteSwiftPackageReference "PhoneNumberKit" */,
+				50873D972DA4642100C4F83A /* XCRemoteSwiftPackageReference "mixpanel-swift" */,
+			);
+			productRefGroup = 55D2355D2C16D178004E6602 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				55D2355B2C16D178004E6602 /* Clique */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		55D2355A2C16D178004E6602 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				55714B032D507A6D00C6A10F /* openapi-generator-config.yaml in Resources */,
+				5506200C2D78D0BB000E5F2F /* openapi.yaml in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		55D235582C16D178004E6602 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		55E810E92D3FDC7D00594253 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = 55E810E82D3FDC7D00594253 /* OpenAPIGenerator */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		55D235682C16D178004E6602 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 9W5J2JHQ37;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.5;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		55D235692C16D178004E6602 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 9W5J2JHQ37;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.5;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		55D2356B2C16D178004E6602 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Clique/Clique.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "\"Clique/Preview Content\"";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Clique/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Clique;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.social-networking";
+				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Clique needs access to your camera to take flicks.";
+				INFOPLIST_KEY_NSContactsUsageDescription = "Clique needs access to your contacts to help you find your friends.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Clique needs access to your photo library to save images.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.6.0;
+				OTHER_LDFLAGS = "-ObjC";
+				OTHER_SWIFT_FLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = com.cliquellc.clique;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		55D2356C2C16D178004E6602 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Clique/Clique.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "\"Clique/Preview Content\"";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Clique/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Clique;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.social-networking";
+				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Clique needs access to your camera to take flicks.";
+				INFOPLIST_KEY_NSContactsUsageDescription = "Clique needs access to your contacts to help you find your friends.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Clique needs access to your photo library to save images.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.6.0;
+				OTHER_LDFLAGS = "-ObjC";
+				OTHER_SWIFT_FLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = com.cliquellc.clique;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		55D235572C16D178004E6602 /* Build configuration list for PBXProject "Clique" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				55D235682C16D178004E6602 /* Debug */,
+				55D235692C16D178004E6602 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		55D2356A2C16D178004E6602 /* Build configuration list for PBXNativeTarget "Clique" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				55D2356B2C16D178004E6602 /* Debug */,
+				55D2356C2C16D178004E6602 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		50873D972DA4642100C4F83A /* XCRemoteSwiftPackageReference "mixpanel-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/mixpanel/mixpanel-swift";
+			requirement = {
+				branch = master;
+				kind = branch;
+			};
+		};
+		550079DE2D45274D00D9D974 /* XCRemoteSwiftPackageReference "AdvancedList" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/crelies/AdvancedList";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 8.0.0;
+			};
+		};
+		550565A62D01014300164F05 /* XCRemoteSwiftPackageReference "swiftui-navigation-transitions" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/davdroman/swiftui-navigation-transitions";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.14.0;
+			};
+		};
+		550620C22D793C72000E5F2F /* XCRemoteSwiftPackageReference "PhoneNumberKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/marmelroy/PhoneNumberKit";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 4.0.1;
+			};
+		};
+		552D73612D4B42BB004D1A44 /* XCRemoteSwiftPackageReference "swiftui-toasts" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sunghyun-k/swiftui-toasts";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.2.0;
+			};
+		};
+		552D73682D4B4D0E004D1A44 /* XCRemoteSwiftPackageReference "Kingfisher" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/onevcat/Kingfisher";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 8.1.4;
+			};
+		};
+		557E81502CB5980B00842496 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 11.3.0;
+			};
+		};
+		55AA50932D069E2400539615 /* XCRemoteSwiftPackageReference "BezelKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/markbattistella/BezelKit";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.2.0;
+			};
+		};
+		55CAA7772C7530D300B7C444 /* XCRemoteSwiftPackageReference "LazyPager" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/gh123man/LazyPager";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.1.0;
+			};
+		};
+		55E810E12D3FDC4C00594253 /* XCRemoteSwiftPackageReference "swift-openapi-generator" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-openapi-generator";
+			requirement = {
+				kind = upToNextMinorVersion;
+				minimumVersion = 1.7.0;
+			};
+		};
+		55E810E22D3FDC5A00594253 /* XCRemoteSwiftPackageReference "swift-openapi-runtime" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-openapi-runtime";
+			requirement = {
+				kind = upToNextMinorVersion;
+				minimumVersion = 1.8.0;
+			};
+		};
+		55E810E52D3FDC6F00594253 /* XCRemoteSwiftPackageReference "swift-openapi-urlsession" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-openapi-urlsession";
+			requirement = {
+				kind = upToNextMinorVersion;
+				minimumVersion = 1.0.2;
+			};
+		};
+		55EC03A82D0B3D15000569B0 /* XCRemoteSwiftPackageReference "PopupView" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/exyte/PopupView";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.1.4;
+			};
+		};
+		55FCDB6D2D779985004F3375 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/gonzalezreal/swift-markdown-ui";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.4.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		50873D982DA4642100C4F83A /* Mixpanel */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 50873D972DA4642100C4F83A /* XCRemoteSwiftPackageReference "mixpanel-swift" */;
+			productName = Mixpanel;
+		};
+		550079DF2D45274D00D9D974 /* AdvancedList */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 550079DE2D45274D00D9D974 /* XCRemoteSwiftPackageReference "AdvancedList" */;
+			productName = AdvancedList;
+		};
+		550565A72D01014300164F05 /* SwiftUINavigationTransitions */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 550565A62D01014300164F05 /* XCRemoteSwiftPackageReference "swiftui-navigation-transitions" */;
+			productName = SwiftUINavigationTransitions;
+		};
+		550620C32D793C72000E5F2F /* PhoneNumberKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 550620C22D793C72000E5F2F /* XCRemoteSwiftPackageReference "PhoneNumberKit" */;
+			productName = PhoneNumberKit;
+		};
+		550620C72D793C72000E5F2F /* PhoneNumberKit-Static */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 550620C22D793C72000E5F2F /* XCRemoteSwiftPackageReference "PhoneNumberKit" */;
+			productName = "PhoneNumberKit-Static";
+		};
+		552D73622D4B42BB004D1A44 /* Toasts */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 552D73612D4B42BB004D1A44 /* XCRemoteSwiftPackageReference "swiftui-toasts" */;
+			productName = Toasts;
+		};
+		552D73692D4B4D0E004D1A44 /* Kingfisher */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 552D73682D4B4D0E004D1A44 /* XCRemoteSwiftPackageReference "Kingfisher" */;
+			productName = Kingfisher;
+		};
+		557E81512CB5980B00842496 /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 557E81502CB5980B00842496 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
+		};
+		557E81572CB5A24500842496 /* FirebaseCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 557E81502CB5980B00842496 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCore;
+		};
+		55AA50942D069E2400539615 /* BezelKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 55AA50932D069E2400539615 /* XCRemoteSwiftPackageReference "BezelKit" */;
+			productName = BezelKit;
+		};
+		55CAA7782C7530D300B7C444 /* LazyPager */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 55CAA7772C7530D300B7C444 /* XCRemoteSwiftPackageReference "LazyPager" */;
+			productName = LazyPager;
+		};
+		55E810E32D3FDC5A00594253 /* OpenAPIRuntime */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 55E810E22D3FDC5A00594253 /* XCRemoteSwiftPackageReference "swift-openapi-runtime" */;
+			productName = OpenAPIRuntime;
+		};
+		55E810E62D3FDC6F00594253 /* OpenAPIURLSession */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 55E810E52D3FDC6F00594253 /* XCRemoteSwiftPackageReference "swift-openapi-urlsession" */;
+			productName = OpenAPIURLSession;
+		};
+		55E810E82D3FDC7D00594253 /* OpenAPIGenerator */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 55E810E12D3FDC4C00594253 /* XCRemoteSwiftPackageReference "swift-openapi-generator" */;
+			productName = "plugin:OpenAPIGenerator";
+		};
+		55EC03A92D0B3D15000569B0 /* PopupView */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 55EC03A82D0B3D15000569B0 /* XCRemoteSwiftPackageReference "PopupView" */;
+			productName = PopupView;
+		};
+		55FCDB552D778F99004F3375 /* FirebaseFirestore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 557E81502CB5980B00842496 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFirestore;
+		};
+		55FCDB6E2D779985004F3375 /* MarkdownUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 55FCDB6D2D779985004F3375 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */;
+			productName = MarkdownUI;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 55D235542C16D178004E6602 /* Project object */;
+}

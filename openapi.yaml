@@ -1,0 +1,3191 @@
+openapi: 3.0.3
+info:
+  title: Clique
+  description: The OG Monolith behind the global phenomenon known colloquially as "Clique"
+  version: 1.0.0
+servers:
+  - url: 'https'
+paths:
+  /user/users:
+    get:
+      tags: [ User ]
+      summary: get users
+      description: Retrieves all user information for a list of users based on a search term. Else return ErrorResponse object.
+      operationId: getUserSearch
+      parameters:
+        - in: query
+          name: search
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: page
+          required: true
+          schema:
+            type: integer
+        - in: query
+          name: size
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: users retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetUsersResponseBody"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /user/following/{userId}:
+    get:
+      tags: [ User ]
+      summary: gets a given user's following
+      description: Retrieves all user information for a list of users who are following a given user based on a search term. Else return ErrorResponse object.
+      operationId: getUserFollowingSearch
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+            format: uuid
+            pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+            minLength: 36
+            maxLength: 36
+        - in: query
+          name: search
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: page
+          required: true
+          schema:
+            type: integer
+        - in: query
+          name: size
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: users retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetUsersResponseBody"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /user/followers/{userId}:
+    get:
+      tags: [ User ]
+      summary: gets a given user's followers
+      description: Retrieves all user information for a list of users who are followers of a given user based on a search term. Else return ErrorResponse object.
+      operationId: getUserFollowersSearch
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+            format: uuid
+            pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+            minLength: 36
+            maxLength: 36
+        - in: query
+          name: search
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: page
+          required: true
+          schema:
+            type: integer
+        - in: query
+          name: size
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: users retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetUsersResponseBody"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /user/self:
+    get:
+      tags: [ User ]
+      summary: get user
+      description: Retrieves all user information for the USER SIGNED IN,
+        returns user information. Else return ErrorResponse object.
+      operationId: getUserSelf
+      responses:
+        '200':
+          description: user retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetUserResponseBody"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /user/{userId}:
+    get:
+      tags: [User]
+      summary: get user
+      description: Retrieves appropriate user information for the given user depending on
+                   relation to user. Else return ErrorResponse object.
+      operationId: getUser
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+            format: uuid
+            pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+            minLength: 36
+            maxLength: 36
+      responses:
+        '200':
+          description: user retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetUserResponseBody"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /user/register:
+    post:
+      tags: [User]
+      summary: register
+      description: Register a new user given user details. Returns newly created
+                   user and auth token on success. Else returns ErrorResponse object
+      operationId: registerUser
+      requestBody:
+        description: Fields required for creating a new user
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequestBody"
+            example:
+              username: "ExampleUsername69"
+              password: "pla1nt3xtPa55word"
+              phoneNumber: "+16969696969"
+              firstName: "Bijan"
+              lastName: "Smith"
+      responses:
+        '200':
+          description: register successful, user created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegisterResponseBody"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /user/follow:
+    post:
+      tags: [ User ]
+      summary: follow user
+      description: Follow/request a given user
+      operationId: followUser
+      requestBody:
+        description: Fields required for following a user
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FollowRequestBody"
+            example:
+              followeeId: "RandomUUID"
+      responses:
+        '201':
+          description: follow successful
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /user/unfollow:
+    post:
+      tags: [ User ]
+      summary: unfollow user
+      description: Unfollow a given user
+      operationId: unfollowUser
+      requestBody:
+        description: Fields required for unfollowing a user
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FollowRequestBody"
+      responses:
+        '204':
+          description: unfollow successful
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: follow was not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /user/{userId}/followers:
+    get:
+      tags: [ User ]
+      summary: retrieve followers by user
+      description: Returns a list of followers from a given user
+      operationId: getFollowersByUser
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+            format: uuid
+            pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+            minLength: 36
+            maxLength: 36
+        - in: query
+          name: page
+          required: true
+          schema:
+            type: integer
+        - in: query
+          name: size
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: followers retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetUsersResponseBody"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: user was not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /user/followStatus/{userId}:
+    get:
+      tags: [ User ]
+      summary: retrieve follow status of user
+      description: Returns the follow status of the current user and the given user id.
+      operationId: getFollowStatus
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+            format: uuid
+            pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+            minLength: 36
+            maxLength: 36
+      responses:
+        '200':
+          description: follow status retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FollowStatus"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: user was not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /user/followRequests:
+    get:
+      tags: [ User ]
+      summary: retrieve follow requests for the user
+      description: Returns a list of follow requests for a given user
+      operationId: getFollowRequests
+      parameters:
+          - in: query
+            name: page
+            required: true
+            schema:
+              type: integer
+          - in: query
+            name: size
+            required: true
+            schema:
+              type: integer
+      responses:
+        '200':
+          description: follow requests retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetFollowRequestsResponse"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: user was not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /user/followRequest/{followRequestId}:
+    get:
+      tags: [ User ]
+      summary: accept follow request
+      description: Accepts the given follow request if valid.
+      operationId: acceptFollowRequest
+      parameters:
+        - in: path
+          name: followRequestId
+          required: true
+          schema:
+            type: string
+            format: uuid
+            pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+            minLength: 36
+            maxLength: 36
+      responses:
+        '200':
+          description: follow request accepted successfully
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: follow request was not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /user/followRequest/decline/{followRequestId}:
+    get:
+      tags: [ User ]
+      summary: decline follow request
+      description: declines the given follow request if valid.
+      operationId: declineFollowRequest
+      parameters:
+        - in: path
+          name: followRequestId
+          required: true
+          schema:
+            type: string
+            format: uuid
+            pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+            minLength: 36
+            maxLength: 36
+      responses:
+        '200':
+          description: follow request declined successfully
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: follow request was not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /user/edit:
+    patch:
+      tags: [ User ]
+      summary: edit a given user's data
+      description: Edits and returns the updated user if successful
+      operationId: editUser
+      requestBody:
+        description: Optional fields for editing a user
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EditUserRequestBody'
+      responses:
+        '200':
+          description: user edited successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetUserResponseBody'
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: user was not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /user/usernameUnique/{username}:
+    get:
+      tags: [ User ]
+      summary: check username unique
+      description: Returns true if unique, false if taken
+      operationId: checkUsernameUnique
+      parameters:
+        - in: path
+          name: username
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: username is not taken
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckUsernameUniqueResponse'
+        '400':
+          description: username already taken
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /user/phoneNumbers:
+    post:
+      tags: [ User ]
+      summary: retrieve users by phone numbers
+      description: Returns a list of users from their phone numbers
+      operationId: getUserByPhoneNumbers
+      requestBody:
+        description: Phone numbers
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GetUsersByPhoneNumbersRequestBody'
+      responses:
+        '200':
+          description: users by phone numbers retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetUsersResponseBody"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /user/updateDeviceToken:
+    patch:
+      tags: [ User ]
+      summary: replaces the user's device token
+      description: Updates a given user's push notification device token
+      operationId: updateUserDeviceToken
+      requestBody:
+        description: token
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDeviceTokenRequestBody'
+      responses:
+        '200':
+          description: token updated successfully
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /user/block/{userId}:
+    get:
+      tags: [ User ]
+      summary: block a user given a userId
+      description: 200 if success, otherwise returns error
+      operationId: blockUser
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+            format: uuid
+            pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+            minLength: 36
+            maxLength: 36
+      responses:
+        '200':
+          description: user was blocked successfully
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /user/unblock/{userId}:
+    get:
+      tags: [ User ]
+      summary: unblock a user given a userId
+      description: 200 if success, otherwise returns error
+      operationId: unblockUser
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+            format: uuid
+            pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+            minLength: 36
+            maxLength: 36
+      responses:
+        '200':
+          description: user was unblocked successfully
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  # Clique endpoints #
+  /clique/create:
+    post:
+      tags: [ Clique ]
+      summary: create new clique
+      description: Create a new clique given the required fields. Returns clique on success
+      operationId: createClique
+      requestBody:
+        description: Fields required for creating a new clique
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCliqueRequestBody"
+      responses:
+        '200':
+          description: creation successful, clique created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateCliqueResponseBody"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /clique/{cliqueId}:
+    get:
+      tags: [ Clique ]
+      summary: get clique
+      description: Retrieves all clique information, user has to be in clique for full info
+      operationId: getClique
+      parameters:
+        - in: path
+          name: cliqueId
+          required: true
+          schema:
+            type: string
+            format: uuid
+            pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+            minLength: 36
+            maxLength: 36
+      responses:
+        '200':
+          description: clique retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetCliqueResponseBody"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /clique/invite:
+    post:
+      tags: [ Clique ]
+      summary: invites a list of users to a clique
+      description: Invites a list of users to a clique
+      operationId: inviteToClique
+      requestBody:
+        description: Fields required for inviting users to clique
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InviteToCliqueRequestBody"
+      responses:
+        '200':
+          description: invites successfully sent
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /clique/invites:
+    get:
+      tags: [ Clique ]
+      summary: retrieves a list of a user's clique invites
+      description: Gets the list of the user's outstanding clique invites, if any
+      operationId: getCliqueInvites
+      parameters:
+        - in: query
+          name: page
+          required: true
+          schema:
+            type: integer
+        - in: query
+          name: size
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: invites successfully retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitesResponseBody'
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /clique/invite/accept/{cliqueInviteId}:
+    get:
+      tags: [ Clique ]
+      summary: accepts an invite
+      description: Accepts an invite to a clique given a clique invite id
+      operationId: acceptInvite
+      parameters:
+        - in: path
+          name: cliqueInviteId
+          required: true
+          schema:
+            type: string
+            format: uuid
+            pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+            minLength: 36
+            maxLength: 36
+      responses:
+        '200':
+          description: invite successfully accepted
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /clique/invite/decline/{cliqueInviteId}:
+    get:
+      tags: [ Clique ]
+      summary: declines an invite
+      description: Declines an invite to a clique given a clique invite id
+      operationId: declineInvite
+      parameters:
+        - in: path
+          name: cliqueInviteId
+          required: true
+          schema:
+            type: string
+            format: uuid
+            pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+            minLength: 36
+            maxLength: 36
+      responses:
+        '200':
+          description: invite declined successfully
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /clique/user/{userId}:
+    get:
+      tags: [ Clique ]
+      summary: get cliques by user
+      description: Retrieves cliques for a given user
+      operationId: getCliquesByUser
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+            format: uuid
+            pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+            minLength: 36
+            maxLength: 36
+        - in: query
+          name: page
+          required: true
+          schema:
+            type: integer
+        - in: query
+          name: size
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: cliques retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetCliquesResponseBody"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /clique/getMembers/{cliqueId}:
+    get:
+      tags: [ Clique ]
+      summary: gets members of a clique
+      description: Retrieves members for a given clique
+      operationId: getCliqueMembers
+      parameters:
+        - in: path
+          name: cliqueId
+          required: true
+          schema:
+            type: string
+            format: uuid
+            pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+            minLength: 36
+            maxLength: 36
+        - in: query
+          name: page
+          required: true
+          schema:
+            type: integer
+        - in: query
+          name: size
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: clique members retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetUsersResponseBody"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /clique/memberStatus/{cliqueId}:
+    get:
+      tags: [ Clique ]
+      summary: get member status of a user in a clique
+      description: Retrieves a member status for a user in a clique
+      operationId: getCliqueMemberStatus
+      parameters:
+        - in: path
+          name: cliqueId
+          required: true
+          schema:
+            type: string
+            format: uuid
+            pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+            minLength: 36
+            maxLength: 36
+      responses:
+        '200':
+          description: clique status retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CliqueMemberRoleStatus"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /clique/edit:
+    patch:
+      tags: [ Clique ]
+      summary: edit a given clique's data
+      description: Edits and returns the updated clique if successful
+      operationId: editClique
+      requestBody:
+        description: fields for editing a clique
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EditCliqueRequestBody'
+      responses:
+        '200':
+          description: clique edited successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetCliqueResponseBody'
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: clique was not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /clique/block/{cliqueId}:
+    get:
+      tags: [ Clique ]
+      summary: block a clique
+      description: blocks a clique given a clique id if the user is not in the clique
+      operationId: blockClique
+      parameters:
+        - in: path
+          name: cliqueId
+          required: true
+          schema:
+            type: string
+            format: uuid
+            pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+            minLength: 36
+            maxLength: 36
+      responses:
+        '200':
+          description: clique blocked successfully
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /clique/unblock/{cliqueId}:
+    get:
+      tags: [ Clique ]
+      summary: unblock a clique
+      description: guess
+      operationId: unblockClique
+      parameters:
+        - in: path
+          name: cliqueId
+          required: true
+          schema:
+            type: string
+            format: uuid
+            pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+            minLength: 36
+            maxLength: 36
+      responses:
+        '200':
+          description: clique unblocked successfully
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  ### Photo Endpoints ###
+  /photo/upload:
+   post:
+     tags: [ Photo ]
+     summary: uploads photos
+     description: Uploads the photos to db and returns presigned urls for uploading the photos
+     operationId: uploadPhotos
+     requestBody:
+       required: true
+       content:
+         application/json:
+           schema:
+             $ref: "#/components/schemas/UploadPhotosRequestBody"
+     responses:
+       '200':
+         description: photo uploaded successfully
+         content:
+           application/json:
+             schema:
+               $ref: "#/components/schemas/UploadPhotosResponseBody"
+       '400':
+         description: bad request
+         content:
+           application/json:
+             schema:
+               $ref: '#/components/schemas/ErrorResponse'
+       '500':
+         description: internal error
+         content:
+           application/json:
+             schema:
+               $ref: '#/components/schemas/ErrorResponse'
+  /photo/{photoId}:
+    get:
+      tags: [ Photo ]
+      summary: get photo
+      description: Retrieves an s3 url that expires after a short period of time for an image
+      operationId: getPhoto
+      parameters:
+        - in: path
+          name: photoId
+          required: true
+          schema:
+            type: string
+            format: uuid
+            pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+            minLength: 36
+            maxLength: 36
+      responses:
+        '200':
+          description: photo retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetPhotoUrlResponseBody"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /photo/{photoId}/delete:
+    delete:
+      tags: [ Photo ]
+      summary: delete photo
+      description: deletes a photo from s3 and its reference in the db
+      operationId: deletePhoto
+      parameters:
+        - in: path
+          name: photoId
+          required: true
+          schema:
+            type: string
+            format: uuid
+            pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+            minLength: 36
+            maxLength: 36
+      responses:
+        '200':
+          description: photo deleted successfully
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+### Collection Endpoints ###
+  /collection/create:
+    post:
+      tags: [ Collection ]
+      summary: create new collection
+      description: create a new collection, return collection metadata
+      operationId: createCollection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCollectionRequestBody'
+      responses:
+        '200':
+          description: collection created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CollectionResponseBody"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /collection/upload:
+    post:
+      tags: [ Collection ]
+      summary: upload photos to a collection
+      description: return collection metadata and links to upload photos
+      operationId: uploadCollectionItems
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadCollectionItemsRequestBody'
+      responses:
+        '200':
+          description: items created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CollectionResponseBody"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /collection/markUploaded:
+    patch:
+      tags: [ Collection ]
+      summary: mark collection items as uploaded
+      description: marks collection items that have been successfully uploaded by frontend to s3 as DND
+      operationId: markCollectionItemsUploaded
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MarkUploadedRequestBody'
+      responses:
+        '200':
+          description: items created successfully
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /collection/clique/{cliqueId}:
+    get:
+      tags: [ Collection ]
+      summary: retrieve collections by cliqueId
+      description: returns a list of collections for a given clique
+      operationId: getCollectionsByClique
+      parameters:
+        - in: path
+          name: cliqueId
+          required: true
+          schema:
+            type: string
+            format: uuid
+            pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+            minLength: 36
+            maxLength: 36
+        - in: query
+          name: page
+          required: true
+          schema:
+            type: integer
+        - in: query
+          name: size
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: collections retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetCollectionsResponseBody"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: clique was not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /collection/user/{userId}:
+    get:
+      tags: [ Collection ]
+      summary: retrieve collections by userId
+      description: returns a list of collections for a given user from all their cliques
+      operationId: getCollectionsByUser
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+            format: uuid
+            pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+            minLength: 36
+            maxLength: 36
+        - in: query
+          name: page
+          required: true
+          schema:
+            type: integer
+        - in: query
+          name: size
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: collections retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetCollectionsResponseBody"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /collection/like/{collectionItemId}:
+    get:
+      tags: [ Collection ]
+      summary: like a collection item
+      description: likes a collection item for valid collection item
+      operationId: likeCollectionItem
+      parameters:
+        - in: path
+          name: collectionItemId
+          required: true
+          schema:
+            type: string
+            format: uuid
+            pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+            minLength: 36
+      responses:
+        '200':
+          description: like created successfully
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /collection/unlike/{collectionItemId}:
+    get:
+      tags: [ Collection ]
+      summary: unlike a collection item
+      description: unlikes a collection item for valid collection item
+      operationId: unlikeCollectionItem
+      parameters:
+        - in: path
+          name: collectionItemId
+          required: true
+          schema:
+            type: string
+            format: uuid
+            pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+            minLength: 36
+      responses:
+        '200':
+          description: unlike performed successfully
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /collection/{collectionDataId}:
+    get:
+      tags: [ Collection ]
+      summary: retrieve a collection and a page of collection items
+      description: retrieves a list of collection items for a given collection
+      operationId: getCollectionById
+      parameters:
+        - in: path
+          name: collectionDataId
+          required: true
+          schema:
+            type: string
+            format: uuid
+            pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+            minLength: 36
+        - in: query
+          name: page
+          required: true
+          schema:
+            type: integer
+        - in: query
+          name: size
+          required: true
+          schema:
+            type: integer
+        - in: query
+          name: sort
+          required: false
+          schema:
+            $ref: '#/components/schemas/SortOption'
+      responses:
+        '200':
+          description: collection items retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionResponseBody'
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /collection/deleteCollection/{collectionDataId}:
+    get:
+      tags: [ Collection ]
+      summary: delete a collection
+      description: deletes a collection for valid collection id
+      operationId: deleteCollection
+      parameters:
+        - in: path
+          name: collectionDataId
+          required: true
+          schema:
+            type: string
+            format: uuid
+            pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+            minLength: 36
+      responses:
+        '200':
+          description: delete successful
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /collection/deleteItem/{collectionItemId}:
+    delete:
+      tags: [ Collection ]
+      summary: delete a collection item
+      description: deletes a collection item for valid collection id
+      operationId: deleteCollectionItem
+      parameters:
+        - in: path
+          name: collectionItemId
+          required: true
+          schema:
+            type: string
+            format: uuid
+            pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+            minLength: 36
+      responses:
+        '200':
+          description: delete collection item successful
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /collection/edit:
+    patch:
+      tags: [ Collection ]
+      summary: edit a given collection's data
+      description: Edits and returns the updated collection if successful
+      operationId: editCollection
+      requestBody:
+        description: fields for editing a collection
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EditCollectionRequestBody'
+      responses:
+        '200':
+          description: collection edited successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionResponseBody'
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: clique was not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /collection/likedBy/{collectionItemId}:
+    get:
+      tags: [ Collection ]
+      summary: get who liked a collection item
+      description: retrieves who liked a collection item for valid collection id
+      operationId: getCollectionItemLikedBy
+      parameters:
+        - in: path
+          name: collectionItemId
+          required: true
+          schema:
+            type: string
+            format: uuid
+            pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+            minLength: 36
+        - in: query
+          name: page
+          required: true
+          schema:
+            type: integer
+        - in: query
+          name: size
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: likedBy users retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetUsersResponseBody'
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+######## Comment Endpoints ########
+  /comment/create:
+    post:
+      tags: [ Comment ]
+      summary: create comment on collection item
+      description: creates a comment on collection item based on given data, returns comment
+      operationId: createComment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCommentRequestBody'
+      responses:
+        '200':
+          description: comment created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommentResponseBody"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /comment/collectionItem/{collectionItemId}:
+    get:
+      tags: [ Comment ]
+      summary: get comments by collection item
+      description: retrieves a list of comments for a given collectionItem
+      operationId: getCommentsByCollectionItem
+      parameters:
+        - in: path
+          name: collectionItemId
+          required: true
+          schema:
+            type: string
+            format: uuid
+            pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+            minLength: 36
+            maxLength: 36
+        - in: query
+          name: page
+          required: true
+          schema:
+            type: integer
+        - in: query
+          name: size
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: comments retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommentsResponseBody"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /comment/delete/{commentId}:
+    delete:
+      tags: [ Comment ]
+      summary: delete comment by id
+      description: deletes a given comment if it exists
+      operationId: deleteComment
+      parameters:
+        - in: path
+          name: commentId
+          required: true
+          schema:
+            type: string
+            format: uuid
+            pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+            minLength: 36
+            maxLength: 36
+      responses:
+        '200':
+          description: comment deleted successfully
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /comment/like/{commentId}:
+    post:
+      tags: [ Comment ]
+      summary: like comment by id
+      description: likes a given comment if it exists
+      operationId: likeComment
+      parameters:
+        - in: path
+          name: commentId
+          required: true
+          schema:
+            type: string
+            format: uuid
+            pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+            minLength: 36
+            maxLength: 36
+      responses:
+        '200':
+          description: comment liked successfully
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /comment/unlike/{commentId}:
+    post:
+      tags: [ Comment ]
+      summary: unlike comment by id
+      description: unlikes a given comment if it exists
+      operationId: unlikeComment
+      parameters:
+        - in: path
+          name: commentId
+          required: true
+          schema:
+            type: string
+            format: uuid
+            pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+            minLength: 36
+            maxLength: 36
+      responses:
+        '200':
+          description: comment unliked successfully
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /comment/replies/{commentId}:
+    get:
+      tags: [ Comment ]
+      summary: get replies by comment
+      description: retrieves a list of replies from an existing comment
+      operationId: getRepliesByComment
+      parameters:
+        - in: path
+          name: commentId
+          required: true
+          schema:
+            type: string
+            format: uuid
+            pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+            minLength: 36
+            maxLength: 36
+        - in: query
+          name: page
+          required: true
+          schema:
+            type: integer
+        - in: query
+          name: size
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: replies retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommentsResponseBody"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+##### Feed Endpoints ##############
+  /feed:
+    get:
+      tags: [ Feed ]
+      summary: get feed by user
+      description: retrieves a list of feed items for the calling user
+      operationId: getUserFeed
+      parameters:
+        - in: query
+          name: page
+          required: true
+          schema:
+            type: integer
+        - in: query
+          name: size
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: feed retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeedResponseBody"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /feed/cliquehub:
+    get:
+      tags: [ Feed ]
+      summary: get clique hub feed by user
+      description: retrieves a list of feed items for the calling user for their cliquehub
+      operationId: getCliqueHubUserFeed
+      parameters:
+        - in: query
+          name: page
+          required: true
+          schema:
+            type: integer
+        - in: query
+          name: size
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: feed retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeedResponseBody"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /feed/clique/{cliqueId}:
+    get:
+      tags: [ Feed ]
+      summary: get clique hub feed by user
+      description: retrieves a list of feed items for the calling user for their cliquehub
+      operationId: getFeedByClique
+      parameters:
+        - in: path
+          name: cliqueId
+          required: true
+          schema:
+            type: string
+            format: uuid
+            pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+            minLength: 36
+            maxLength: 36
+        - in: query
+          name: page
+          required: true
+          schema:
+            type: integer
+        - in: query
+          name: size
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: feed retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeedResponseBody"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /feed/infinite:
+    get:
+      tags: [ Feed ]
+      summary: get infinite scroll feed by user
+      description: retrieves a list of collection images for the calling user for their infinite feed
+      operationId: getInfiniteFeed
+      parameters:
+        - in: query
+          name: cursor
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: infinite feed retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InfiniteFeedResponseBody"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+##### Notification endpoints ####
+  /notification:
+    get:
+      tags: [ Notification ]
+      summary: get notification feed by user
+      description: retrieves a list of notifications for the calling user for their inbox
+      operationId: getNotificationsByUser
+      parameters:
+        - in: query
+          name: page
+          required: true
+          schema:
+            type: integer
+        - in: query
+          name: size
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: notifications retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetNotificationsResponseBody"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /notification/markRead:
+    post:
+      tags: [ Notification ]
+      summary: marks set of notifications as read
+      description: mark notifications as read for a given user
+      operationId: markNotificationsAsRead
+      requestBody:
+        description: Ids of notifications to mark as read
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MarkReadRequestBody"
+      responses:
+        '200':
+          description: request successful, notifications marked as read
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /notification/inviteStatus:
+    get:
+      tags: [ Notification ]
+      summary: get status of clique invites or follow requests
+      description: returns true if has either clique invite or follow request, false otherwise
+      operationId: getNotificationInviteStatus
+      responses:
+        '200':
+          description: notification inv status retrieved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationStatusResponse"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /notification/status:
+    get:
+      tags: [ Notification ]
+      summary: get status of notifications
+      description: returns true if has any general notifications not read, false otherwise
+      operationId: getNotificationStatus
+      responses:
+        '200':
+          description: notification status retrieved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationStatusResponse"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  securitySchemes:
+    firebaseToken:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    User:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+          maxLength: 36
+        username:
+          type: string
+        phoneNumber:
+          type: string
+        bio:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        profilePic:
+          $ref: '#/components/schemas/PhotoUrls'
+        isPrivate:
+          type: boolean
+        followStatus:
+          $ref: '#/components/schemas/FollowStatus'
+        followersCount:
+          type: integer
+        followingCount:
+          type: integer
+        cliqueCount:
+          type: integer
+        endpointArn:
+          type: string
+#        blockedUsers:
+#          type: array
+#          items:
+#            type: string
+#            format: uuid
+#            pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+#            minLength: 36
+#            maxLength: 36
+#        blockedCliques:
+#          type: array
+#          items:
+#            type: string
+#            format: uuid
+#            pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+#            minLength: 36
+#            maxLength: 36
+        dateCreated:
+          type: string
+    PhotoUrls:
+      type: object
+      properties:
+        url:
+          type: string
+        medQualityUrl:
+          type: string
+        lowQualityUrl:
+          type: string
+    Clique:
+      type: object
+      properties:
+        cliqueId:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+          maxLength: 36
+        name:
+          type: string
+        bio:
+          type: string
+        cliqueBanner:
+          $ref: '#/components/schemas/PhotoUrls'
+        cliqueProfilePic:
+          $ref: '#/components/schemas/PhotoUrls'
+        dateCreated:
+          type: string
+        memberCount:
+          type: integer
+        flickCount:
+          type: integer
+    RegisterResponseBody:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        joinNumber:
+          type: integer
+          format: int64
+    GetUserResponseBody:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+    RegisterRequestBody:
+      type: object
+      properties:
+        username:
+          type: string
+        phoneNumber:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        profilePic:
+          $ref: '#/components/schemas/PhotoDataNoPath'
+    FollowRequestBody:
+      type: object
+      properties:
+        followee:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+          maxLength: 36
+    GetUsersResponseBody:
+      type: object
+      properties:
+        users:
+          type: array
+          items:
+            $ref: "#/components/schemas/User"
+    CreateCliqueRequestBody:
+      type: object
+      properties:
+        name:
+          type: string
+        bio:
+          type: string
+        cliqueProfilePic:
+          $ref: "#/components/schemas/PhotoDataNoPath"
+        cliqueBanner:
+          $ref: "#/components/schemas/PhotoDataNoPath"
+        members:
+          type: array
+          items:
+            type: string
+            format: uuid
+            pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+            minLength: 36
+            maxLength: 36
+    CreateCliqueResponseBody:
+      type: object
+      properties:
+        clique:
+          $ref: '#/components/schemas/Clique'
+    GetCliqueResponseBody:
+      type: object
+      properties:
+        clique:
+          $ref: '#/components/schemas/Clique'
+    UploadPhotoParams:
+      type: object
+      properties:
+        contentType:
+          type: string
+        contentLength:
+          type: integer
+          format: int64
+        contentMd5:
+          type: string
+    PhotoDataNoPath:
+      type: object
+      properties:
+        basePhoto:
+          $ref: '#/components/schemas/UploadPhotoParams'
+        medQualityPhoto:
+          $ref: '#/components/schemas/UploadPhotoParams'
+        lowQualityPhoto:
+          $ref: '#/components/schemas/UploadPhotoParams'
+    PhotoData:
+      type: object
+      properties:
+        basePhoto:
+          $ref: '#/components/schemas/UploadPhotoParams'
+        medQualityPhoto:
+          $ref: '#/components/schemas/UploadPhotoParams'
+        lowQualityPhoto:
+          $ref: '#/components/schemas/UploadPhotoParams'
+        path:
+          type: string
+    PhotoUploadUrl:
+      type: object
+      properties:
+        s3Url:
+          type: string
+        medQualityS3Url:
+          type: string
+        lowQualityS3Url:
+          type: string
+        photoId:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+          maxLength: 36
+    UploadPhotosRequestBody:
+      type: object
+      properties:
+        photos:
+          type: array
+          items:
+            $ref: "#/components/schemas/PhotoData"
+    UploadPhotosResponseBody:
+      type: object
+      properties:
+        photoIdUrls:
+          type: array
+          items:
+            $ref: "#/components/schemas/PhotoUploadUrl"
+    GetPhotoUrlResponseBody:
+      type: object
+      properties:
+        urls:
+          $ref: '#/components/schemas/PhotoUrls'
+    PhotoDatePair:
+      type: object
+      properties:
+        photo:
+          $ref: "#/components/schemas/PhotoDataNoPath"
+        dateCreated:
+          type: string
+    PrivacySetting:
+      type: string
+      enum:
+        - PUBLIC
+        - PRIVATE
+        - FOLLOWERS
+    FollowStatus:
+      type: string
+      enum:
+        - FOLLOWING
+        - REQUESTED
+        - NONE
+    CliqueMemberRoleStatus:
+      type: string
+      enum:
+        - MEMBER
+        - OWNER
+        - FOLLOWING
+        - NONE
+    CreateCollectionRequestBody:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        cliqueId:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+          maxLength: 36
+        privacySetting:
+          $ref: "#/components/schemas/PrivacySetting"
+        coverPhoto:
+          $ref: '#/components/schemas/PhotoDataNoPath'
+    CollectionResponseBody:
+      type: object
+      properties:
+        collection:
+          $ref: "#/components/schemas/Collection"
+    Collection:
+      type: object
+      properties:
+        collectionData:
+          $ref: "#/components/schemas/CollectionData"
+        collectionItems:
+          type: array
+          items:
+            $ref: "#/components/schemas/UrlCollectionItem"
+    CollectionData:
+      type: object
+      properties:
+        collectionDataId:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+          maxLength: 36
+        name:
+          type: string
+        description:
+          type: string
+        clique:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+          maxLength: 36
+        privacySetting:
+          $ref: "#/components/schemas/PrivacySetting"
+        dateCreated:
+          type: string
+        createdBy:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+          maxLength: 36
+        picCount:
+          type: integer
+        coverPhoto:
+          $ref: '#/components/schemas/PhotoUrls'
+    UrlCollectionItem:
+      type: object
+      properties:
+        urls:
+          $ref: '#/components/schemas/PhotoUrls'
+        collectionItem:
+          $ref: "#/components/schemas/CollectionItem"
+        isLiked:
+          type: boolean
+    CollectionItem:
+      type: object
+      properties:
+        collectionItemId:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+          maxLength: 36
+        user:
+          $ref: '#/components/schemas/User'
+        photoId:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+          maxLength: 36
+        likes:
+          type: integer
+        commentCount:
+          type: integer
+        dateCreated:
+          type: string
+    UploadCollectionItemsRequestBody:
+      type: object
+      properties:
+        collectionId:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+          maxLength: 36
+        photos:
+          type: array
+          items:
+            $ref: "#/components/schemas/PhotoDatePair"
+    MarkUploadedRequestBody:
+      type: object
+      properties:
+        collectionItemIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+            pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+            minLength: 36
+            maxLength: 36
+        collectionId:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+          maxLength: 36
+    GetCollectionsResponseBody:
+      type: object
+      properties:
+        collections:
+          type: array
+          items:
+            $ref: '#/components/schemas/Collection'
+    Comment:
+      type: object
+      properties:
+        commentId:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+          maxLength: 36
+        payload:
+          type: string
+        collectionItemId:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+          maxLength: 36
+        user:
+          $ref: '#/components/schemas/User'
+        replyCount:
+          type: integer
+        likeCount:
+          type: integer
+        dateCreated:
+          type: string
+    CreateCommentRequestBody:
+      type: object
+      properties:
+        payload:
+          type: string
+        collectionItemId:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+          maxLength: 36
+        parentId:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+        taggedUsers:
+          type: array
+          items:
+            type: string
+    CommentResponseBody:
+      type: object
+      properties:
+        comment:
+          $ref: '#/components/schemas/Comment'
+    CommentsResponseBody:
+      type: object
+      properties:
+        comments:
+          type: array
+          items:
+            $ref: '#/components/schemas/CommentWLiked'
+    CommentWLiked:
+      type: object
+      properties:
+        comment:
+          $ref: '#/components/schemas/Comment'
+        isLiked:
+          type: boolean
+    InviteToCliqueRequestBody:
+      type: object
+      properties:
+        cliqueId:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+          maxLength: 36
+        userIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+            pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+            minLength: 36
+            maxLength: 36
+    InvitesResponseBody:
+      type: object
+      properties:
+        invites:
+          type: array
+          items:
+            $ref: '#/components/schemas/CliqueInvite'
+    CliqueInvite:
+      type: object
+      properties:
+        cliqueInviteId:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+          maxLength: 36
+        fromUser:
+          $ref: '#/components/schemas/User'
+        clique:
+          $ref: '#/components/schemas/Clique'
+        dateInvited:
+          type: string
+    GetCliquesResponseBody:
+      type: object
+      properties:
+        cliques:
+          type: array
+          items:
+            $ref: '#/components/schemas/Clique'
+    FollowRequest:
+      type: object
+      properties:
+        followRequestId:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+          maxLength: 36
+        fromUser:
+          $ref: '#/components/schemas/User'
+        dateRequested:
+          type: string
+    GetFollowRequestsResponse:
+      type: object
+      properties:
+        followRequests:
+          type: array
+          items:
+            $ref: '#/components/schemas/FollowRequest'
+    EditUserRequestBody:
+      type: object
+      properties:
+        username:
+          type: string
+        bio:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        profilePic:
+          $ref: '#/components/schemas/PhotoDataNoPath'
+        isPrivate:
+          type: boolean
+    NewFeedItemMessage:
+      type: object
+      properties:
+        messageId:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+          maxLength: 36
+        userId:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+          maxLength: 36
+        collectionDataId:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+          maxLength: 36
+        dateCreated:
+          type: string
+    BackfillFeedItemMessage:
+      type: object
+      properties:
+        messageId:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+          maxLength: 36
+        userId:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+          maxLength: 36
+        backfillUserId:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+          maxLength: 36
+        cliqueId:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+          maxLength: 36
+        collectionDataId:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+          maxLength: 36
+        backfillMessageType:
+          $ref: '#/components/schemas/BackfillFeedMessageType'
+        dateCreated:
+          type: string
+    BackfillFeedMessageType:
+      type: string
+      enum:
+        - FOLLOW
+        - JOINING_CLIQUE
+        - UNFOLLOW
+        - LEAVING_CLIQUE
+        - REMOVE_COLLECTION
+        - BLOCKED_CLIQUE
+    FeedItemAction:
+      type: string
+      enum:
+        - FOLLOWING
+        - CLIQUE
+    FollowRelation:
+      type: object
+      properties:
+        followeeId:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+          maxLength: 36
+        followerId:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+          maxLength: 36
+    FeedResponseBody:
+      type: object
+      properties:
+        feedItems:
+          type: array
+          items:
+            $ref: '#/components/schemas/FeedItem'
+    FeedItem:
+      type: object
+      properties:
+        feedItemId:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+          maxLength: 36
+        relevantUser:
+          $ref: '#/components/schemas/User'
+        collection:
+          $ref: '#/components/schemas/Collection'
+        clique:
+          $ref: '#/components/schemas/Clique'
+    GetUsersByPhoneNumbersRequestBody:
+      type: object
+      properties:
+        phoneNumbers:
+          type: array
+          items:
+            type: string
+    EditCliqueRequestBody:
+      type: object
+      properties:
+        cliqueId:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+          maxLength: 36
+        name:
+          type: string
+        bio:
+          type: string
+        profilePic:
+          $ref: '#/components/schemas/PhotoDataNoPath'
+        banner:
+          $ref: '#/components/schemas/PhotoDataNoPath'
+    SortOption:
+      type: string
+      enum:
+        - DATEASC
+        - DATEDESC
+        - LIKESASC
+        - LIKESDESC
+    CheckUsernameUniqueResponse:
+      type: object
+      properties:
+        isUnique:
+          type: boolean
+    UpdateDeviceTokenRequestBody:
+      type: object
+      properties:
+        deviceToken:
+          type: string
+    NewNotificationMessage:
+      type: object
+      properties:
+        messageId:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+          maxLength: 36
+        notificationType:
+          $ref: '#/components/schemas/NotificationMessageType'
+        fromUserId:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+          maxLength: 36
+        toUserId:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+          maxLength: 36
+        cliqueId:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+          maxLength: 36
+        collectionDataId:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+          maxLength: 36
+        collectionItemId:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+          maxLength: 36
+        commentId:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+          maxLength: 36
+        dateCreated:
+          type: string
+    NotificationMessageType:
+      type: string
+      enum:
+        - FOLLOW_REQ_ACCEPTED
+        - FOLLOW_REQ_RECEIVED
+        - CREATED_COLLECTION
+        - POSTED_TO_COLLECTION
+        - JOINED_CLIQUE
+        - CLIQUE_INV_RECEIVED
+        - LEFT_CLIQUE
+        - LIKED_COLLECTION_ITEM
+        - UNLIKED_COLLECTION_ITEM
+        - LIKED_COMMENT
+        - COMMENTED_ON_COLLECTION_ITEM
+        - TAGGED_IN_COMMENT
+        - REPLY_RECEIVED
+    NotificationEntityType:
+      type: string
+      enum:
+        - FOLLOW_REQ_ACCEPTED
+        - USER_NOW_FOLLOWING
+        - CREATED_COLLECTION
+        - POSTED_TO_COLLECTION
+        - JOINED_CLIQUE
+        - LEFT_CLIQUE
+        - LIKED_COLLECTION_ITEM
+        - LIKED_COMMENT
+        - COMMENTED_ON_COLLECTION_ITEM
+        - TAGGED_IN_COMMENT
+        - REPLY_RECEIVED
+    EditCollectionRequestBody:
+      type: object
+      properties:
+        collectionDataId:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+          maxLength: 36
+        name:
+          type: string
+        description:
+          type: string
+        coverPhoto:
+          $ref: '#/components/schemas/PhotoDataNoPath'
+        privacySetting:
+          $ref: '#/components/schemas/PrivacySetting'
+        date:
+          type: string
+    UserNotification:
+      type: object
+      properties:
+        notificationId:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+          maxLength: 36
+        relevantUser:
+          $ref: '#/components/schemas/User'
+        clique:
+          $ref: '#/components/schemas/Clique'
+        comment:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+          maxLength: 36
+        collectionData:
+          $ref: '#/components/schemas/CollectionData'
+        collectionItem:
+          $ref: '#/components/schemas/UrlCollectionItem'
+        notificationType:
+          $ref: '#/components/schemas/NotificationEntityType'
+        isRead:
+          type: boolean
+        readAt:
+          type: string
+        dateCreated:
+          type: string
+    GetNotificationsResponseBody:
+      type: object
+      properties:
+        notifications:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserNotification'
+    MarkReadRequestBody:
+      type: object
+      properties:
+        notifications:
+          type: array
+          items:
+            type: string
+            format: uuid
+            pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+            minLength: 36
+            maxLength: 36
+    InfiniteFeedResponseBody:
+      type: object
+      properties:
+        feedItems:
+          type: array
+          items:
+            $ref: '#/components/schemas/InfiniteFeedItem'
+        encodedCursor:
+          type: string
+    InfiniteFeedItem:
+      type: object
+      properties:
+        collectionData:
+          $ref: '#/components/schemas/CollectionData'
+        cliqueMembers:
+          type: array
+          items:
+            $ref: "#/components/schemas/User"
+        urlCollectionItem:
+          $ref: '#/components/schemas/UrlCollectionItem'
+        clique:
+          $ref: '#/components/schemas/Clique'
+    NotificationStatusResponse:
+      type: object
+      properties:
+        hasAlert:
+          type: boolean
+    ErrorResponse:
+      type: object
+      properties:
+        errorCode:
+          type: string
+        errorMessage:
+          type: string
