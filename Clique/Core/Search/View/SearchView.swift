@@ -27,6 +27,7 @@ struct SearchView: View {
     
     @FocusState private var isSearchFocused: Bool
     @State private var searchText = ""
+    @State private var hasSearchResults: Bool = false
     
     @State private var searchCliques = false
     @State private var selectedTab: Int = 0
@@ -51,36 +52,26 @@ struct SearchView: View {
 //        self.membersPgVM = .init(cid: cid, userStore, cliqueStore)
     }
     
+    // MARK: - Body
     var body: some View {
         @Bindable var bindableVm = tabViewCoordinator
         
         TabNavigationStack(path: $bindableVm.searchNavigationPath) {
             VStack(alignment: .leading, spacing: 0) {
-                TopAppBar(
-                    type: .small,
-                    leadingIcon: {
-                        Spacer()
-                            .frame(24)
-                    },
-                    header: {
-                        Text("Search")
-                            .textPrimary()
-                            .font(.callout.bold())
-                    },
-                    trailingIcon: {
-                        Button {
-                            showAddFriendsSheet = true
-                        } label: {
-                            IconImage("add-user", color: .theme.iconPrimary, size: 24)
-                        }.buttonStyle(.noHighlight)
-                    }
-                )
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .primaryBackground()
+                topBar
                 
                 VStack(spacing: 16) {
-                    SearchBar(searchText: $searchText, isSearchFocused: $isSearchFocused, disableAutocorrect: true)
+                    SearchBar(
+                        searchText: $searchText,
+                        isSearchFocused: $isSearchFocused,
+                        disableAutocorrect: true,
+                        onSubmit: {
+                            hasSearchResults = true
+                        },
+                        onCancel: {
+                            hasSearchResults = false
+                        }
+                    )
                         .padding(.horizontal, 16)
                     
                     Users()
@@ -104,9 +95,36 @@ struct SearchView: View {
         }
     }
     
+    // MARK: Top Bar
+    private var topBar: some View {
+        TopAppBar(
+            type: .small,
+            leadingIcon: {
+                Spacer()
+                    .frame(24)
+            },
+            header: {
+                Text("Search")
+                    .textPrimary()
+                    .font(.callout.bold())
+            },
+            trailingIcon: {
+                Button {
+                    showAddFriendsSheet = true
+                } label: {
+                    IconImage("add-user", color: .theme.iconPrimary, size: 24)
+                }.buttonStyle(.noHighlight)
+            }
+        )
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .primaryBackground()
+    }
+    
+    // MARK: User List
     @ViewBuilder private func Users() -> some View {
         VStack(spacing: 8) {
-            if !isSearchFocused || searchText.isEmpty {
+            if (!isSearchFocused && !hasSearchResults) || searchText.isEmpty {
                 VStack(spacing: 16) {
                     TextDivider("Recents")
                         
@@ -163,26 +181,20 @@ struct SearchView: View {
             }
         }
         .infiniteFrame()
-//        .onChange(of: searchViewModel.triggerPresentToast) {
-//            presentToast(Toasts.somethingWentWrong)
-//        }
         .onChange(of: searchText) {
             if searchText.isEmpty {
                 print("resetting")
                 listState = .items
                 paginationState = .idle
                 userViewModel.reset()
+                hasSearchResults = false
             } else {
                 searchUsers()
             }
         }
     }
-}
-
-// MARK: - Users
-extension SearchView {
-    // for some reason can't be abstracted to struct
-    @ViewBuilder private func UserList(users: AdvancedList.Rows) -> some View {
+    
+    private func UserList(users: AdvancedList.Rows) -> some View {
         ScrollView {
             VStack(spacing: 0) {
                 LazyVStack(spacing: 16, content: users)
@@ -199,97 +211,9 @@ extension SearchView {
     }
 }
 
-// MARK: - People You May Know
-//extension SearchView {
-//    @ViewBuilder private func PeopleYouMayKnow() -> some View {
-//        TextDivider("People You May Know")
-//        
-//        AdvancedList(membersPgVM.items, listView: { users in
-//            MemberList(users)
-//        }, content: { userID in
-//            if let user = userStore.users[userID] {
-//                MemberCell(user)
-//            }
-//        }, listState: membersListState, emptyStateView: {
-//            EmptyStateView()
-//        }, errorStateView: { _ in
-//            ErrorStateView()
-//        }, loadingStateView: {
-//            LoadingStateView()
-//        })
-//        .pagination(.init(type: .lastItem, shouldLoadNextPage: { Task { await updateMembers(.loadNextPage) } }) { })
-//        .onAppear {
-//            Task {
-//                guard membersListState == .loading else { return }
-//                await updateMembers(.loadFirstPage)
-//            }
-//        }
-//    }
-//    
-//    // MARK: - Member list
-//    @ViewBuilder private func MemberList(_ users: AdvancedList.Rows) -> some View {
-//        LazyVStack(spacing: 16, content: users)
-//    }
-//    
-//    // MARK: - Member cell
-//    @ViewBuilder private func MemberCell(_ user: User) -> some View {
-//        Button {
-//            tabViewCoordinator.navigate(to: user)
-//        } label: {
-//            UserCellWithFollow(uid: user.id, isLeader: user.id == membersPgVM.items.first?.id)
-//        }
-//    }
-//    
-//    // this should never happen
-//    @ViewBuilder private func EmptyStateView() -> some View {
-//        NothingHereYetView()
-//    }
-//    
-//    @ViewBuilder private func ErrorStateView() -> some View {
-//        SomethingWentWrong {
-//            listState = .loading
-//            await updateMembers(.refresh)
-//        }
-//        .padding(.horizontal, 16)
-//        .maxHeight()
-//    }
-//    
-//    @ViewBuilder private func LoadingStateView() -> some View {
-//        CliqueProgressView()
-//            .infiniteFrame()
-//    }
-//    
-//    private func updateMembers(_ operation: PaginationOperationType) async {
-//        await PaginationHelper.updateItems(
-//            operation,
-//            viewModel: membersPgVM,
-//            listState: $membersListState,
-//            paginationState: $membersPaginationState,
-//            isScrollAtBottom: $membersIsScrollAtBottom
-//        )
-//    }
-//}
-
-// MARK: - Cliques
-extension SearchView {
-    @ViewBuilder private func Cliques() -> some View {
-        if isSearchFocused {
-//            SearchCliqueListView(config: .search, searchText: searchText)
-        } else {
-            VStack(spacing: 8) {
-                TextDivider("Recents")
-                    .padding(.horizontal, 16)
-                
-//                SearchCliqueListView(config: .search, searchText: searchText)
-            }
-        }
-    }
-}
-
 // MARK: - Helper functions
 extension SearchView {
     private func updateUsers(_ operation: PaginationOperationType) async {
-//        print("updating users", operation)
         await PaginationHelper.updateItems(
             operation,
             viewModel: userViewModel,

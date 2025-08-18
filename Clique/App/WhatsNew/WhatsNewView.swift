@@ -11,6 +11,9 @@ struct WhatsNewView: View {
     @Binding var isPresented: Bool
     
     private let releases: [(version: String, changes: [String])] = [
+        ("1.6.1 – August 18, 2025", [
+            "Bug fixes"
+        ]),
         ("1.6.0 – August 16, 2025", [
             "Smooth profile scroll (iOS18+)",
             "Custom photos picker with drag to select (iOS18+)",

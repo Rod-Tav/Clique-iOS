@@ -13,6 +13,8 @@ struct SearchBar: View {
     
     var buttonText: String = "Cancel"
     var disableAutocorrect: Bool = false
+    var onSubmit: (() -> Void)? = nil
+    var onCancel: (() -> Void)? = nil
     
     var body: some View {
         HStack(spacing: 16) {
@@ -28,16 +30,12 @@ struct SearchBar: View {
                 .autocorrectionDisabled(disableAutocorrect)
                 .focused($isSearchFocused)
                 .submitLabel(.search)
-//                .if(disableAutocorrect) { view in
-//                    view
-//                        .keyboardType(.asciiCapable)
-//                }
+                .onSubmit {
+                    onSubmit?()
+                }
                 
                 if isSearchFocused {
-//                    Button {
-//                        searchText = ""
-//                    } label: {
-                        IconImage("x-icon", color: .theme.iconPrimary, size: 16)
+                    IconImage("x-icon", color: .theme.iconPrimary, size: 16)
                         .contentShape(.rect)
                         .onHighPriorityTap {
                             if searchText.isEmpty {
@@ -46,8 +44,7 @@ struct SearchBar: View {
                                 searchText = ""
                             }
                         }
-//                    }
-                    .transition(.move(edge: .trailing).combined(with: .opacity))
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
                 }
             }
             .padding(8)
@@ -58,6 +55,7 @@ struct SearchBar: View {
                 TextButton(buttonText) {
                     searchText = ""
                     isSearchFocused = false
+                    onCancel?()
                 }
                 .transition(.move(edge: .trailing).combined(with: .opacity))
             }

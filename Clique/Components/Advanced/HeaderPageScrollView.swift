@@ -359,14 +359,14 @@ struct HeaderPageScrollView<Header: View, Pages: View>: View {
                 /// Using Pinned Views to actually pin our tab bar at the top!
                 Section {
                     collection[index]
-                        .padding(.top, 8)
+                        .padding(.top, 16)
                         /// Let's make it to be scrollable to the top even if the view does not have enough content
                         /// 40 - Tab Bar Size, -5 is given so that it will not reset scrollviews when it's bounces!
                         .frame(minHeight: size.height - 35, alignment: .top)
                 } header: {
                     /// Always render tab bar to prevent flashing
                     ZStack {
-                        CustomTabBar()
+                        CustomTabBar
                             .visualEffect({ content, proxy in
                                 content
                                     .offset(x: -proxy.frame(in: .scrollView(axis: .horizontal)).minX)
@@ -432,9 +432,7 @@ struct HeaderPageScrollView<Header: View, Pages: View>: View {
     }
     
     // MARK: Custom Tab Bar
-    @ViewBuilder private func CustomTabBar() -> some View {
-        let progress = max(min(mainScrollGeometry.offsetX / mainScrollGeometry.containerSize.width, CGFloat(labels.count - 1)), 0)
-        
+    private var CustomTabBar: some View {
         VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 5) {
                 HStack(spacing: 0) {
@@ -471,6 +469,8 @@ struct HeaderPageScrollView<Header: View, Pages: View>: View {
                 Divider()
                     .overlay {
                         GeometryReader { geo in
+                            let progress = max(min(mainScrollGeometry.offsetX / mainScrollGeometry.containerSize.width, CGFloat(labels.count - 1)), 0)
+                            
                             HStack {
                                 RoundedRectangle(cornerRadius: 10)
                                     .fill(Color.theme.iconPrimary.shadow(.drop(color: Color.theme.navbarShadow, radius: 5)))

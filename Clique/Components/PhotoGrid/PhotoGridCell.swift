@@ -45,6 +45,7 @@ struct PhotoGridCell: View {
                     removalOverlay
                 }
             }
+            .contentShape(.rect)
         }
         .buttonStyle(.plain)
     }
