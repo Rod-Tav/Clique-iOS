@@ -25,11 +25,9 @@ struct AuthSplashView: View {
                 .frame(width: width, height: width / Constants.wordmarkRatio)
             
             VStack(spacing: 16) {
-                SignUpButton()
+                signUpButton
                 
-//                LogInButton()
-                
-                TermsConditionsText()
+                termsConditionsText
             }
         }
         .padding(.horizontal, 24)
@@ -45,7 +43,7 @@ struct AuthSplashView: View {
 
 // MARK: - Views
 extension AuthSplashView {
-    @ViewBuilder private func SignUpButton() -> some View {
+    private var signUpButton: some View {
         Button {
             viewModel.authFlowType = .signup
             showAuthCover = true
@@ -63,19 +61,7 @@ extension AuthSplashView {
         }
     }
     
-    @ViewBuilder private func LogInButton() -> some View {
-        CliqueButton(
-            type: .secondary,
-            text: "Log In",
-            fontWeight: .semibold,
-            fullWidth: true
-        ) {
-            viewModel.authFlowType = .login
-            showAuthCover = true
-        }
-    }
-    
-    @ViewBuilder private func TermsConditionsText() -> some View {
+    private var termsConditionsText: some View {
         Group {
             Text("By continuing, you agree to our ") +
             Text("[Terms](https://cliqueapp.org/terms)")
