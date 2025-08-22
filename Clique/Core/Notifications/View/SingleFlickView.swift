@@ -37,15 +37,15 @@ struct SingleFlickView: View {
     // MARK: - Body
     var body: some View {
         VStack(spacing: 0) {
-            TopBar()
+            topBar
             
             Spacer()
             
-            Flick()
+            flickView
             
             Spacer()
             
-            BelowFlick()
+            belowFlick
         }
         // TODO: fromCollectionDetail is true because navigating to user profile is weird
         .commentSheet(imageId: flick.id, fromCollectionDetail: true, showCommentSheet: $showCommentSheet)
@@ -73,7 +73,7 @@ struct SingleFlickView: View {
     }
     
     // MARK: Top Bar
-    @ViewBuilder func TopBar() -> some View {
+    private var topBar: some View {
         TopAppBar(
             type: .small,
             leadingIcon: {
@@ -83,7 +83,7 @@ struct SingleFlickView: View {
                     IconImage("x-icon", color: .theme.white, size: 24)
                 }.buttonStyle(.noHighlight)
             },
-            header: HeaderContent,
+            header: { headerContent },
             trailingIcon: {
                 Spacer().frame(24)
             }
@@ -92,7 +92,7 @@ struct SingleFlickView: View {
         .padding(.horizontal, 16)
     }
     
-    @ViewBuilder private func HeaderContent() -> some View {
+    private var headerContent: some View {
         Button {
             dismiss()
             tabViewCoordinator.navigate(to: collection)
@@ -117,26 +117,29 @@ struct SingleFlickView: View {
         .noHighlight()
     }
     
-    // MARK: Flick
-    @ViewBuilder private func Flick() -> some View {
+    // MARK: Flick View
+    @ViewBuilder private var flickView: some View {
         if let currentImage {
-            CollectionDetailImageAsyncView(urls: flick.imageUrl, quality: .high)
-                .doubleTapToLike(hasLiked: currentImage.hasLiked, likeAnimation: $likeAnimation) {
-                    handleLikeTapped()
-                }
-                .swipeUpToOpenCommentsTutorial()
-                .simultaneousGesture(swipeUpToOpenComments)
-                .offset(dismissOffset)
-                .simultaneousGesture(swipeDownToDismiss)
-                .overlay {
-                    IconImage("heart-filled", color: .theme.red, size: 70)
-                        .likeAnimation($likeAnimation)
-                }
+            ZoomContainer {
+                CollectionDetailImageAsyncView(urls: flick.imageUrl, quality: .high)
+                    .doubleTapToLike(hasLiked: currentImage.hasLiked, likeAnimation: $likeAnimation) {
+                        handleLikeTapped()
+                    }
+                    .pinchZoom()
+                    .swipeUpToOpenCommentsTutorial()
+                    .simultaneousGesture(swipeUpToOpenComments)
+                    .offset(dismissOffset)
+                    .simultaneousGesture(swipeDownToDismiss)
+                    .overlay {
+                        IconImage("heart-filled", color: .theme.red, size: 70)
+                            .likeAnimation($likeAnimation)
+                    }
+            }
         }
     }
     
     // MARK: Below Flick
-    @ViewBuilder private func BelowFlick() -> some View {
+    private var belowFlick: some View {
         VStack(spacing: 24) {
             HStack(spacing: 16) {
                 Button {
@@ -207,9 +210,11 @@ struct SingleFlickView: View {
         }
         .padding(.horizontal, 16)
     }
-    
-    // MARK: - Helpers
-    private func handleLikeTapped() {
+}
+
+// MARK: Helpers
+private extension SingleFlickView {
+    func handleLikeTapped() {
         do {
             try handleCollectionImageLikeTapped(image: flick, collectionImageStore)
         } catch {
@@ -218,7 +223,7 @@ struct SingleFlickView: View {
     }
     
     // TODO: DRY
-    private var swipeDownToDismiss: some Gesture {
+    var swipeDownToDismiss: some Gesture {
         DragGesture(minimumDistance: 10)
             .onChanged { value in
                 guard (value.translation.height > 10 && abs(value.translation.width) < 20) || dismissing else { return }
