@@ -118,23 +118,21 @@ struct SingleFlickView: View {
     }
     
     // MARK: Flick View
-    @ViewBuilder private var flickView: some View {
-        if let currentImage {
-            ZoomContainer {
-                CollectionDetailImageAsyncView(urls: flick.imageUrl, quality: .high)
-                    .doubleTapToLike(hasLiked: currentImage.hasLiked, likeAnimation: $likeAnimation) {
-                        handleLikeTapped()
-                    }
-                    .pinchZoom()
-                    .swipeUpToOpenCommentsTutorial()
-                    .simultaneousGesture(swipeUpToOpenComments)
-                    .offset(dismissOffset)
-                    .simultaneousGesture(swipeDownToDismiss)
-                    .overlay {
-                        IconImage("heart-filled", color: .theme.red, size: 70)
-                            .likeAnimation($likeAnimation)
-                    }
-            }
+    private var flickView: some View {
+        ZoomContainer {
+            CollectionDetailImageAsyncView(urls: flick.imageUrl, quality: .high)
+                .doubleTapToLike(hasLiked: currentImage?.hasLiked ?? false, likeAnimation: $likeAnimation) {
+                    handleLikeTapped()
+                }
+                .pinchZoom()
+                .swipeUpToOpenCommentsTutorial()
+                .simultaneousGesture(swipeUpToOpenComments)
+                .offset(dismissOffset)
+                .simultaneousGesture(swipeDownToDismiss)
+                .overlay {
+                    IconImage("heart-filled", color: .theme.red, size: 70)
+                        .likeAnimation($likeAnimation)
+                }
         }
     }
     
