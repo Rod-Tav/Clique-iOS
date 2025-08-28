@@ -124,24 +124,34 @@ struct CachePolicy {
                     patterns.append("/collection/\(id)")
                 }
             }
-            if path.contains("/comment") {
-                let collectionItemId = extractCollectionItemId(from: path)
-                if let id = collectionItemId {
-                    patterns.append("/comment.*\(id)")
-                }
+            if path.contains("/comment/create") {
+                // Invalidate comment lists when a new comment is created
+                patterns.append("/comment/collectionItem")
+                patterns.append("/comment/replies")
             }
-            if path.contains("/follow") {
-                let userId = extractUserId(from: path)
-                if let id = userId {
-                    patterns.append("/user/\(id)")
-                    patterns.append("/follow.*\(id)")
-                }
+            if path.contains("/clique/create") {
+                // Invalidate clique lists when a new clique is created
+                patterns.append("/clique/user")
+                patterns.append("/clique/getMembers")
+                patterns.append("/feed")  // Feed might show new cliques
+            }
+            if path.contains("/user/follow") || path.contains("/user/unfollow") {
+                // Invalidate user data and follow status when following/unfollowing
+                // Note: The user ID is in the request body, not the path
+                // We invalidate broadly since we can't extract the ID from body here
+                patterns.append("/user/")
+                patterns.append("/follow")
             }
             if path.contains("/clique") && path.contains("/invite") {
                 let cliqueId = extractCliqueId(from: path)
                 if let id = cliqueId {
                     patterns.append("/clique/\(id)")
                 }
+            }
+            if path.contains("/comment/like") || path.contains("/comment/unlike") {
+                // Invalidate comment cache when likes change
+                patterns.append("/comment/collectionItem")
+                patterns.append("/comment/replies")
             }
             
         case .put:
@@ -178,18 +188,17 @@ struct CachePolicy {
                 patterns.append("/collection")
                 patterns.append("/feed")
             }
-            if path.contains("/comment") {
-                let collectionItemId = extractCollectionItemId(from: path)
-                if let id = collectionItemId {
-                    patterns.append("/comment.*\(id)")
-                }
+            if path.contains("/comment/delete") {
+                // Invalidate comment lists when a comment is deleted
+                patterns.append("/comment/collectionItem")
+                patterns.append("/comment/replies")
             }
-            if path.contains("/follow") {
-                let userId = extractUserId(from: path)
-                if let id = userId {
-                    patterns.append("/user/\(id)")
-                    patterns.append("/follow.*\(id)")
-                }
+            if path.contains("/user/follow") || path.contains("/user/unfollow") {
+                // Invalidate user data and follow status when following/unfollowing
+                // Note: The user ID is in the request body, not the path
+                // We invalidate broadly since we can't extract the ID from body here
+                patterns.append("/user/")
+                patterns.append("/follow")
             }
             
         default:

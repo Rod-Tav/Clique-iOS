@@ -46,12 +46,13 @@ struct CollectionFeedCellView: View {
     let cid: String
     var cliquePfp: PhotoUrls?
     let feedGalleryTip = FeedGalleryTip()
+    let isCompact: Bool
     
     private var collection: ClCollection? {
         collectionStore.collections[collectionId]
     }
     
-    init(collectionId: String, clique: Clique, relevantUser: User?, initialImageIds: [String], _ collectionStore: CollectionStore, _ collectionImageStore: CollectionImageStore) {
+    init(collectionId: String, clique: Clique, relevantUser: User?, initialImageIds: [String], _ collectionStore: CollectionStore, _ collectionImageStore: CollectionImageStore, isCompact: Bool = false) {
         self.collectionId = collectionId
         self.relevantUser = relevantUser
         self.imagesPgVM = .init(collectionDataId: collectionId, sortOption: .likesDesc, collectionStore, collectionImageStore)
@@ -61,6 +62,7 @@ struct CollectionFeedCellView: View {
         self.cliqueNumMembers = clique.numMembers
         self.cliquePfp = clique.cliquePic
         self.clCoordinator = .init(collectionId: collectionId)
+        self.isCompact = isCompact
     }
     
     var body: some View {
@@ -141,7 +143,8 @@ extension CollectionFeedCellView {
                     UserFeedHeader(
                         uid: collection.userId,
                         visibility: collection.visibility,
-                        cliquePfp: clique.cliquePic
+                        cliquePfp: clique.cliquePic,
+                        isCompact: isCompact
                     )
                     
                     NavigationLink(value: clique) {
@@ -151,7 +154,8 @@ extension CollectionFeedCellView {
                     CliqueFeedHeader(
                         clique: clique,
                         visibility: collection.visibility,
-                        numFlicks: collection.numFlicks
+                        numFlicks: collection.numFlicks,
+                        isCompact: isCompact
                     )
                     
                     if !cliqueMembersVM.firstXMembers.isEmpty {
@@ -176,58 +180,63 @@ extension CollectionFeedCellView {
     @ViewBuilder private func SwipeableCardStack() -> some View {
         if let collection {
             if collection.images.count == 0 {
-                Image("default-gradient")
-                    .resizable()
-                    .aspectRatio(1, contentMode: .fill)
-                    .frame(UIScreen.width - 32)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .overlay {
-                        if let clique = cliqueStore.cliques[collection.cliqueId], let relationship = clique.relationship, relationship.isInClique {
-                            Text("Uploading flicks...")
-                        } else {
-                            Text("No images :(")
+                GeometryReader { geometry in
+                    Image("default-gradient")
+                        .resizable()
+                        .aspectRatio(1, contentMode: .fill)
+                        .frame(width: geometry.size.width)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .overlay {
+                            if let clique = cliqueStore.cliques[collection.cliqueId], let relationship = clique.relationship, relationship.isInClique {
+                                Text("Uploading flicks...")
+                            } else {
+                                Text("No images :(")
+                            }
                         }
-                    }
-                    .padding(.top, -16)
+                }
+                .aspectRatio(1, contentMode: .fit)
             } else if imagesPgVM.items.isEmpty {
                 LoadingStateView()
             } else {
                 // lazy hstack doesn't load images behind because of offset stuff
                 // adding content margins loads the second image behind but messes up when swiping
-                VStack {
-                    ScrollView(.horizontal) {
-                        HStack(spacing: 0) {
-                            ForEach(imagesPgVM.items, id: \.id) { cardID in
-                                if let image = collectionImageStore.images[cardID.id] {
-                                    CardCell(image)
-                                }
-                            }
-                        }
-                        .scrollTargetLayout()
-//                        .if(.iOS17) { view in // scroll position without lazy hstack broken on ios 17
-//                            view
-                                .offsetX { value in
-                                    let closestIndex = -Int(round(value / UIScreen.width))
-                                    let newScrollPosition = imagesPgVM.items[closestIndex].id
-                                    
-                                    if scrollPosition != newScrollPosition {
-                                        withAnimation(.easeInOut(duration: 0.2)) {
-                                            scrollPosition = newScrollPosition
-                                        }
+                GeometryReader { geometry in
+                    VStack {
+                        ScrollView(.horizontal) {
+                            HStack(spacing: 0) {
+                                ForEach(imagesPgVM.items, id: \.id) { cardID in
+                                    if let image = collectionImageStore.images[cardID.id] {
+                                        CardCell(image)
                                     }
                                 }
-//                        }
+                            }
+                            .scrollTargetLayout()
+    //                        .if(.iOS17) { view in // scroll position without lazy hstack broken on ios 17
+    //                            view
+                                    .offsetX { value in
+                                        let closestIndex = -Int(round(value / geometry.size.width))
+                                        let newScrollPosition = imagesPgVM.items[closestIndex].id
+                                        
+                                        if scrollPosition != newScrollPosition {
+                                            withAnimation(.easeInOut(duration: 0.2)) {
+                                                scrollPosition = newScrollPosition
+                                            }
+                                        }
+                                    }
+    //                        }
+                        }
+                        // cell works in clique hub, but then navigate to clique profile and try on that feed (only tested in collapsed mode because i had to scroll down) and something breaks with scroll position. so manually track with offsetX in both iOS 17 and 18!!!!!!!!! (this code is a mess lol)
+    //                    .scrollPosition(id: $scrollPosition)
+                        .scrollTargetBehavior(.viewAligned)
+                        .scrollIndicators(.hidden)
+                        .padding(.vertical, -32)
                     }
-                    // cell works in clique hub, but then navigate to clique profile and try on that feed (only tested in collapsed mode because i had to scroll down) and something breaks with scroll position. so manually track with offsetX in both iOS 17 and 18!!!!!!!!! (this code is a mess lol)
-//                    .scrollPosition(id: $scrollPosition)
-                    .scrollTargetBehavior(.viewAligned)
-                    .scrollIndicators(.hidden)
-                    .padding(.vertical, -32)
+                }
+                .aspectRatio(1, contentMode: .fit)
                     // results in black screen idk man
 //                    .onChange(of: clCoordinator.selectedImageId) { _, newValue in
 //                        scrollPosition = newValue
 //                    }
-                }
             }
         }
     }
@@ -242,14 +251,15 @@ extension CollectionFeedCellView {
                     
                 } else {
                     Color.clear
-                        .frame(UIScreen.width - 32)
+                        .aspectRatio(1, contentMode: .fit)
                 }
             }
             .containerRelativeFrame(.horizontal)
             .scrollTransition { content, phase in
                 content
-                    .opacity(phase.isIdentity ? 1 : 0.9)
-                    .scaleEffect(phase == .bottomTrailing || phase == .identity ? 1 : 0.5, anchor: .center)
+                    // Remove opacity changes during scroll (causes recomposition)
+                    // Keep only scale transforms (GPU accelerated)
+                    .scaleEffect(phase == .bottomTrailing || phase == .identity ? 1 : 0.95, anchor: .center)
             }
             .visualEffect { content, proxy in
                 content
@@ -288,7 +298,7 @@ extension CollectionFeedCellView {
     
     @ViewBuilder private func LoadingStateView() -> some View {
         CliqueProgressView()
-            .frame(UIScreen.width - 32)
+            .aspectRatio(1, contentMode: .fit)
     }
     
     private func updateImages(_ operation: PaginationOperationType) async {
@@ -328,9 +338,18 @@ extension CollectionFeedCellView {
                         
                         IconImage("chevron-right", color: .theme.iconPrimary, size: 16)
                         
-                        Text("• \(pluralizeWithCount(count: collection.numFlicks, singular: "flick"))")
-                            .font(.footnote)
-                            .textSecondary()
+                        if isCompact {
+                            HStack(spacing: 2) {
+                                IconImage("layers", color: .theme.iconSecondary, size: 12)
+                                Text("\(collection.numFlicks)")
+                                    .font(.caption2)
+                                    .textSecondary()
+                            }
+                        } else {
+                            Text("• \(pluralizeWithCount(count: collection.numFlicks, singular: "flick"))")
+                                .font(.footnote)
+                                .textSecondary()
+                        }
                         
                         Spacer()
                         
@@ -353,11 +372,18 @@ extension CollectionFeedCellView {
                                         .color(.theme.iconPrimary)
                                 }
                             } label: {
-                                SmallCTA(
-                                    type: .primary,
-                                    leadingIcon: "plus",
-                                    text: "Add flicks"
-                                )
+                                if isCompact {
+                                    SmallCTA(
+                                        type: .primary,
+                                        leadingIcon: "plus"
+                                    )
+                                } else {
+                                    SmallCTA(
+                                        type: .primary,
+                                        leadingIcon: "plus",
+                                        text: "Add flicks"
+                                    )
+                                }
                             }
                         } else {
                             Ellipsis()

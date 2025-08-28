@@ -9,14 +9,15 @@ import UIKit
 import Kingfisher
 
 extension KFImage {
-    func kfModifiers(shouldFade: Bool = false) -> KFImage {
+    func kfModifiers(shouldFade: Bool = false, loadingBug: Bool = false) -> KFImage {
         self
+            .startLoadingBeforeViewAppear(loadingBug)
             .cacheOriginalImage()
-            .fade(duration: shouldFade ? 0.25 : 0)
+            .fade(duration: shouldFade ? 0.15 : 0) // Reduced from 0.25s
             .onFailureImage(UIImage(named: "default-gradient"))
             .memoryCacheExpiration(.seconds(3600))
             .diskCacheExpiration(.days(7))
-            .retry(maxCount: 3, interval: .accumulated(2))
+            .retry(maxCount: 1, interval: .seconds(0.5)) // Reduced from 3 retries with 2s interval
     }
 }
 

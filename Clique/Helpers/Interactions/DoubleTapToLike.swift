@@ -45,7 +45,8 @@ struct LikeAnimationModifier: ViewModifier {
         content
             .scaleEffect(isAnimating ? 1 : 0)
             .opacity(isAnimating ? 1 : 0)
-            .animation(.interpolatingSpring(stiffness: 170, damping: 14), value: isAnimating)
+            // ProMotion-optimized spring animation for 120Hz displays
+            .animation(.interactiveSpring(response: 0.3, dampingFraction: 0.7, blendDuration: 0), value: isAnimating)
     }
 }
 
