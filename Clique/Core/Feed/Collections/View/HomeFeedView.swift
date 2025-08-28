@@ -177,7 +177,7 @@ struct HomeFeedView: View {
     
     @ViewBuilder private func FeedList(rows: AdvancedList.Rows) -> some View {
         ScrollView {
-            VStack(spacing: 0) {
+            LazyVStack(spacing: 0) {
                 // for scroll to top
                 Rectangle()
                     .fill(.clear)
@@ -185,7 +185,7 @@ struct HomeFeedView: View {
                     .id("TOP")
                 
                 LazyVStack(spacing: 16, content: rows)
-                    .padding(.horizontal, 16)
+                    .padding(.top, -1)
                 
                 CliqueProgressView()
                     .opacity(paginationState == .loading ? 1 : 0)
