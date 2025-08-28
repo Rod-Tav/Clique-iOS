@@ -47,18 +47,17 @@ struct CollectionPreviewSlideView: View {
     }
     
     var body: some View {
-        CollectionPreviewImage()
+        collectionPreviewImage
             .overlay(alignment: .bottom) {
-                OverlayBar()
+                overlayBar
             }
             .padding(.vertical, 32)
             .commentSheet(imageId: imageId, fromCollectionDetail: false, showCommentSheet: $showCommentSheet)
     }
     
-    @ViewBuilder private func CollectionPreviewImage() -> some View {
+    @ViewBuilder private var collectionPreviewImage: some View {
         if let collectionImage {
-            GeometryReader { geometry in
-                CollectionFeedCellAsyncImage(urls: collectionImage.imageUrl, width: geometry.size.width, quality: .high)
+            CollectionFeedCellAsyncImage(urls: collectionImage.imageUrl, width: UIScreen.width - 32, quality: .high)
                 .pinchZoom()
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .doubleTapToLike(hasLiked: collectionImage.hasLiked, likeAnimation: $likeAnimation) {
@@ -75,12 +74,10 @@ struct CollectionPreviewSlideView: View {
                     IconImage("heart-filled", color: .theme.red, size: 70)
                         .likeAnimation($likeAnimation)
                 }
-            }
-            .aspectRatio(1, contentMode: .fit)
         }
     }
     
-    @ViewBuilder private func OverlayBar() -> some View {
+    @ViewBuilder private var overlayBar: some View {
         if let collectionImage {
             FeedCellBottomOverlay(
                 listState: $listState,
