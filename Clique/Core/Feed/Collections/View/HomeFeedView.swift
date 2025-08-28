@@ -16,7 +16,7 @@ struct HomeFeedView: View {
     @Environment(CliqueStore.self) private var cliqueStore
     @Environment(CollectionStore.self) private var collectionStore
     @Environment(CommentStore.self) private var commentStore
-
+    
     @State private var homeFeedPgVM: HomeFeedPaginationViewModel
     @State private var cliquesPgVM: UserCliquesPaginationViewModel
     
@@ -52,9 +52,9 @@ struct HomeFeedView: View {
             //                if showingHeader {
             VStack(spacing: 0) {
                 Header()
-//                    .primaryBackground()
+                //                    .primaryBackground()
                 //                        .opacity(0.5)
-//                    .zIndex(1)
+                //                    .zIndex(1)
                 //                        .transition(
                 //                            .asymmetric(
                 //                                insertion: .move(edge: .top).combined(with: .opacity),
@@ -63,61 +63,62 @@ struct HomeFeedView: View {
                 //                        )
                 //                }
                 
-//                ScrollView {
-//                    VStack(spacing: 0) {
-//                        Rectangle()
-//                            .fill(.clear)
-//                            .frame(1)
-//                            .id("TOP")
-                        
-//                        CliqueHubCarousel()
-                        
-                        AdvancedList(homeFeedPgVM.items, listView: { rows in
-                            FeedList(rows: rows)
-                        }, content: { feedItem in
-                            FeedItemCellView(feedItem: feedItem)
-                        }, listState: listState, emptyStateView: {
-                            EmptyStateView()
-                        }, errorStateView: { _ in
-                            ErrorStateView()
-                        }, loadingStateView: {
-                            LoadingStateView()
-                        })
-                        .pagination(.init(type: .lastItem, shouldLoadNextPage: { Task { await updateHomeFeed(.loadNextPage) } }){ })
-                        .maxHeight()
-                        .onAppear {
-                            Task {
-                                guard listState == .loading else { return }
-                                await updateHomeFeed(.loadFirstPage)
-                            }
-                        }
-//                    }
-//                }
-//                .scrollTo(id: $scrollID)
-//                .allowsHitTesting(!(homeFeedPgVM.refreshing || (paginationState == .loading && isScrollAtBottom)))
-//                .onChange(of: tabViewCoordinator.triggerScrollToTopOfFeed) {
-//                    isScrollAtBottom = false
-//                    scrollID = "TOP"
-//                }
-//                .contentMargins(.top, headerSize.height)
-//                .scrollIndicators(.hidden)
-//                .bottomTabBarPadding()
+                //                ScrollView {
+                //                    VStack(spacing: 0) {
+                //                        Rectangle()
+                //                            .fill(.clear)
+                //                            .frame(1)
+                //                            .id("TOP")
+                
+                //                        CliqueHubCarousel()
+                
+                AdvancedList(homeFeedPgVM.items, listView: { rows in
+                    FeedList(rows: rows)
+                }, content: { feedItem in
+                    FeedItemCellView(feedItem: feedItem)
+                }, listState: listState, emptyStateView: {
+                    EmptyStateView()
+                }, errorStateView: { _ in
+                    ErrorStateView()
+                }, loadingStateView: {
+                    LoadingStateView()
+                })
+                .pagination(.init(type: .lastItem, shouldLoadNextPage: { Task { await updateHomeFeed(.loadNextPage) } }){ })
+                .maxHeight()
+                .onAppear {
+                    Task {
+                        guard listState == .loading else { return }
+                        await updateHomeFeed(.loadFirstPage)
+                    }
+                }
+                //                    }
+                //                }
+                //                .scrollTo(id: $scrollID)
+                //                .allowsHitTesting(!(homeFeedPgVM.refreshing || (paginationState == .loading && isScrollAtBottom)))
+                //                .onChange(of: tabViewCoordinator.triggerScrollToTopOfFeed) {
+                //                    isScrollAtBottom = false
+                //                    scrollID = "TOP"
+                //                }
+                //                .contentMargins(.top, headerSize.height)
+                //                .scrollIndicators(.hidden)
+                //                .bottomTabBarPadding()
             }
             .bottomTabBarPadding()
             .primaryBackground()
-            //            .animation(.easeInOut(duration: 0.3), value: showingHeader)
+            // ProMotion-optimized spring animation (120Hz)
+            .animation(.interactiveSpring(response: 0.35, dampingFraction: 0.86, blendDuration: 0.25), value: listState)
             .refreshable {
                 guard paginationState == .idle else { return }
                 homeFeedPgVM.refreshing = true
-
+                
                 // Clear cache for home feed before refreshing
                 await CacheControl.shared.refreshHomeFeed()
                 
                 trigger(.refreshCollectionCells, object: homeFeedPgVM.items.compactMap(\.collection?.id))
                 
-//                homeFeedPgVM.items
-//                    .compactMap(\.collection?.id)
-//                    .forEach { collectionStore.collections.removeValue(forKey: $0) }
+                //                homeFeedPgVM.items
+                //                    .compactMap(\.collection?.id)
+                //                    .forEach { collectionStore.collections.removeValue(forKey: $0) }
                 
                 DispatchQueue.main.async { // no idea
                     Task {
@@ -166,12 +167,12 @@ struct HomeFeedView: View {
             .padding(.vertical, 12)
             .padding(.horizontal, 16)
             
-//            Divider()
-//                .background(Color.theme.strokeTertiary)
+            //            Divider()
+            //                .background(Color.theme.strokeTertiary)
         }
-//        .getSize { size in
-//            headerSize = size
-//        }
+        //        .getSize { size in
+        //            headerSize = size
+        //        }
     }
     
     @ViewBuilder private func FeedList(rows: AdvancedList.Rows) -> some View {
@@ -182,9 +183,9 @@ struct HomeFeedView: View {
                     .fill(.clear)
                     .frame(1)
                     .id("TOP")
-                                
+                
                 LazyVStack(spacing: 16, content: rows)
-                    .padding(.top, -1)
+                    .padding(.horizontal, 16)
                 
                 CliqueProgressView()
                     .opacity(paginationState == .loading ? 1 : 0)
@@ -192,12 +193,12 @@ struct HomeFeedView: View {
                         isScrollAtBottom = true
                     }
                 
-//                Text("You reached the bottom!")
-//                    .padding(.top, -24)
-//                    .opacity(viewModel.done ? 1 : 0)
+                //                Text("You reached the bottom!")
+                //                    .padding(.top, -24)
+                //                    .opacity(viewModel.done ? 1 : 0)
             }
             //            .id(UUID()) // sizing issue on refresh
-//            .padding(.bottom, 12)
+            //            .padding(.bottom, 12)
         }
         .scrollTo(id: $scrollID)
         .allowsHitTesting(!(homeFeedPgVM.refreshing || (paginationState == .loading && isScrollAtBottom)))
@@ -207,7 +208,7 @@ struct HomeFeedView: View {
         }
         .contentMargins(.top, headerSize.height)
         .scrollIndicators(.hidden)
-//        .clipShape(.rect) // clip to safe area. if we don't do this, then hide status bar. helps with refresh sizing issue
+        //        .clipShape(.rect) // clip to safe area. if we don't do this, then hide status bar. helps with refresh sizing issue
     }
     
     // TODO: top bar hiding logic in FeedList
@@ -220,15 +221,15 @@ struct HomeFeedView: View {
     ////                    Header()
     ////                        .hidden()
     //
-//                        LazyVStack(spacing: 16) {
-//                            if viewModel.feedItems.isEmpty {
-//                                Text("Empty")
-//                            } else {
-//                                ForEach(viewModel.feedItems) { item in
-//                                        CollectionCellView(collection: collection)
-//                                }
-//                            }
-//                        }
+    //                        LazyVStack(spacing: 16) {
+    //                            if viewModel.feedItems.isEmpty {
+    //                                Text("Empty")
+    //                            } else {
+    //                                ForEach(viewModel.feedItems) { item in
+    //                                        CollectionCellView(collection: collection)
+    //                                }
+    //                            }
+    //                        }
     ////
     ////                    switch viewModel.fetchState {
     ////                    case .loadingNextPage:
@@ -322,7 +323,7 @@ extension HomeFeedView {
             listState = .loading
             await updateHomeFeed(.refresh)
         }
-//        .padding(.top, headerSize.height)
+        //        .padding(.top, headerSize.height)
     }
     
     @ViewBuilder private func LoadingStateView() -> some View {
@@ -358,12 +359,12 @@ extension HomeFeedView {
             
             Divider()
         }
-//        .overlay(
-//            Rectangle()
-//                .inset(by: 0.5)
-//                .stroke(.tertiaryStroke, lineWidth: 1)
-//                .frame(maxHeight: .infinity, alignment: .bottom)
-//        )
+        //        .overlay(
+        //            Rectangle()
+        //                .inset(by: 0.5)
+        //                .stroke(.tertiaryStroke, lineWidth: 1)
+        //                .frame(maxHeight: .infinity, alignment: .bottom)
+        //        )
     }
     
     @ViewBuilder private func CliqueHubCliques() -> some View {
@@ -415,8 +416,8 @@ extension HomeFeedView {
     
     @ViewBuilder private func CliquesEmptyStateView() -> some View {
         NothingHereYetView()
-//            .padding(16)
-//            .frame(maxHeight: .infinity)
+        //            .padding(16)
+        //            .frame(maxHeight: .infinity)
     }
     
     @ViewBuilder private func CliquesErrorStateView() -> some View {
@@ -424,13 +425,13 @@ extension HomeFeedView {
             cliqueListState = .loading
             await updateCliques(.refresh)
         }
-//        .padding(.top, headerSize.height)
+        //        .padding(.top, headerSize.height)
         .padding(.horizontal, 16)
     }
     
     @ViewBuilder private func CliquesLoadingStateView() -> some View {
         CliqueProgressView()
-//            .frame(maxHeight: .infinity)
+        //            .frame(maxHeight: .infinity)
     }
     
     private func updateCliques(_ operation: PaginationOperationType) async {

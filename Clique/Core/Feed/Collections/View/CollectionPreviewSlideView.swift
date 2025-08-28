@@ -57,7 +57,8 @@ struct CollectionPreviewSlideView: View {
     
     @ViewBuilder private func CollectionPreviewImage() -> some View {
         if let collectionImage {
-            CollectionFeedCellAsyncImage(urls: collectionImage.imageUrl, width: UIScreen.width - 32, quality: .high)
+            GeometryReader { geometry in
+                CollectionFeedCellAsyncImage(urls: collectionImage.imageUrl, width: geometry.size.width, quality: .high)
                 .pinchZoom()
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .doubleTapToLike(hasLiked: collectionImage.hasLiked, likeAnimation: $likeAnimation) {
@@ -74,6 +75,8 @@ struct CollectionPreviewSlideView: View {
                     IconImage("heart-filled", color: .theme.red, size: 70)
                         .likeAnimation($likeAnimation)
                 }
+            }
+            .aspectRatio(1, contentMode: .fit)
         }
     }
     

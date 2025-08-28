@@ -12,6 +12,7 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
     let urls: PhotoUrls?
     var quality: ImageQuality
     var shouldFixSize: Bool = true
+    var loadingBug: Bool = false
     
     let content: (KFImage) -> Content
     @ViewBuilder var placeholder: Placeholder
@@ -26,11 +27,12 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
     var body: some View {
         ZStack {
             placeholder
-                .opacity(!(isLowLoaded || isMediumLoaded || isHighLoaded) ? 0 : 0)
+                .opacity(!(isLowLoaded || isMediumLoaded || isHighLoaded) ? 1 : 0)
             
+            // Always create KFImage views - let Kingfisher handle the complexity
             if quality == .low {
                 content(KFImage(urlFor(urls?.lowQualityUrl))
-                    .kfModifiers(shouldFade: true)
+                    .kfModifiers(shouldFade: true, loadingBug: loadingBug)
                     .onSuccess { _ in isLowLoaded = true }
                     .onFailure { _ in isLowLoaded = true }
                 )
@@ -39,7 +41,7 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
             
             if quality == .medium || isMediumCached {
                 content(KFImage(urlFor(urls?.medQualityUrl))
-                    .kfModifiers(shouldFade: quality == .medium)
+                    .kfModifiers(shouldFade: quality == .medium, loadingBug: loadingBug)
                     .onSuccess { _ in isMediumLoaded = true }
                     .onFailure { _ in isMediumLoaded = true }
                 )
@@ -48,7 +50,7 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
             
             if quality == .high || isHighCached {
                 content(KFImage(urlFor(urls?.highQualityUrl))
-                    .kfModifiers(shouldFade: quality == .high)
+                    .kfModifiers(shouldFade: quality == .high, loadingBug: loadingBug)
                     .onSuccess { _ in isHighLoaded = true }
                     .onFailure { _ in isHighLoaded = true }
                 )
@@ -57,19 +59,25 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
         }
         .fixedSize(horizontal: shouldFixSize, vertical: shouldFixSize)
         .task {
-            if let highUrlString = urls?.highQualityUrl, let highUrl = URL(string: highUrlString) {
-                let isCached = KingfisherManager.shared.cache.isCached(forKey: highUrl.cacheKey)
-                if isCached {
-                    isHighCached = true
-                }
+            // Simple cache check without blocking rendering
+            if let highUrlString = urls?.highQualityUrl {
+                isHighCached = await checkCache(for: highUrlString)
             }
             
-            if let medUrlString = urls?.medQualityUrl, let medUrl = URL(string: medUrlString) {
-                let isCached = KingfisherManager.shared.cache.isCached(forKey: medUrl.cacheKey)
-                if isCached {
-                    isMediumCached = true
-                }
+            if let medUrlString = urls?.medQualityUrl {
+                isMediumCached = await checkCache(for: medUrlString)
             }
         }
+    }
+    
+    // Simple cache check that doesn't interfere with loading
+    private func checkCache(for urlString: String) async -> Bool {
+        guard let url = URL(string: urlString) else { return false }
+        // Use the base URL without query parameters for cache key
+        let cacheKey = url.absoluteString.components(separatedBy: "?").first ?? url.absoluteString
+        
+        return await Task { @MainActor in
+            KingfisherManager.shared.cache.isCached(forKey: cacheKey)
+        }.value
     }
 }
