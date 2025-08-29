@@ -13,11 +13,11 @@ struct PhotoZoomContainer<Content: View>: View {
     @Binding var dragOffset: CGSize
     let content: Content
     
-    @GestureState private var magnifyBy = 1.0
     @GestureState private var isDragging = false
-    @State private var lastScale: CGFloat = 1.0
     @State private var initialDragOffset: CGSize = .zero
     @State private var containerSize: CGSize = .zero
+    @State private var zoomAnchor: UnitPoint = .center
+    @State private var isZooming: Bool = false
     
     init(
         maxScale: CGFloat = 5.0,
@@ -119,64 +119,63 @@ struct PhotoZoomContainer<Content: View>: View {
     
     var body: some View {
         GeometryReader { geometry in
-            content
-                .scaleEffect(scale * magnifyBy)
-                .offset(dragOffset)
-                .onAppear {
-                    containerSize = geometry.size
-                }
-                .onChange(of: geometry.size) { _, newSize in
-                    containerSize = newSize
-                }
-                .gesture(
-                    MagnificationGesture()
-                        .updating($magnifyBy) { value, state, _ in
-                            state = value
-                        }
-                        .onEnded { value in
-                            scale = min(max(scale * value, 1.0), maxScale)
-                            if scale <= 1.0 {
-                                withAnimation(.spring(response: 0.3)) {
-                                    dragOffset = .zero
-                                    initialDragOffset = .zero
-                                }
-                            } else {
-                                // After zooming, check if we need to adjust position
-                                snapBackIfNeeded()
-                            }
-                        }
-                )
-                .simultaneousGesture(
-                    scale > 1.0 ? DragGesture()
-                        .updating($isDragging) { _, state, _ in
-                            state = true
-                        }
-                        .onChanged { value in
-                            // When starting a new drag, capture the current offset
-                            if !isDragging {
-                                initialDragOffset = dragOffset
-                            }
-                            let proposedOffset = CGSize(
-                                width: initialDragOffset.width + value.translation.width,
-                                height: initialDragOffset.height + value.translation.height
-                            )
-                            // Apply hard constraints during drag - don't allow dragging past boundaries
-                            dragOffset = constrainedOffset(proposedOffset)
-                        }
-                        .onEnded { _ in
-                            // Snap back to boundaries if needed
-                            snapBackIfNeeded()
-                        } : nil
-                )
-                .onChange(of: scale) { _, newScale in
-                    // Reset drag offset when zooming back to 1x
-                    if newScale <= 1.0 {
-                        initialDragOffset = .zero
-                        dragOffset = .zero
+            ZStack {
+                content
+                    .scaleEffect(scale, anchor: zoomAnchor)
+                    .offset(dragOffset)
+                    .onAppear {
+                        containerSize = geometry.size
                     }
-                }
-                .frame(width: geometry.size.width, height: geometry.size.height)
-                .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
+                    .onChange(of: geometry.size) { _, newSize in
+                        containerSize = newSize
+                    }
+                    .simultaneousGesture(
+                        scale > 1.0 ? DragGesture()
+                            .updating($isDragging) { _, state, _ in
+                                state = true
+                            }
+                            .onChanged { value in
+                                // When starting a new drag, capture the current offset
+                                if !isDragging {
+                                    initialDragOffset = dragOffset
+                                }
+                                let proposedOffset = CGSize(
+                                    width: initialDragOffset.width + value.translation.width,
+                                    height: initialDragOffset.height + value.translation.height
+                                )
+                                // Apply hard constraints during drag - don't allow dragging past boundaries
+                                dragOffset = constrainedOffset(proposedOffset)
+                            }
+                            .onEnded { _ in
+                                // Snap back to boundaries if needed
+                                snapBackIfNeeded()
+                            } : nil
+                    )
+                    .onChange(of: scale) { _, newScale in
+                        // Reset drag offset when zooming back to 1x
+                        if newScale <= 1.0 {
+                            withAnimation(.spring(response: 0.3)) {
+                                dragOffset = .zero
+                                initialDragOffset = .zero
+                                zoomAnchor = .center
+                            }
+                        } else {
+                            // After zooming, check if we need to adjust position
+                            snapBackIfNeeded()
+                        }
+                    }
+                    .frame(width: geometry.size.width, height: geometry.size.height)
+                    .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
+                
+                // UIKit gesture overlay for proper zoom anchoring
+                ZoomGestureHandler(
+                    scale: $scale,
+                    zoomAnchor: $zoomAnchor,
+                    isZooming: $isZooming,
+                    maxScale: maxScale,
+                    minScale: 1.0
+                )
+            }
         }
     }
 }
