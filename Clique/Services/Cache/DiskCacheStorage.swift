@@ -6,6 +6,13 @@
 //
 
 import Foundation
+import CryptoKit
+
+extension Character {
+    var isHexDigit: Bool {
+        return isNumber || ("a"..."f").contains(lowercased().first!) || ("A"..."F").contains(self)
+    }
+}
 
 actor DiskCacheStorage: CacheStorage {
     typealias Value = Data
@@ -23,6 +30,11 @@ actor DiskCacheStorage: CacheStorage {
         self.cacheDirectory = documentsPath.appendingPathComponent("CliqueAPICache")
         
         try? fileManager.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
+        
+        // Clean up legacy cache files with problematic naming on startup
+        Task {
+            await cleanupLegacyCacheFiles()
+        }
     }
     
     func get(key: String) async -> CacheEntry<Data>? {
@@ -84,13 +96,34 @@ actor DiskCacheStorage: CacheStorage {
             return []
         }
         
+        // Note: With hash-based filenames, we can't reverse-engineer the original keys
+        // This method now returns the hash values as keys for cache management purposes
         return Set(files.map { $0.deletingPathExtension().lastPathComponent })
     }
     
     private func cacheURL(for key: String) -> URL {
-        let safeKey = key.replacingOccurrences(of: "/", with: "_")
-            .replacingOccurrences(of: ":", with: "_")
-        return cacheDirectory.appendingPathComponent("\(safeKey).cache")
+        // Use SHA256 hash to create safe, collision-resistant filenames
+        // This prevents filesystem "filename too long" errors (Code=63)
+        let keyData = Data(key.utf8)
+        let hash = SHA256.hash(data: keyData)
+        let hashString = hash.compactMap { String(format: "%02x", $0) }.joined()
+        return cacheDirectory.appendingPathComponent("\(hashString).cache")
+    }
+    
+    private func cleanupLegacyCacheFiles() async {
+        // Clean up cache files created with the old naming scheme that may have
+        // problematic characters or excessive length
+        guard let files = try? fileManager.contentsOfDirectory(at: cacheDirectory, includingPropertiesForKeys: nil) else { return }
+        
+        for fileURL in files {
+            let filename = fileURL.deletingPathExtension().lastPathComponent
+            
+            // If filename contains underscores (old naming scheme) or is too long, remove it
+            // The new hash-based filenames are exactly 64 hex characters
+            if filename.contains("_") || filename.count != 64 || !filename.allSatisfy(\.isHexDigit) {
+                try? fileManager.removeItem(at: fileURL)
+            }
+        }
     }
     
     private func ensureCacheSize() async {
