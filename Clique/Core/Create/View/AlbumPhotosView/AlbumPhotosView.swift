@@ -98,7 +98,7 @@ struct AlbumPhotosView: View {
         if viewModel.selectedAssets.isEmpty {
             // No selection - show nothing or spacer
             Spacer()
-                .frame(width: 24)
+                .frame(24)
         } else {
             // Any selection - always show count and "Add" button
             Button {
