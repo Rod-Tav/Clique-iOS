@@ -6,12 +6,18 @@
 //
 
 import SwiftUI
+import Combine
 
 @Observable final class HomeFeedPaginationViewModel: PaginationViewModel {
     typealias Item = FeedItem
     typealias Input = EmptyPaginationFetchInput
     
-    var items: [FeedItem] = []
+    var items: [FeedItem] = [] {
+        didSet {
+            // Notify observers when items change for UIKit integration
+            itemsDidChange.send(items)
+        }
+    }
     
     var page: Int = 0
     var size: Int { 5 }
@@ -23,6 +29,9 @@ import SwiftUI
     var isRefreshing: Bool = false
     var refreshTask: Task<Void, Error>?
     var latestRequestId: UUID?
+    
+    // Publisher for UIKit integration
+    let itemsDidChange = PassthroughSubject<[FeedItem], Never>()
     
     var fetchFunction: (EmptyPaginationFetchInput) async throws -> [FeedItem]
     

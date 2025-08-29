@@ -15,10 +15,14 @@ struct HomeFeedView: View {
     @Environment(UserStore.self) private var userStore
     @Environment(CliqueStore.self) private var cliqueStore
     @Environment(CollectionStore.self) private var collectionStore
+    @Environment(CollectionImageStore.self) private var collectionImageStore
     @Environment(CommentStore.self) private var commentStore
     
     @State private var homeFeedPgVM: HomeFeedPaginationViewModel
     @State private var cliquesPgVM: UserCliquesPaginationViewModel
+    
+    // Toggle for UIKit implementation
+    @AppStorage("useUIKitFeed") private var useUIKitFeed: Bool = false
     
     //    @State private var showingHeader: Bool = true
     //    @State private var lastScrollPosition: CGFloat = 0
@@ -28,6 +32,7 @@ struct HomeFeedView: View {
     //    @State private var turningPoint: CGFloat = .zero
     
     @State private var scrollID: String?
+    @State private var triggerUIKitScrollToTop: Bool = false
     
     @State private var listState: ListState = .loading
     @State private var paginationState: AdvancedListPaginationState = .idle
@@ -48,94 +53,75 @@ struct HomeFeedView: View {
         @Bindable var bindableTVC = tabViewCoordinator
         
         TabNavigationStack(path: $bindableTVC.collectionsNavigationPath) {
-            //            ZStack(alignment: .top) {
-            //                if showingHeader {
             VStack(spacing: 0) {
                 Header()
-                //                    .primaryBackground()
-                //                        .opacity(0.5)
-                //                    .zIndex(1)
-                //                        .transition(
-                //                            .asymmetric(
-                //                                insertion: .move(edge: .top).combined(with: .opacity),
-                //                                removal: .move(edge: .top).combined(with: .opacity)
-                //                            )
-                //                        )
-                //                }
                 
-                //                ScrollView {
-                //                    VStack(spacing: 0) {
-                //                        Rectangle()
-                //                            .fill(.clear)
-                //                            .frame(1)
-                //                            .id("TOP")
-                
-                //                        CliqueHubCarousel()
-                
-                AdvancedList(homeFeedPgVM.items, listView: { rows in
-                    FeedList(rows: rows)
-                }, content: { feedItem in
-                    FeedItemCellView(feedItem: feedItem)
-                }, listState: listState, emptyStateView: {
-                    EmptyStateView()
-                }, errorStateView: { _ in
-                    ErrorStateView()
-                }, loadingStateView: {
-                    LoadingStateView()
-                })
-                .pagination(.init(type: .lastItem, shouldLoadNextPage: { Task { await updateHomeFeed(.loadNextPage) } }){ })
-                .maxHeight()
-                .onAppear {
-                    Task {
-                        guard listState == .loading else { return }
-                        await updateHomeFeed(.loadFirstPage)
+                if useUIKitFeed {
+                    // UIKit implementation with optimized scrolling
+                    HomeFeedCollectionView(
+                        viewModel: homeFeedPgVM,
+                        scrollToTop: $triggerUIKitScrollToTop
+                    )
+                    .onReceive(of: .scrollToTopOfFeed) { _ in
+                        triggerUIKitScrollToTop = true
+                    }
+                    .onReceive(of: .refreshHomeFeed) { _ in
+                        Task {
+                            await updateHomeFeed(.refresh)
+                        }
+                    }
+                } else {
+                    // Original SwiftUI implementation
+                    AdvancedList(homeFeedPgVM.items, listView: { rows in
+                        FeedList(rows: rows)
+                    }, content: { feedItem in
+                        FeedItemCellView(feedItem: feedItem)
+                    }, listState: listState, emptyStateView: {
+                        EmptyStateView()
+                    }, errorStateView: { _ in
+                        ErrorStateView()
+                    }, loadingStateView: {
+                        LoadingStateView()
+                    })
+                    .pagination(.init(type: .lastItem, shouldLoadNextPage: { Task { await updateHomeFeed(.loadNextPage) } }){ })
+                    .maxHeight()
+                    .onAppear {
+                        Task {
+                            guard listState == .loading else { return }
+                            await updateHomeFeed(.loadFirstPage)
+                        }
+                    }
+                    .refreshable {
+                        guard paginationState == .idle else { return }
+                        homeFeedPgVM.refreshing = true
+                        
+                        // Clear cache for home feed before refreshing
+                        await CacheControl.shared.refreshHomeFeed()
+                        
+                        trigger(.refreshCollectionCells, object: homeFeedPgVM.items.compactMap(\.collection?.id))
+                        
+                        DispatchQueue.main.async { // no idea
+                            Task {
+                                async let updateFeed: () = await updateHomeFeed(.refresh)
+                                async let updateCliques: () = await updateCliques(.refresh)
+                                
+                                _ = await (updateFeed, updateCliques)
+                            }
+                        }
+                        
+                        homeFeedPgVM.refreshing = false
+                    }
+                    .onReceive(of: .refreshHomeFeed) { _ in
+                        Task {
+                            await updateHomeFeed(.refresh)
+                        }
                     }
                 }
-                //                    }
-                //                }
-                //                .scrollTo(id: $scrollID)
-                //                .allowsHitTesting(!(homeFeedPgVM.refreshing || (paginationState == .loading && isScrollAtBottom)))
-                //                .onChange(of: tabViewCoordinator.triggerScrollToTopOfFeed) {
-                //                    isScrollAtBottom = false
-                //                    scrollID = "TOP"
-                //                }
-                //                .contentMargins(.top, headerSize.height)
-                //                .scrollIndicators(.hidden)
-                //                .bottomTabBarPadding()
             }
             .bottomTabBarPadding()
             .primaryBackground()
             // ProMotion-optimized spring animation (120Hz)
             .animation(.interactiveSpring(response: 0.35, dampingFraction: 0.86, blendDuration: 0.25), value: listState)
-            .refreshable {
-                guard paginationState == .idle else { return }
-                homeFeedPgVM.refreshing = true
-                
-                // Clear cache for home feed before refreshing
-                await CacheControl.shared.refreshHomeFeed()
-                
-                trigger(.refreshCollectionCells, object: homeFeedPgVM.items.compactMap(\.collection?.id))
-                
-                //                homeFeedPgVM.items
-                //                    .compactMap(\.collection?.id)
-                //                    .forEach { collectionStore.collections.removeValue(forKey: $0) }
-                
-                DispatchQueue.main.async { // no idea
-                    Task {
-                        async let updateFeed: () = await updateHomeFeed(.refresh)
-                        async let updateCliques: () = await updateCliques(.refresh)
-                        
-                        _ = await (updateFeed, updateCliques)
-                    }
-                }
-                
-                homeFeedPgVM.refreshing = false
-            }
-            .onReceive(of: .refreshHomeFeed) { _ in
-                Task {
-                    await updateHomeFeed(.refresh)
-                }
-            }
         }
         .sheet(isPresented: $showAddFriendsSheet) {
             AddContactsView()
