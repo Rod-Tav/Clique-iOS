@@ -276,25 +276,22 @@ struct CropView: View {
 //            }
         })
         .overlay {
-            // UIKit gesture overlay for proper zoom anchoring
+            // UIKit gesture overlay for proper zoom anchoring and dragging
             ZoomGestureHandler(
                 scale: $scale,
+                dragOffset: $offset,
                 zoomAnchor: $zoomAnchor,
-                isZooming: $isZooming,
+                isZooming: $isInteracting, // Use isInteracting for CropView boundary logic
                 maxScale: 10.0,
-                minScale: 1.0
+                minScale: 1.0,
+                constrainOffset: { $0 }, // Let CropView handle its own boundary logic
+                snapBackIfNeeded: { 
+                    // Update lastStoredOffset when gesture ends
+                    lastStoredOffset = offset
+                }
             )
         }
         .coordinateSpace(name: "CROPVIEW")
-        .gesture(
-            DragGesture()
-                .updating($isInteracting, body: { _, out, _ in
-                    out = true
-                }).onChanged({ value in
-                    let translation = value.translation
-                    offset = CGSize(width: translation.width + lastStoredOffset.width, height: translation.height + lastStoredOffset.height)
-                })
-        )
         .frame(cropSize)
         .clipShape(RoundedRectangle(cornerRadius: crop == .circle ? cropSize.height : crop == .cliquePfp ? 32 : 0))
     }

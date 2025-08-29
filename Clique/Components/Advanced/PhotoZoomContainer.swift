@@ -129,28 +129,6 @@ struct PhotoZoomContainer<Content: View>: View {
                     .onChange(of: geometry.size) { _, newSize in
                         containerSize = newSize
                     }
-                    .simultaneousGesture(
-                        scale > 1.0 ? DragGesture()
-                            .updating($isDragging) { _, state, _ in
-                                state = true
-                            }
-                            .onChanged { value in
-                                // When starting a new drag, capture the current offset
-                                if !isDragging {
-                                    initialDragOffset = dragOffset
-                                }
-                                let proposedOffset = CGSize(
-                                    width: initialDragOffset.width + value.translation.width,
-                                    height: initialDragOffset.height + value.translation.height
-                                )
-                                // Apply hard constraints during drag - don't allow dragging past boundaries
-                                dragOffset = constrainedOffset(proposedOffset)
-                            }
-                            .onEnded { _ in
-                                // Snap back to boundaries if needed
-                                snapBackIfNeeded()
-                            } : nil
-                    )
                     .onChange(of: scale) { _, newScale in
                         // Reset drag offset when zooming back to 1x
                         if newScale <= 1.0 {
@@ -167,13 +145,16 @@ struct PhotoZoomContainer<Content: View>: View {
                     .frame(width: geometry.size.width, height: geometry.size.height)
                     .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
                 
-                // UIKit gesture overlay for proper zoom anchoring
+                // UIKit gesture overlay for proper zoom anchoring and dragging
                 ZoomGestureHandler(
                     scale: $scale,
+                    dragOffset: $dragOffset,
                     zoomAnchor: $zoomAnchor,
                     isZooming: $isZooming,
                     maxScale: maxScale,
-                    minScale: 1.0
+                    minScale: 1.0,
+                    constrainOffset: constrainedOffset,
+                    snapBackIfNeeded: snapBackIfNeeded
                 )
             }
         }
