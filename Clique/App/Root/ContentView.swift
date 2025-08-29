@@ -131,8 +131,10 @@ struct ContentView: View {
                     
             case .main:
                 // Full authenticated app experience
-                MainTabView()
-                    .environment(authService)
+                // TEMPORARY: Show PhotoGalleryView for development
+                PhotoGalleryView()
+                // MainTabView()
+                //     .environment(authService)
             }
         }
         .onAppear {
