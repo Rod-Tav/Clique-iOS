@@ -194,11 +194,12 @@ struct CarouselThumbnail: View {
     let onTap: () -> Void
     
     @Environment(PhotoPickerContext.self) var context
+    @State private var carouselImage: UIImage?
     
     var body: some View {
         Button(action: onTap) {
             ZStack {
-                if let image = context.thumbnailCache[asset] {
+                if let image = carouselImage {
                     Image(uiImage: image)
                         .resizable()
                         .aspectRatio(contentMode: .fill)
@@ -209,7 +210,10 @@ struct CarouselThumbnail: View {
                         .fill(Color.theme.surfacesElevatedBlur)
                         .frame(width: 60, height: 60)
                         .onAppear {
-                            context.loadThumbnail(for: asset)
+                            // Load smaller carousel-specific thumbnail
+                            context.loadCarouselThumbnail(for: asset) { image in
+                                carouselImage = image
+                            }
                         }
                 }
                 
@@ -239,17 +243,14 @@ struct PhotoGalleryItem: View {
                 scale: $zoomScale,
                 dragOffset: $dragOffset
             ) {
-                if let image = context.thumbnailCache[asset] {
-                    Image(uiImage: image)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(maxWidth: geometry.size.width)
-                        .frame(maxHeight: geometry.size.height)
-                } else {
-                    PhotoPreviewLoader(asset: asset)
-                        .frame(maxWidth: geometry.size.width)
-                        .frame(maxHeight: geometry.size.height)
-                }
+                // Use TwoStageImageLoader for progressive quality enhancement
+                TwoStageImageLoader(
+                    asset: asset,
+                    thumbnail: context.thumbnailCache[asset],
+                    contentMode: .fit
+                )
+                .frame(maxWidth: geometry.size.width)
+                .frame(maxHeight: geometry.size.height)
             }
             .onTapGesture(count: 2) {
                 withAnimation(.spring(response: 0.3)) {
@@ -265,42 +266,4 @@ struct PhotoGalleryItem: View {
     }
 }
 
-struct PhotoPreviewLoader: View {
-    let asset: PHAsset
-    @State private var fullImage: UIImage?
-    
-    var body: some View {
-        Group {
-            if let fullImage = fullImage {
-                Image(uiImage: fullImage)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-            } else {
-                ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle())
-                    .onAppear {
-                        loadFullImage()
-                    }
-            }
-        }
-    }
-    
-    private func loadFullImage() {
-        let options = PHImageRequestOptions()
-        options.deliveryMode = .highQualityFormat
-        options.isNetworkAccessAllowed = true
-        
-        PHImageManager.default().requestImage(
-            for: asset,
-            targetSize: PHImageManagerMaximumSize,
-            contentMode: .aspectFit,
-            options: options
-        ) { image, _ in
-            if let image = image {
-                DispatchQueue.main.async {
-                    self.fullImage = image
-                }
-            }
-        }
-    }
-}
+// PhotoPreviewLoader removed - replaced by TwoStageImageLoader
