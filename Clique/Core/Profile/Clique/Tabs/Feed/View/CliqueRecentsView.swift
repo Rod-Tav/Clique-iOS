@@ -131,7 +131,7 @@ struct CliqueRecentsView: View {
     
     @ViewBuilder private func FeedList(rows: AdvancedList.Rows) -> some View {
 //        ScrollView {
-            VStack(spacing: 0) {
+            LazyVStack(spacing: 0) {
                 LazyVStack(spacing: 16, content: rows)
                 
                 CliqueProgressView()

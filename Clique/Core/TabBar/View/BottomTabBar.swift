@@ -84,7 +84,6 @@ struct BottomTabBar: View {
     /// ## Gesture Handling
     /// - **Tap Gestures**: Primary navigation action
     /// - **Long Press**: Advanced navigation (clear stack or switch)
-    /// - **Haptic Feedback**: Tactile confirmation of interactions
     /// - **Create Tab**: Special menu behavior instead of direct navigation
     var body: some View {
         HStack(spacing: 0) {
@@ -150,7 +149,6 @@ struct BottomTabBar: View {
                             .onChanged { _ in
                                 if pressedTab != tab {
                                     pressedTab = tab
-                                    haptics(.soft)
                                 }
                             }
                             .onEnded { _ in
