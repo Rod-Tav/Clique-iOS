@@ -39,6 +39,8 @@ struct UserSettingsView: View {
                 AppSettingsSection()
             }
             
+            FeedPerformanceSettings()
+            
             OutlinksSection()
             
             SettingEntry(
