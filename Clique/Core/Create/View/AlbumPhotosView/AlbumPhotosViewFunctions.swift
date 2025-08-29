@@ -40,4 +40,18 @@ extension AlbumPhotosView {
         )
     }
     
+    internal func selectAllPhotos() {
+        albumAssets.forEach { asset in
+            if !viewModel.selectedAssets.contains(asset) {
+                viewModel.selectedAssets.insert(asset)
+            }
+        }
+    }
+    
+    internal func deselectAllPhotos() {
+        albumAssets.forEach { asset in
+            viewModel.removeAsset(asset)
+        }
+    }
+    
 }

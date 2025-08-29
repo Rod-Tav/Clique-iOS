@@ -23,6 +23,11 @@ struct AlbumPhotosView: View {
     let assetCollection: PHAssetCollection
     let title: String
     
+    // Computed property for checking if all photos are selected
+    var allSelected: Bool {
+        !albumAssets.isEmpty && albumAssets.allSatisfy { viewModel.selectedAssets.contains($0) }
+    }
+    
     // MARK: - Body
     var body: some View {
         ZStack {
@@ -60,9 +65,25 @@ struct AlbumPhotosView: View {
                 }
             },
             header: {
-                Text(title)
-                    .font(.callout.weight(.semibold))
-                    .textPrimary()
+                HStack(spacing: 8) {
+                    Text(title)
+                        .font(.callout.weight(.semibold))
+                        .textPrimary()
+                    
+                    if !albumAssets.isEmpty {
+                        SmallCTA(
+                            type: .primary,
+                            text: allSelected ? "Deselect All" : "Select All",
+                            action: {
+                                if allSelected {
+                                    deselectAllPhotos()
+                                } else {
+                                    selectAllPhotos()
+                                }
+                            }
+                        )
+                    }
+                }
             },
             trailingIcon: {
                 TrailingIcon()
@@ -75,25 +96,24 @@ struct AlbumPhotosView: View {
     
     @ViewBuilder private func TrailingIcon() -> some View {
         if viewModel.selectedAssets.isEmpty {
+            // No selection - show nothing or spacer
             Spacer()
                 .frame(24)
         } else {
+            // Any selection - always show count and "Add" button
             Button {
                 processSelectedPhotos()
             } label: {
                 HStack(spacing: 8) {
                     HStack(spacing: 4) {
-                        Text("\(viewModel.selectedAssets.count)") // Photo count
-                        
+                        Text("\(viewModel.selectedAssets.count)")
                         IconImage("images-posts", color: .theme.iconPrimary, size: 20)
                     }
-                    
                     Text("Add")
                 }
                 .font(.caption.bold())
                 .textPrimary()
             }
-            .font(.callout)
             .disabled(context.isProcessing)
         }
     }
