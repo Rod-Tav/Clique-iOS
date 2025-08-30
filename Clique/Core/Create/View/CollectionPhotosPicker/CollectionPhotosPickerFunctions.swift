@@ -130,6 +130,10 @@ extension CollectionPhotosPicker {
     }
     
     internal func loadPhotosFromAllPhotos() {
+        DispatchQueue.main.async {
+            self.isLoadingPhotos = true
+        }
+        
         let fetchOptions = PHFetchOptions()
         fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
         let fetchResult = PHAsset.fetchAssets(with: .image, options: fetchOptions)
@@ -141,6 +145,7 @@ extension CollectionPhotosPicker {
         
         DispatchQueue.main.async {
             self.flicksAssets = assets
+            self.isLoadingPhotos = false
         }
     }
     

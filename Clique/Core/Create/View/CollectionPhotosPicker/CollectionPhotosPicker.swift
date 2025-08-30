@@ -31,6 +31,7 @@ struct CollectionPhotosPicker: View {
     @State private var tabProgress: CGFloat = .zero
     @State private var albums: [(collection: PHAssetCollection, title: String, count: Int)] = []
     @State private var hasLoadedAlbums: Bool = false
+    @State internal var isLoadingPhotos: Bool = true
     
     private enum PickerTab {
         case flicks
@@ -40,7 +41,7 @@ struct CollectionPhotosPicker: View {
     // MARK: - Body
     var body: some View {
         ZStack {
-            if authorizationStatus == .authorized {
+            if authorizationStatus == .authorized && !isLoadingPhotos {
                 picker
             } else if authorizationStatus == .denied {
                 VStack(spacing: 20) {

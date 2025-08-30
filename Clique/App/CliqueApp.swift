@@ -138,7 +138,7 @@ struct CliqueApp: App {
                         .datastoreLocation(.applicationDefault)
                     ])
                 }
-                .onReceive(of: .didTapNotification) { _ in 
+                .onReceive(of: .didTapNotification) { _ in
                     appCoordinator.shouldOpenNotificationCenter = true
                 }
         }
