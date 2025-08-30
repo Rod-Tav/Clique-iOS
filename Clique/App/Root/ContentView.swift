@@ -48,7 +48,7 @@ import SwiftUI
 ///
 /// - Important: This view must receive a valid ``UserStore`` instance
 /// - Note: State transitions are automatic based on authentication status
-struct ContentView: View {
+struct ContentView : View {
     /// Safe area insets for proper layout in splash screen
     @Environment(\.safeAreaInsets) private var safeAreaInsets
     /// User data store for authentication state management
@@ -131,10 +131,9 @@ struct ContentView: View {
                     
             case .main:
                 // Full authenticated app experience
-                // TEMPORARY: Show PhotoGalleryView for development
-                PhotoGalleryView()
-                // MainTabView()
-                //     .environment(authService)
+//                PhotoGalleryView()
+                 MainTabView()
+                     .environment(authService)
             }
         }
         .onAppear {
