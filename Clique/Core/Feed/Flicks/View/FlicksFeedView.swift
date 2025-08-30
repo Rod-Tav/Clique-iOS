@@ -23,7 +23,6 @@ struct FlicksFeedView: View {
     @Environment(CollectionImageStore.self) private var collectionImageStore
     
     @State private var viewModel: InfiniteFlickFeedPaginationViewModel
-    
     @State private var listState: ListState = .loading
     @State private var paginationState: AdvancedListPaginationState = .idle
     @State private var isScrollAtBottom: Bool = false
@@ -44,6 +43,12 @@ struct FlicksFeedView: View {
     
     @State var loadedImage: UIImage?
     
+    // Grid view state
+    @State private var showGrid: Bool = true  // Default to grid view
+    @AppStorage("flicksGridColumns") private var gridColumns: Int = 3
+    @State private var gridScrollPosition: String? = nil
+    @State private var gridReaderProxy: ScrollViewProxy? = nil
+    
     private var currentImage: CollectionImage? {
         if let currentFlickId {
             return collectionImageStore.images[currentFlickId]
@@ -57,6 +62,16 @@ struct FlicksFeedView: View {
     }
     
     var body: some View {
+        Group {
+            if showGrid {
+                gridView
+            } else {
+                existingCarouselView
+            }
+        }
+    }
+    
+    @ViewBuilder private var existingCarouselView: some View {
         @Bindable var bindableTVC = tabViewCoordinator
         
         TabNavigationStack(path: $bindableTVC.flicksNavigationPath) {
@@ -147,6 +162,153 @@ struct FlicksFeedView: View {
         }
         .onReceive(of: .refreshFlicksFeed) { _ in
             refreshFeed()
+        }
+    }
+    
+    @ViewBuilder private var gridView: some View {
+        @Bindable var bindableTVC = tabViewCoordinator
+        
+        TabNavigationStack(path: $bindableTVC.flicksNavigationPath) {
+            VStack(spacing: 0) {
+                // Grid header with toggle next to title
+                GridTopBar()
+                
+                // Use AdvancedList for proper pagination like CollectionMainView
+                ScrollViewReader { reader in
+                    AdvancedList(viewModel.items, listView: { items in
+                        GridLayout(items)
+                    }, content: { item in
+                        GridCell(item)
+                    }, listState: listState, emptyStateView: {
+                        EmptyStateView()
+                    }, errorStateView: { _ in
+                        ErrorStateView()
+                    }, loadingStateView: {
+                        LoadingStateView()
+                    })
+                    .pagination(.init(type: .lastItem, shouldLoadNextPage: { 
+                        Task { await updateFlicks(.loadNextPage) } 
+                    }) { })
+                    .onAppear {
+                        gridReaderProxy = reader
+                        // Scroll to position if we have one
+                        if let gridScrollPosition = gridScrollPosition {
+                            reader.scrollTo(gridScrollPosition, anchor: .center)
+                        }
+                    }
+                }
+                .bottomTabBarPadding()
+            }
+            .primaryBackground()
+        }
+        .task {
+            guard listState == .loading else { return }
+            await updateFlicks(.loadFirstPage)
+            if let first = viewModel.items.first {
+                currentFlickId = first.id
+                gridScrollPosition = first.id
+            }
+        }
+        .onChange(of: showGrid) { oldValue, newValue in
+            if newValue == true {
+                // Switching TO grid: sync grid position from carousel and scroll to it
+                gridScrollPosition = currentFlickId
+                if let scrollId = currentFlickId, let proxy = gridReaderProxy {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            proxy.scrollTo(scrollId, anchor: .center)
+                        }
+                    }
+                }
+            } else {
+                // Switching TO carousel: sync carousel position from grid  
+                currentFlickId = gridScrollPosition
+            }
+        }
+        .onReceive(of: .refreshFlicksFeed) { _ in
+            refreshFeed()
+        }
+    }
+    
+    @ViewBuilder private func GridTopBar() -> some View {
+        HStack {
+            Text("Flicks")
+                .font(.largeTitle.bold())
+                .textPrimary()
+            
+            // Toggle button right next to title
+//            Button {
+//                showGrid = false
+//                // Ensure we have a valid current flick when switching to carousel
+//                if currentFlickId == nil && !viewModel.items.isEmpty {
+//                    currentFlickId = viewModel.items.first?.id
+//                }
+//            } label: {
+//                IconImage("strip", color: .theme.iconPrimary, size: 24)
+//            }
+            
+            Spacer()
+            
+            // Column selector menu on the right
+            Menu {
+                ForEach([2, 3, 4], id: \.self) { count in
+                    Button {
+                        gridColumns = count
+                    } label: {
+                        HStack {
+                            Text("\(count) columns")
+                            if gridColumns == count {
+                                Spacer()
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "square.grid.3x3")
+                        .font(.callout)
+                    Image(systemName: "chevron.down")
+                        .font(.caption2)
+                }
+                .foregroundStyle(Color.theme.textSecondary)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color.theme.textSecondary.opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+    }
+    
+    @ViewBuilder private func GridLayout(_ items: AdvancedList.Rows) -> some View {
+        ScrollView {
+            LazyVGrid(
+                columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: gridColumns),
+                spacing: 2,
+                content: items
+            )
+            .padding(.horizontal, 2)
+            .scrollTargetLayout()
+        }
+    }
+    
+    @ViewBuilder private func GridCell(_ item: InfiniteFeedItem) -> some View {
+        if let image = collectionImageStore.images[item.flick.id] {
+            CollectionPreviewAsyncImage(urls: image.imageUrl, quality: .medium)
+                .overlayCollectionPreviewStats(
+                    likes: item.flick.numLikes,
+                    comments: item.flick.numComments,
+                    hasLiked: item.flick.hasLiked
+                )
+                .id(item.flick.id)
+                .contentShape(.rect)
+                .onTapGesture {
+                    gridScrollPosition = item.flick.id  // Update grid position
+                    currentFlickId = item.flick.id      // Update carousel position
+                    showGrid = false                    // Switch to carousel
+                }
         }
     }
     
@@ -255,8 +417,14 @@ struct FlicksFeedView: View {
             
             Spacer()
             
-            //                IconImage("chevron-right", color: .theme.shadesWhite95, size: 24)
-            //                    .rotationEffect(.degrees(90))
+            Button {
+                showGrid = true
+                // currentFlickId is already synced automatically
+            } label: {
+                Image(systemName: "square.grid.3x3")
+                    .foregroundColor(.white)
+                    .font(.title3)
+            }
         }
         .padding(.horizontal, 16)
     }
@@ -401,27 +569,25 @@ struct FlicksFeedView: View {
     
     // MARK: Flick Image
     @ViewBuilder private func FlickImage(_ image: CollectionImage) -> some View {
-        if let currentImage {
-            CollectionDetailImageAsyncView(urls: image.imageUrl, quality: .high)
-            // TODO: DRY
-                .contentShape(.rect)
-                .id(image.id)
-                .pinchZoom()
-                .scrollTransition { content, phase in
-                    content
-                        .opacity(phase.isIdentity ? 1 : 0.7)
-                        .scaleEffect(phase.isIdentity ? 1 : 0.85)
-                }
-                .doubleTapToLike(hasLiked: currentImage.hasLiked, likeAnimation: $likeAnimation) {
-                    handleLikeTapped()
-                }
-                .overlay {
-                    IconImage("heart-filled", color: .theme.red, size: 70)
-                        .likeAnimation($likeAnimation)
-                }
-                .swipeUpToOpenCommentsTutorial()
-                .simultaneousGesture(swipeUpToOpenComments)
-        }
+        CollectionDetailImageAsyncView(urls: image.imageUrl, quality: .high)
+        // TODO: DRY
+            .contentShape(.rect)
+            .id(image.id)
+            .pinchZoom()
+            .scrollTransition { content, phase in
+                content
+                    .opacity(phase.isIdentity ? 1 : 0.7)
+                    .scaleEffect(phase.isIdentity ? 1 : 0.85)
+            }
+            .doubleTapToLike(hasLiked: image.hasLiked, likeAnimation: $likeAnimation) {
+                handleLikeTapped()
+            }
+            .overlay {
+                IconImage("heart-filled", color: .theme.red, size: 70)
+                    .likeAnimation($likeAnimation)
+            }
+            .swipeUpToOpenCommentsTutorial()
+            .simultaneousGesture(swipeUpToOpenComments)
     }
     
     private var swipeUpToOpenComments: some Gesture {
