@@ -17,6 +17,7 @@ struct PhotoPickerContainer<Content: View>: View {
     @Environment(CreateViewModel.self) var viewModel
     
     @State private var context = PhotoPickerContext()
+    @State private var showSelectedPhotosView = false
     
     let configuration: PhotoPickerConfiguration = PhotoPickerConfiguration()
     let content: (PhotoPickerContext) -> Content
@@ -26,6 +27,13 @@ struct PhotoPickerContainer<Content: View>: View {
             content(context)
                 .environment(context)
             
+            // Overlay button - always on top
+            VStack {
+                Spacer()
+                ViewSelectedButton(showSelectedPhotosView: $showSelectedPhotosView)
+                    .padding(.bottom, 20)
+            }
+            
             if context.isProcessing {
                 ProcessingOverlay(
                     progress: context.processingProgress,
@@ -33,6 +41,10 @@ struct PhotoPickerContainer<Content: View>: View {
                     totalCount: context.totalCount
                 )
             }
+        }
+        .fullScreenCover(isPresented: $showSelectedPhotosView) {
+            SelectedPhotosView()
+                .environment(context)
         }
     }
 }

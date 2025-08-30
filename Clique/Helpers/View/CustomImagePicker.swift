@@ -116,9 +116,10 @@ struct CropView: View {
     @Environment(\.dismiss) private var dismiss
     
     @State private var scale: CGFloat = 1
-    @State private var lastScale: CGFloat = 0
     @State private var offset: CGSize = .zero
     @State private var lastStoredOffset: CGSize = .zero
+    @State private var zoomAnchor: UnitPoint = .center
+    @State private var isZooming: Bool = false
     @GestureState private var isInteracting: Bool = false
     
     let crop: Crop
@@ -266,7 +267,7 @@ struct CropView: View {
                     }
             }
         }
-        .scaleEffect(scale)
+        .scaleEffect(scale, anchor: zoomAnchor)
         .offset(offset)
         .overlay(content: {
             /// We Don't Need Grid View for Cropped Image
@@ -274,35 +275,23 @@ struct CropView: View {
 //                Grids()
 //            }
         })
+        .overlay {
+            // UIKit gesture overlay for proper zoom anchoring and dragging
+            ZoomGestureHandler(
+                scale: $scale,
+                dragOffset: $offset,
+                zoomAnchor: $zoomAnchor,
+                isZooming: $isInteracting, // Use isInteracting for CropView boundary logic
+                maxScale: 10.0,
+                minScale: 1.0,
+                constrainOffset: { $0 }, // Let CropView handle its own boundary logic
+                snapBackIfNeeded: { 
+                    // Update lastStoredOffset when gesture ends
+                    lastStoredOffset = offset
+                }
+            )
+        }
         .coordinateSpace(name: "CROPVIEW")
-        .gesture(
-            DragGesture()
-                .updating($isInteracting, body: { _, out, _ in
-                    out = true
-                }).onChanged({ value in
-                    let translation = value.translation
-                    offset = CGSize(width: translation.width + lastStoredOffset.width, height: translation.height + lastStoredOffset.height)
-                })
-        )
-        .gesture(
-            MagnifyGesture()
-                .updating($isInteracting, body: { _, out, _ in
-                    out = true
-                }).onChanged({ value in
-                    let updatedScale = value.magnification + lastScale
-                    /// - Limiting Beyond 1
-                    scale = (updatedScale < 1 ? 1 : updatedScale)
-                }).onEnded({ value in
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        if scale < 1 {
-                            scale = 1
-                            lastScale = 0
-                        } else {
-                            lastScale = scale - 1
-                        }
-                    }
-                })
-        )
         .frame(cropSize)
         .clipShape(RoundedRectangle(cornerRadius: crop == .circle ? cropSize.height : crop == .cliquePfp ? 32 : 0))
     }

@@ -21,9 +21,6 @@ struct HomeFeedView: View {
     @State private var homeFeedPgVM: HomeFeedPaginationViewModel
     @State private var cliquesPgVM: UserCliquesPaginationViewModel
     
-    // Toggle for UIKit implementation
-    @AppStorage("useUIKitFeed") private var useUIKitFeed: Bool = false
-    
     //    @State private var showingHeader: Bool = true
     //    @State private var lastScrollPosition: CGFloat = 0
     @State private var headerSize: CGSize = .zero
@@ -32,7 +29,6 @@ struct HomeFeedView: View {
     //    @State private var turningPoint: CGFloat = .zero
     
     @State private var scrollID: String?
-    @State private var triggerUIKitScrollToTop: Bool = false
     
     @State private var listState: ListState = .loading
     @State private var paginationState: AdvancedListPaginationState = .idle
@@ -56,65 +52,48 @@ struct HomeFeedView: View {
             VStack(spacing: 0) {
                 Header()
                 
-                if useUIKitFeed {
-                    // UIKit implementation with optimized scrolling
-                    HomeFeedCollectionView(
-                        viewModel: homeFeedPgVM,
-                        scrollToTop: $triggerUIKitScrollToTop
-                    )
-                    .onReceive(of: .scrollToTopOfFeed) { _ in
-                        triggerUIKitScrollToTop = true
+                AdvancedList(homeFeedPgVM.items, listView: { rows in
+                    FeedList(rows: rows)
+                }, content: { feedItem in
+                    FeedItemCellView(feedItem: feedItem)
+                }, listState: listState, emptyStateView: {
+                    EmptyStateView()
+                }, errorStateView: { _ in
+                    ErrorStateView()
+                }, loadingStateView: {
+                    LoadingStateView()
+                })
+                .pagination(.init(type: .lastItem, shouldLoadNextPage: { Task { await updateHomeFeed(.loadNextPage) } }){ })
+                .maxHeight()
+                .onAppear {
+                    Task {
+                        guard listState == .loading else { return }
+                        await updateHomeFeed(.loadFirstPage)
                     }
-                    .onReceive(of: .refreshHomeFeed) { _ in
+                }
+                .refreshable {
+                    guard paginationState == .idle else { return }
+                    homeFeedPgVM.refreshing = true
+                    
+                    // Clear cache for home feed before refreshing
+                    await CacheControl.shared.refreshHomeFeed()
+                    
+                    trigger(.refreshCollectionCells, object: homeFeedPgVM.items.compactMap(\.collection?.id))
+                    
+                    DispatchQueue.main.async { // no idea
                         Task {
-                            await updateHomeFeed(.refresh)
+                            async let updateFeed: () = await updateHomeFeed(.refresh)
+                            async let updateCliques: () = await updateCliques(.refresh)
+                            
+                            _ = await (updateFeed, updateCliques)
                         }
                     }
-                } else {
-                    // Original SwiftUI implementation
-                    AdvancedList(homeFeedPgVM.items, listView: { rows in
-                        FeedList(rows: rows)
-                    }, content: { feedItem in
-                        FeedItemCellView(feedItem: feedItem)
-                    }, listState: listState, emptyStateView: {
-                        EmptyStateView()
-                    }, errorStateView: { _ in
-                        ErrorStateView()
-                    }, loadingStateView: {
-                        LoadingStateView()
-                    })
-                    .pagination(.init(type: .lastItem, shouldLoadNextPage: { Task { await updateHomeFeed(.loadNextPage) } }){ })
-                    .maxHeight()
-                    .onAppear {
-                        Task {
-                            guard listState == .loading else { return }
-                            await updateHomeFeed(.loadFirstPage)
-                        }
-                    }
-                    .refreshable {
-                        guard paginationState == .idle else { return }
-                        homeFeedPgVM.refreshing = true
-                        
-                        // Clear cache for home feed before refreshing
-                        await CacheControl.shared.refreshHomeFeed()
-                        
-                        trigger(.refreshCollectionCells, object: homeFeedPgVM.items.compactMap(\.collection?.id))
-                        
-                        DispatchQueue.main.async { // no idea
-                            Task {
-                                async let updateFeed: () = await updateHomeFeed(.refresh)
-                                async let updateCliques: () = await updateCliques(.refresh)
-                                
-                                _ = await (updateFeed, updateCliques)
-                            }
-                        }
-                        
-                        homeFeedPgVM.refreshing = false
-                    }
-                    .onReceive(of: .refreshHomeFeed) { _ in
-                        Task {
-                            await updateHomeFeed(.refresh)
-                        }
+                    
+                    homeFeedPgVM.refreshing = false
+                }
+                .onReceive(of: .refreshHomeFeed) { _ in
+                    Task {
+                        await updateHomeFeed(.refresh)
                     }
                 }
             }
