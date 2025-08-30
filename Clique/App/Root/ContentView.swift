@@ -131,8 +131,8 @@ struct ContentView: View {
                     
             case .main:
                 // Full authenticated app experience
-                MainTabView()
-                    .environment(authService)
+                 MainTabView()
+                     .environment(authService)
             }
         }
         .onAppear {
