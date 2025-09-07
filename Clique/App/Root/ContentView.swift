@@ -51,8 +51,11 @@ import SwiftUI
 struct ContentView: View {
     /// Safe area insets for proper layout in splash screen
     @Environment(\.safeAreaInsets) private var safeAreaInsets
+    @Environment(\.presentToast) private var presentToast
+   
     /// User data store for authentication state management
     @Environment(UserStore.self) private var userStore
+  
     /// Authentication service managing app state and user session
     @State private var authService: AuthService
     
@@ -133,6 +136,9 @@ struct ContentView: View {
                 // Full authenticated app experience
                  MainTabView()
                      .environment(authService)
+                     .onReceive(of: .toast404) { _ in 
+                         presentToast(Toasts.somethingWentWrong)
+                     }
             }
         }
         .onAppear {

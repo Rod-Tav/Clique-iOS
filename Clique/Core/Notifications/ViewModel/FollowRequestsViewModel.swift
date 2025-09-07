@@ -52,6 +52,21 @@ import Foundation
         }
     }
     
+    func declineFollowRequest(_ fr: FollowRequest, _ vm: FollowRequestsPaginationViewModel) async {
+        do {
+            try await UserService.declineFollowRequest(.init(path: .init(followRequestId: fr.id)))
+            
+            // Clear cache for notifications after declining follow request
+            await CacheControl.shared.refreshNotifications()
+            
+            //                AppService.decrementAppBadge()
+            
+            vm.items.removeAll(where: { $0.id == fr.id })
+        } catch {
+            trigger(.toast404)
+        }
+    }
+    
 //    func unfollow(_ uid: String, _ userStore: UserStore) {
 //        Task {
 //            do {

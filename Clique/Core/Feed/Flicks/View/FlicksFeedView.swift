@@ -178,7 +178,9 @@ struct FlicksFeedView: View {
                     AdvancedList(viewModel.items, listView: { items in
                         GridLayout(items)
                     }, content: { item in
-                        GridCell(item)
+                        if let imageUrl = collectionImageStore.images[item.flick.id]?.imageUrl {
+                            GridCell(item, urls: imageUrl)
+                        }
                     }, listState: listState, emptyStateView: {
                         EmptyStateView()
                     }, errorStateView: { _ in
@@ -294,22 +296,20 @@ struct FlicksFeedView: View {
         }
     }
     
-    @ViewBuilder private func GridCell(_ item: InfiniteFeedItem) -> some View {
-        if let image = collectionImageStore.images[item.flick.id] {
-            CollectionPreviewAsyncImage(urls: image.imageUrl, quality: .medium)
-                .overlayCollectionPreviewStats(
-                    likes: item.flick.numLikes,
-                    comments: item.flick.numComments,
-                    hasLiked: item.flick.hasLiked
-                )
-                .id(item.flick.id)
-                .contentShape(.rect)
-                .onTapGesture {
-                    gridScrollPosition = item.flick.id  // Update grid position
-                    currentFlickId = item.flick.id      // Update carousel position
-                    showGrid = false                    // Switch to carousel
-                }
-        }
+    private func GridCell(_ item: InfiniteFeedItem, urls: PhotoUrls) -> some View {
+        CollectionPreviewAsyncImage(urls: urls, quality: .medium)
+            .overlayCollectionPreviewStats(
+                likes: item.flick.numLikes,
+                comments: item.flick.numComments,
+                hasLiked: item.flick.hasLiked
+            )
+            .id(item.flick.id)
+            .contentShape(.rect)
+            .onTapGesture {
+                gridScrollPosition = item.flick.id  // Update grid position
+                currentFlickId = item.flick.id      // Update carousel position
+                showGrid = false                    // Switch to carousel
+            }
     }
     
     private func refreshFeed() {

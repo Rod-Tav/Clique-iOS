@@ -64,50 +64,7 @@ struct NotificationsCenterView: View {
             .padding(.vertical, 12)
             
             if hasInboxNotification {
-                Button {
-                    showInboxSheet = true
-                } label: {
-                    HStack(spacing: 12) {
-                        // Icon with background circle
-                        ZStack {
-                            Circle()
-                                .fill(Color.theme.cliquePink.opacity(0.3))
-                                .frame(width: 44, height: 44)
-                            
-                            IconImage("add-user", color: .theme.cliquePink, size: 24)
-                        }
-                        
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("New Requests")
-                                .font(.subheadline.weight(.semibold))
-                                .textPrimary()
-                            
-                            Text("Follow Requests and Clique Invites")
-                                .font(.caption)
-                                .textSecondary()
-                        }
-                        
-                        Spacer()
-                        
-                        // Red notification dot
-                        Circle()
-                            .fill(Color.theme.red)
-                            .frame(width: 8, height: 8)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .background(
-                        Capsule()
-                            .fill(Color.theme.cliquePink.opacity(0.1))
-                            .overlay(
-                                Capsule()
-                                    .stroke(Color.theme.cliquePink, lineWidth: 0.5)
-                            )
-                    )
-                }
-                .buttonStyle(.plain)
-                .padding(.horizontal, 16)
-                .padding(.bottom, 16)
+                inboxButton
             }
             
             AdvancedList(viewModel.items, listView: { notis in
@@ -115,11 +72,11 @@ struct NotificationsCenterView: View {
             }, content: { noti in
                 NotificationListCellView(notification: noti)
             }, listState: listState, emptyStateView: {
-                EmptyStateView()
+                emptyStateView
             }, errorStateView: { _ in
-                ErrorStateView()
+                errorStateView
             }, loadingStateView: {
-                LoadingStateView()
+                loadingStateView
             })
             .pagination(.init(type: .lastItem, shouldLoadNextPage: { Task { await updateNotis(.loadNextPage) } }) { })
             .onAppear {
@@ -163,7 +120,8 @@ struct NotificationsCenterView: View {
         }
     }
     
-    @ViewBuilder private func NotificationsList(_ notis: AdvancedList.Rows) -> some View {
+    // MARK: - Notifications List
+    private func NotificationsList(_ notis: AdvancedList.Rows) -> some View {
         ScrollView {
             LazyVStack(spacing: 16, content: notis)
         }
@@ -176,6 +134,53 @@ struct NotificationsCenterView: View {
             
             await updateNotis(.refresh)
         }
+    }
+    
+    // MARK: Inbox Button
+    private var inboxButton: some View {
+        Button {
+            showInboxSheet = true
+        } label: {
+            HStack(spacing: 12) {
+                // Icon with background circle
+                ZStack {
+                    Circle()
+                        .fill(Color.theme.cliquePink.opacity(0.3))
+                        .frame(44)
+                    
+                    IconImage("add-user", color: .theme.cliquePink, size: 24)
+                }
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("New Requests")
+                        .font(.subheadline.weight(.semibold))
+                        .textPrimary()
+                    
+                    Text("Follow Requests and Clique Invites")
+                        .font(.caption)
+                        .textSecondary()
+                }
+                
+                Spacer()
+                
+                // Red notification dot
+                Circle()
+                    .fill(Color.theme.red)
+                    .frame(8)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(
+                Capsule()
+                    .fill(Color.theme.cliquePink.opacity(0.1))
+                    .overlay(
+                        Capsule()
+                            .stroke(Color.theme.cliquePink, lineWidth: 0.5)
+                    )
+            )
+        }
+//        .padding(.horizontal, 16)
+        .padding(.bottom, 16)
     }
     
     // TODO: sorting should probably be done on our side
@@ -225,12 +230,12 @@ struct NotificationsCenterView: View {
 //}
 
 // MARK: - Pagination state views
-extension NotificationsCenterView {
-    @ViewBuilder private func EmptyStateView() -> some View {
+private extension NotificationsCenterView {
+    var emptyStateView: some View {
         NothingHereYetView()
     }
     
-    @ViewBuilder private func ErrorStateView() -> some View {
+    var errorStateView: some View {
         SomethingWentWrong {
             listState = .loading
             await updateNotis(.refresh)
@@ -239,12 +244,12 @@ extension NotificationsCenterView {
         .maxHeight()
     }
     
-    @ViewBuilder private func LoadingStateView() -> some View {
+    var loadingStateView: some View {
         CliqueProgressView()
             .infiniteFrame()
     }
     
-    private func updateNotis(_ operation: PaginationOperationType) async {
+    func updateNotis(_ operation: PaginationOperationType) async {
         await PaginationHelper.updateItems(
             operation,
             viewModel: viewModel,
