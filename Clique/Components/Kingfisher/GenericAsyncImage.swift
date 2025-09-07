@@ -1,5 +1,5 @@
 //
-//  ProgressiveAsyncImage.swift
+//  GenericAsyncImage.swift
 //  Clique
 //
 //  Created by Rod Tavangar on 3/13/25.

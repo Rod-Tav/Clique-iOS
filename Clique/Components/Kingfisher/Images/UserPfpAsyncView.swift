@@ -18,7 +18,6 @@ struct UserPfpAsyncView: View {
         if let pfp {
             GenericAsyncImage(urls: pfp, quality: quality, loadingBug: loadingBug) { image in
                 image
-                    .kfModifiers(shouldFade: quality == .high, loadingBug: loadingBug)
                     .contentConfigure { image in
                         image
                             .userPfp(size: size)
