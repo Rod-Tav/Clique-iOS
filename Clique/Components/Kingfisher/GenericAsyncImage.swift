@@ -20,6 +20,7 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
     @State private var isLowLoaded = false
     @State private var isMediumLoaded = false
     @State private var isHighLoaded = false
+    @State private var isHighFailed = false
     
     @State private var isMediumCached = false
     @State private var isHighCached = false
@@ -36,48 +37,95 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
                     .onSuccess { _ in isLowLoaded = true }
                     .onFailure { _ in isLowLoaded = true }
                 )
-                .opacity(isLowLoaded && !isMediumCached && !isHighCached ? 1 : 0)
+                .opacity(isLowLoaded && !isMediumLoaded && !isHighLoaded ? 1 : 0)
             }
             
             if quality == .medium || isMediumCached {
                 content(KFImage(urlFor(urls?.medQualityUrl))
                     .kfModifiers(shouldFade: quality == .medium, loadingBug: loadingBug)
-                    .onSuccess { _ in isMediumLoaded = true }
-                    .onFailure { _ in isMediumLoaded = true }
+                    .onSuccess { _ in 
+                        print("[GenericAsyncImage] Medium quality loaded successfully")
+                        isMediumLoaded = true 
+                    }
+                    .onFailure { error in 
+                        print("[GenericAsyncImage] Medium quality failed to load: \(error)")
+                        isMediumLoaded = true 
+                    }
                 )
-                .opacity(isMediumLoaded && !isHighCached ? 1 : 0)
+                .opacity(isMediumLoaded && (!isHighLoaded || isHighFailed) ? 1 : 0)
             }
             
             if quality == .high || isHighCached {
                 content(KFImage(urlFor(urls?.highQualityUrl))
                     .kfModifiers(shouldFade: quality == .high, loadingBug: loadingBug)
-                    .onSuccess { _ in isHighLoaded = true }
-                    .onFailure { _ in isHighLoaded = true }
+                    .onSuccess { _ in 
+                        print("[GenericAsyncImage] High quality loaded successfully")
+                        isHighLoaded = true 
+                    }
+                    .onFailure { error in 
+                        print("[GenericAsyncImage] High quality failed to load: \(error)")
+                        isHighFailed = true
+                    }
                 )
                 .opacity(isHighLoaded ? 1 : 0)
             }
         }
         .fixedSize(horizontal: shouldFixSize, vertical: shouldFixSize)
         .task {
-            // Simple cache check without blocking rendering
+            // Check cache status for all quality levels
             if let highUrlString = urls?.highQualityUrl {
                 isHighCached = await checkCache(for: highUrlString)
+                print("[GenericAsyncImage] High quality URL: \(highUrlString)")
+                print("[GenericAsyncImage] High quality cached: \(isHighCached)")
             }
             
             if let medUrlString = urls?.medQualityUrl {
                 isMediumCached = await checkCache(for: medUrlString)
+                print("[GenericAsyncImage] Medium quality URL: \(medUrlString)")
+                print("[GenericAsyncImage] Medium quality cached: \(isMediumCached)")
             }
+            
+            // For profile pictures in fullscreen: if medium is cached but we're requesting high quality,
+            // immediately show medium while high quality loads
+            if quality == .high && isMediumCached && !isHighCached {
+                print("[GenericAsyncImage] Profile Picture Optimization: Showing cached medium quality immediately")
+                isMediumLoaded = true
+            }
+            
+            // Also check for low quality as fallback if neither medium nor high is cached
+            if quality == .high && !isMediumCached && !isHighCached {
+                if let lowUrlString = urls?.lowQualityUrl {
+                    let isLowCached = await checkCache(for: lowUrlString)
+                    if isLowCached {
+                        print("[GenericAsyncImage] Profile Picture Fallback: Showing cached low quality immediately")
+                        isLowLoaded = true
+                    }
+                }
+            }
+            
+            print("[GenericAsyncImage] Quality: \(quality), Medium cached: \(isMediumCached), High cached: \(isHighCached)")
         }
     }
     
-    // Simple cache check that doesn't interfere with loading
+    // Check cache using Kingfisher's actual cache key logic
     private func checkCache(for urlString: String) async -> Bool {
-        guard let url = URL(string: urlString) else { return false }
-        // Use the base URL without query parameters for cache key
-        let cacheKey = url.absoluteString.components(separatedBy: "?").first ?? url.absoluteString
+        guard let url = URL(string: urlString) else { 
+            print("[GenericAsyncImage] Invalid URL: \(urlString)")
+            return false 
+        }
         
-        return await Task { @MainActor in
-            KingfisherManager.shared.cache.isCached(forKey: cacheKey)
+        let result = await Task { @MainActor in
+            // Use the full URL as Kingfisher does by default
+            let cached = KingfisherManager.shared.cache.isCached(forKey: url.absoluteString)
+            print("[GenericAsyncImage] Cache check for \(url.absoluteString.prefix(50))...: \(cached)")
+            
+            // Also check memory cache explicitly for better reliability
+            let memoryCached = KingfisherManager.shared.cache.imageCachedType(forKey: url.absoluteString).cached
+            print("[GenericAsyncImage] Memory cache check for \(url.absoluteString.prefix(50))...: \(memoryCached)")
+            
+            return cached || memoryCached
         }.value
+        
+        return result
     }
 }

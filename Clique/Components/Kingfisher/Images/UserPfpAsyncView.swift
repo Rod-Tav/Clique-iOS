@@ -12,13 +12,13 @@ struct UserPfpAsyncView: View {
     var pfp: PhotoUrls?
     let size: CGFloat
     let quality: ImageQuality
-    var loadingBug: Bool = false
+    var loadingBug: Bool = true
     
     var body: some View {
         if let pfp {
             GenericAsyncImage(urls: pfp, quality: quality, loadingBug: loadingBug) { image in
                 image
-                    .startLoadingBeforeViewAppear()
+                    .kfProfileModifiers(shouldFade: true, loadingBug: loadingBug, isHighQuality: quality == .high)
                     .contentConfigure { image in
                         image
                             .userPfp(size: size)
