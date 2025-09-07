@@ -115,6 +115,9 @@ struct FollowRequestsListView: View {
                                 do {
                                     try await UserService.declineFollowRequest(.init(path: .init(followRequestId: fr.id)))
                                     
+                                    // Clear cache for notifications after declining follow request
+                                    await CacheControl.shared.refreshNotifications()
+                                    
                                     AppService.decrementAppBadge()
                                     
                                     followRequestsVM.items.removeAll(where: { $0.id == fr.id })

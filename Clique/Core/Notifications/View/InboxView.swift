@@ -88,7 +88,13 @@ struct InboxView: View {
             }
             .primaryBackground()
             .onChange(of: [cliqueInvitesVM.items.count, followRequestsPaginationVM.items.count], initial: true) { _, newValue in
-                hasInboxNotification = newValue.contains { $0 > 0 }
+                // Only update to true when we have items, don't reset to false during initial loading
+                if newValue.contains(where: { $0 > 0 }) {
+                    hasInboxNotification = true
+                } else if cliquesListState != .loading && followRequestsPaginationVM.followListState != .loading {
+                    // Only set to false after we've finished loading data
+                    hasInboxNotification = false
+                }
             }
 //        }
     }
@@ -211,6 +217,9 @@ struct InboxView: View {
                                 
                                 try await CliqueService.acceptCliqueInvite(.init(path: .init(cliqueInviteId: invite.id)))
                                 
+                                // Clear cache for notifications after accepting invite
+                                await CacheControl.shared.refreshNotifications()
+                                
                                 trigger(.refreshUserCliques) // update user cliques tab
                             } catch {
                                 acceptedCliqueInviteIds.removeAll(where: { $0 == invite.id })
@@ -225,6 +234,9 @@ struct InboxView: View {
                         Task {
                             do {
                                 try await CliqueService.declineCliqueInvite(.init(path: .init(cliqueInviteId: invite.id)))
+                                
+                                // Clear cache for notifications after declining invite
+                                await CacheControl.shared.refreshNotifications()
                                 
                                 AppService.decrementAppBadge()
                                 

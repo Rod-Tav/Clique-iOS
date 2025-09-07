@@ -171,7 +171,7 @@ struct FlicksFeedView: View {
         TabNavigationStack(path: $bindableTVC.flicksNavigationPath) {
             VStack(spacing: 0) {
                 // Grid header with toggle next to title
-                GridTopBar()
+                gridTopBar
                 
                 // Use AdvancedList for proper pagination like CollectionMainView
                 ScrollViewReader { reader in
@@ -230,7 +230,8 @@ struct FlicksFeedView: View {
         }
     }
     
-    @ViewBuilder private func GridTopBar() -> some View {
+    // MARK: - Top Bar
+    private var gridTopBar: some View {
         HStack {
             Text("Flicks")
                 .font(.largeTitle.bold())
@@ -282,14 +283,13 @@ struct FlicksFeedView: View {
         .padding(.vertical, 12)
     }
     
-    @ViewBuilder private func GridLayout(_ items: AdvancedList.Rows) -> some View {
+    private func GridLayout(_ items: AdvancedList.Rows) -> some View {
         ScrollView {
             LazyVGrid(
                 columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: gridColumns),
                 spacing: 2,
                 content: items
             )
-            .padding(.horizontal, 2)
             .scrollTargetLayout()
         }
     }

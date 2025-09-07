@@ -67,21 +67,46 @@ struct NotificationsCenterView: View {
                 Button {
                     showInboxSheet = true
                 } label: {
-                    HStack(spacing: 8) {
-                        IconImage("add-user", color: .theme.iconPrimary, size: 32)
+                    HStack(spacing: 12) {
+                        // Icon with background circle
+                        ZStack {
+                            Circle()
+                                .fill(Color.theme.cliquePink.opacity(0.3))
+                                .frame(width: 44, height: 44)
+                            
+                            IconImage("add-user", color: .theme.cliquePink, size: 24)
+                        }
                         
-                        Text("Follow Requests and Clique Invites")
-                            .font(.footnote)
-                            .textPrimary()
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("New Requests")
+                                .font(.subheadline.weight(.semibold))
+                                .textPrimary()
+                            
+                            Text("Follow Requests and Clique Invites")
+                                .font(.caption)
+                                .textSecondary()
+                        }
                         
                         Spacer()
                         
-                        IconImage("dot", color: .theme.red, size: 24)
-                        
-                        IconImage("chevron-right", color: .theme.iconPrimary, size: 16)
+                        // Red notification dot
+                        Circle()
+                            .fill(Color.theme.red)
+                            .frame(width: 8, height: 8)
                     }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(
+                        Capsule()
+                            .fill(Color.theme.cliquePink.opacity(0.1))
+                            .overlay(
+                                Capsule()
+                                    .stroke(Color.theme.cliquePink, lineWidth: 0.5)
+                            )
+                    )
                 }
-                .contentShape(.rect)
+                .buttonStyle(.plain)
+                .padding(.horizontal, 16)
                 .padding(.bottom, 16)
             }
             
@@ -101,6 +126,15 @@ struct NotificationsCenterView: View {
                 Task {
                     guard listState == .loading else { return }
                     await updateNotis(.loadFirstPage)
+                }
+                
+                // Check for inbox notifications (clique invites and follow requests)
+                Task {
+                    do {
+                        hasInboxNotification = try await NotificationService.getNotificationInviteStatus(.init())
+                    } catch {
+                        hasInboxNotification = false
+                    }
                 }
             }
         }
