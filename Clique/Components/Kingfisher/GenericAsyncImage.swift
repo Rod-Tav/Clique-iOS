@@ -270,7 +270,7 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
             }
         }
         
-        print("[GenericAsyncImage] Quality: \(quality), Showing - Low: \(showLowQuality), Medium: \(showMediumQuality), High: \(showHighQuality)")
+//        print("[GenericAsyncImage] Quality: \(quality), Showing - Low: \(showLowQuality), Medium: \(showMediumQuality), High: \(showHighQuality)")
     }
     
     private func checkCache(for urlString: String) async -> Bool {
