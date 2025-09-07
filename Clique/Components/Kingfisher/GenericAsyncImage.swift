@@ -8,6 +8,12 @@
 import SwiftUI
 import Kingfisher
 
+// Cache manager for GenericAsyncImage cache check results
+enum GenericAsyncImageCache {
+    static var cacheCheckResults: [String: (Bool, Date)] = [:]
+    static let cacheResultTTL: TimeInterval = 2.0 // 2 seconds TTL
+}
+
 struct GenericAsyncImage<Content: View, Placeholder: View>: View {
     let urls: PhotoUrls?
     var quality: ImageQuality
@@ -23,8 +29,11 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
     @State private var isHighFailed = false
     
     @State private var showLowQuality = false
-    @State private var showMediumQuality = false
+    @State private var showMediumQuality = false  
     @State private var showHighQuality = false
+    
+    @State private var shouldShowCachedLow = false
+    @State private var shouldShowCachedMedium = false
     
     var body: some View {
         ZStack {
@@ -38,7 +47,7 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
                     .onSuccess { _ in isLowLoaded = true }
                     .onFailure { _ in isLowLoaded = true }
                 )
-                .opacity(isLowLoaded && !isMediumLoaded && !isHighLoaded ? 1 : 0)
+                .opacity((isLowLoaded || shouldShowCachedLow) && !isMediumLoaded && !isHighLoaded ? 1 : 0)
             }
             
             if showMediumQuality {
@@ -47,7 +56,7 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
                     .onSuccess { _ in isMediumLoaded = true }
                     .onFailure { _ in isMediumLoaded = true }
                 )
-                .opacity(isMediumLoaded && (!isHighLoaded || isHighFailed) ? 1 : 0)
+                .opacity((isMediumLoaded || shouldShowCachedMedium) && (!isHighLoaded || isHighFailed) ? 1 : 0)
             }
             
             if showHighQuality {
@@ -103,7 +112,7 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
             // Show low quality fallback if medium not cached
             if !isMediumCached && isLowCached {
                 showLowQuality = true
-                isLowLoaded = true // Show it immediately
+                shouldShowCachedLow = true // Show cached immediately, but let onSuccess set isLoaded
             }
             
         case .high:
@@ -112,10 +121,10 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
             if !isHighCached {
                 if isMediumCached {
                     showMediumQuality = true
-                    isMediumLoaded = true // Show it immediately
+                    shouldShowCachedMedium = true // Show cached immediately
                 } else if isLowCached {
                     showLowQuality = true
-                    isLowLoaded = true // Show it immediately
+                    shouldShowCachedLow = true // Show cached immediately
                 }
             }
         }
@@ -123,12 +132,25 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
         print("[GenericAsyncImage] Quality: \(quality), Showing - Low: \(showLowQuality), Medium: \(showMediumQuality), High: \(showHighQuality)")
     }
     
-    // Fast cache check using Kingfisher's cache key logic
+    // Fast cache check using Kingfisher's proper cache key with result caching
     private func checkCache(for urlString: String) async -> Bool {
+        // Check cached result first
+        if let (cachedResult, timestamp) = GenericAsyncImageCache.cacheCheckResults[urlString],
+           Date().timeIntervalSince(timestamp) < GenericAsyncImageCache.cacheResultTTL {
+            return cachedResult
+        }
+        
         guard let url = URL(string: urlString) else { return false }
         
-        return await Task { @MainActor in
-            KingfisherManager.shared.cache.isCached(forKey: url.absoluteString)
+        let result = await Task { @MainActor in
+            // Use Kingfisher's proper cache key generation
+            let resource = KF.ImageResource(downloadURL: url)
+            return KingfisherManager.shared.cache.isCached(forKey: resource.cacheKey)
         }.value
+        
+        // Cache the result
+        GenericAsyncImageCache.cacheCheckResults[urlString] = (result, Date())
+        
+        return result
     }
 }
