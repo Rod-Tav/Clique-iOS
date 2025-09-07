@@ -14,13 +14,19 @@ final class GenericAsyncImageCacheManager: ObservableObject {
     static let shared = GenericAsyncImageCacheManager()
     
     private var cacheCheckResults: [String: (Bool, Date)] = [:]
+    private var pendingChecks: [String: Task<Bool, Never>] = [:] // Prevent race conditions
     private let cacheResultTTL: TimeInterval = 2.0 // 2 seconds TTL
     private let maxCacheSize = 100 // Prevent unbounded growth
     private var lastCleanupTime: Date = Date()
     private let cleanupInterval: TimeInterval = 30.0 // Cleanup every 30 seconds
+    private var cleanupTimer: Timer? // Store timer reference for proper cleanup
     
     private init() {
         setupCleanupTimer()
+    }
+    
+    deinit {
+        cleanupTimer?.invalidate()
     }
     
     func getCachedResult(for url: String) -> Bool? {
@@ -41,6 +47,16 @@ final class GenericAsyncImageCacheManager: ObservableObject {
         }
         
         cacheCheckResults[url] = (result, Date())
+        pendingChecks[url] = nil // Remove from pending after completion
+    }
+    
+    // Get or create a cache check task to prevent race conditions
+    func getCacheCheckTask(for url: String) -> Task<Bool, Never>? {
+        return pendingChecks[url]
+    }
+    
+    func setPendingCacheCheck(for url: String, task: Task<Bool, Never>) {
+        pendingChecks[url] = task
     }
     
     private func cleanupIfNeeded() {
@@ -59,8 +75,8 @@ final class GenericAsyncImageCacheManager: ObservableObject {
     }
     
     private func setupCleanupTimer() {
-        // Background cleanup timer
-        Timer.scheduledTimer(withTimeInterval: cleanupInterval, repeats: true) { [weak self] _ in
+        // Store timer reference for proper lifecycle management
+        cleanupTimer = Timer.scheduledTimer(withTimeInterval: cleanupInterval, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.cleanupExpiredEntries()
             }
@@ -81,6 +97,7 @@ final class GenericAsyncImageCacheManager: ObservableObject {
     // Clear cache when app backgrounds to free memory
     func clearCache() {
         cacheCheckResults.removeAll()
+        pendingChecks.removeAll() // Clear pending operations too
     }
 }
 
@@ -197,30 +214,33 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
     
     @MainActor
     private func determineQualityLevelsToShow() async {
-        // Batch cache checks to minimize async overhead
-        let cacheResults = await withTaskGroup(of: (String, Bool).self) { group in
-            var results: [String: Bool] = [:]
-            
-            if let highUrl = urls?.highQualityUrl {
-                group.addTask { ("high", await self.checkCache(for: highUrl)) }
-            }
-            if let medUrl = urls?.medQualityUrl {
-                group.addTask { ("medium", await self.checkCache(for: medUrl)) }
-            }
-            if let lowUrl = urls?.lowQualityUrl {
-                group.addTask { ("low", await self.checkCache(for: lowUrl)) }
-            }
-            
-            for await (qualityKey, isCached) in group {
-                results[qualityKey] = isCached
-            }
-            
-            return results
-        }
+        // Use async let for better performance with 1-3 URLs instead of TaskGroup overhead
+        let urls = self.urls
         
-        let isHighCached = cacheResults["high"] ?? false
-        let isMediumCached = cacheResults["medium"] ?? false
-        let isLowCached = cacheResults["low"] ?? false
+        async let highCached: Bool = {
+            if let url = urls?.highQualityUrl {
+                return await checkCache(for: url)
+            }
+            return false
+        }()
+        
+        async let mediumCached: Bool = {
+            if let url = urls?.medQualityUrl {
+                return await checkCache(for: url)  
+            }
+            return false
+        }()
+        
+        async let lowCached: Bool = {
+            if let url = urls?.lowQualityUrl {
+                return await checkCache(for: url)
+            }
+            return false
+        }()
+        
+        let isHighCached = await highCached
+        let isMediumCached = await mediumCached
+        let isLowCached = await lowCached
         
         // Set cached flags for immediate display
         hasCachedLow = isLowCached
@@ -259,13 +279,29 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
             return cachedResult
         }
         
+        // Check for existing pending operation to prevent race conditions
+        if let existingTask = cacheManager.getCacheCheckTask(for: urlString) {
+            return await existingTask.value
+        }
+        
         guard let url = URL(string: urlString) else { return false }
         
-        let result = await Task { @MainActor in
-            // Use Kingfisher's proper cache key generation
+        // Create and store task to prevent duplicate checks
+        let task = Task<Bool, Never> { @MainActor in
+            // Use Kingfisher's proper cache key generation with fallback
             let resource = KF.ImageResource(downloadURL: url)
-            return KingfisherManager.shared.cache.isCached(forKey: resource.cacheKey)
-        }.value
+            let isCached = KingfisherManager.shared.cache.isCached(forKey: resource.cacheKey)
+            
+            // Also check with simple URL string as fallback in case Kingfisher's key generation changes
+            if !isCached {
+                return KingfisherManager.shared.cache.isCached(forKey: urlString)
+            }
+            
+            return isCached
+        }
+        
+        cacheManager.setPendingCacheCheck(for: urlString, task: task)
+        let result = await task.value
         
         // Cache the result using instance-based manager
         cacheManager.setCachedResult(for: urlString, result: result)
