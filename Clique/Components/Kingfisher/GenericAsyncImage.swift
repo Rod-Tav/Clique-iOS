@@ -8,15 +8,24 @@
 import SwiftUI
 import Kingfisher
 
-// Thread-safe cache manager for GenericAsyncImage cache check results
+// Instance-based cache manager for GenericAsyncImage cache check results
 @MainActor
-enum GenericAsyncImageCache {
-    private static var cacheCheckResults: [String: (Bool, Date)] = [:]
-    private static let cacheResultTTL: TimeInterval = 2.0 // 2 seconds TTL
-    private static let maxCacheSize = 100 // Prevent unbounded growth
+final class GenericAsyncImageCacheManager: ObservableObject {
+    static let shared = GenericAsyncImageCacheManager()
     
-    static func getCachedResult(for url: String) -> Bool? {
-        cleanupExpiredEntries()
+    private var cacheCheckResults: [String: (Bool, Date)] = [:]
+    private let cacheResultTTL: TimeInterval = 2.0 // 2 seconds TTL
+    private let maxCacheSize = 100 // Prevent unbounded growth
+    private var lastCleanupTime: Date = Date()
+    private let cleanupInterval: TimeInterval = 30.0 // Cleanup every 30 seconds
+    
+    private init() {
+        setupCleanupTimer()
+    }
+    
+    func getCachedResult(for url: String) -> Bool? {
+        // Lazy cleanup - only when needed and not too frequently
+        cleanupIfNeeded()
         
         if let (cachedResult, timestamp) = cacheCheckResults[url],
            Date().timeIntervalSince(timestamp) < cacheResultTTL {
@@ -25,24 +34,53 @@ enum GenericAsyncImageCache {
         return nil
     }
     
-    static func setCachedResult(for url: String, result: Bool) {
+    func setCachedResult(for url: String, result: Bool) {
         // Prevent unbounded growth
         if cacheCheckResults.count >= maxCacheSize {
-            // Remove oldest entries (simple cleanup - could be improved with LRU)
-            let now = Date()
-            cacheCheckResults = cacheCheckResults.filter { 
-                now.timeIntervalSince($0.value.1) < cacheResultTTL 
-            }
+            cleanupExpiredEntries()
         }
         
         cacheCheckResults[url] = (result, Date())
     }
     
-    private static func cleanupExpiredEntries() {
+    private func cleanupIfNeeded() {
+        let now = Date()
+        if now.timeIntervalSince(lastCleanupTime) > cleanupInterval {
+            cleanupExpiredEntries()
+            lastCleanupTime = now
+        }
+    }
+    
+    private func cleanupExpiredEntries() {
         let now = Date()
         cacheCheckResults = cacheCheckResults.filter { 
             now.timeIntervalSince($0.value.1) < cacheResultTTL 
         }
+    }
+    
+    private func setupCleanupTimer() {
+        // Background cleanup timer
+        Timer.scheduledTimer(withTimeInterval: cleanupInterval, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.cleanupExpiredEntries()
+            }
+        }
+        
+        // Clear cache when app backgrounds to free memory
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.didEnterBackgroundNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.clearCache()
+            }
+        }
+    }
+    
+    // Clear cache when app backgrounds to free memory
+    func clearCache() {
+        cacheCheckResults.removeAll()
     }
 }
 
@@ -55,34 +93,48 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
     let content: (KFImage) -> Content
     @ViewBuilder var placeholder: Placeholder
     
-    @State private var isLowLoaded = false
-    @State private var isMediumLoaded = false
-    @State private var isHighLoaded = false
-    @State private var isHighFailed = false
+    // MARK: - State Machine
+    
+    enum LoadingState {
+        case notStarted
+        case loading
+        case loaded
+        case failed
+    }
+    
+    @State private var lowQualityState: LoadingState = .notStarted
+    @State private var mediumQualityState: LoadingState = .notStarted
+    @State private var highQualityState: LoadingState = .notStarted
     
     @State private var showLowQuality = false
     @State private var showMediumQuality = false  
     @State private var showHighQuality = false
     
-    @State private var shouldShowCachedLow = false
-    @State private var shouldShowCachedMedium = false
+    @State private var hasCachedLow = false
+    @State private var hasCachedMedium = false
+    
+    private let cacheManager = GenericAsyncImageCacheManager.shared
     
     // MARK: - Computed Properties for Clean State Logic
     
     private var shouldShowPlaceholder: Bool {
-        !(isLowLoaded || isMediumLoaded || isHighLoaded)
+        lowQualityState != .loaded && mediumQualityState != .loaded && highQualityState != .loaded &&
+        !hasCachedLow && !hasCachedMedium
     }
     
     private var shouldShowLowQuality: Bool {
-        (isLowLoaded || shouldShowCachedLow) && !isMediumLoaded && !isHighLoaded
+        (lowQualityState == .loaded || hasCachedLow) && 
+        mediumQualityState != .loaded && 
+        highQualityState != .loaded
     }
     
     private var shouldShowMediumQuality: Bool {
-        (isMediumLoaded || shouldShowCachedMedium) && (!isHighLoaded || isHighFailed)
+        (mediumQualityState == .loaded || hasCachedMedium) && 
+        (highQualityState != .loaded || highQualityState == .failed)
     }
     
     private var shouldShowHighQuality: Bool {
-        isHighLoaded
+        highQualityState == .loaded
     }
     
     var body: some View {
@@ -92,28 +144,31 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
             
             // Only create KFImage views that we actually need
             if showLowQuality {
-                content(KFImage(urlFor(urls?.lowQualityUrl))
-                    .kfModifiers(shouldFade: false, loadingBug: loadingBug) // Never fade fallback quality
-                    .onSuccess { _ in isLowLoaded = true }
-                    .onFailure { _ in isLowLoaded = true }
+                qualityImageView(
+                    url: urls?.lowQualityUrl,
+                    shouldFade: false, // Never fade fallback quality
+                    onSuccess: { lowQualityState = .loaded },
+                    onFailure: { lowQualityState = .failed }
                 )
                 .opacity(shouldShowLowQuality ? 1 : 0)
             }
             
             if showMediumQuality {
-                content(KFImage(urlFor(urls?.medQualityUrl))
-                    .kfModifiers(shouldFade: quality == .medium, loadingBug: loadingBug)
-                    .onSuccess { _ in isMediumLoaded = true }
-                    .onFailure { _ in isMediumLoaded = true }
+                qualityImageView(
+                    url: urls?.medQualityUrl,
+                    shouldFade: quality == .medium,
+                    onSuccess: { mediumQualityState = .loaded },
+                    onFailure: { mediumQualityState = .failed }
                 )
                 .opacity(shouldShowMediumQuality ? 1 : 0)
             }
             
             if showHighQuality {
-                content(KFImage(urlFor(urls?.highQualityUrl))
-                    .kfModifiers(shouldFade: quality == .high, loadingBug: loadingBug)
-                    .onSuccess { _ in isHighLoaded = true }
-                    .onFailure { _ in isHighFailed = true }
+                qualityImageView(
+                    url: urls?.highQualityUrl,
+                    shouldFade: quality == .high,
+                    onSuccess: { highQualityState = .loaded },
+                    onFailure: { highQualityState = .failed }
                 )
                 .opacity(shouldShowHighQuality ? 1 : 0)
             }
@@ -124,7 +179,22 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
         }
     }
     
-    // Efficiently determine which quality levels to show based on cache status
+    // MARK: - Helper Methods
+    
+    @ViewBuilder
+    private func qualityImageView(
+        url: String?,
+        shouldFade: Bool,
+        onSuccess: @escaping () -> Void,
+        onFailure: @escaping () -> Void
+    ) -> some View {
+        content(KFImage(urlFor(url))
+            .kfModifiers(shouldFade: shouldFade, loadingBug: loadingBug)
+            .onSuccess { _ in onSuccess() }
+            .onFailure { _ in onFailure() }
+        )
+    }
+    
     @MainActor
     private func determineQualityLevelsToShow() async {
         // Batch cache checks to minimize async overhead
@@ -152,6 +222,10 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
         let isMediumCached = cacheResults["medium"] ?? false
         let isLowCached = cacheResults["low"] ?? false
         
+        // Set cached flags for immediate display
+        hasCachedLow = isLowCached
+        hasCachedMedium = isMediumCached
+        
         // Determine what to show based on requested quality and cache status
         switch quality {
         case .low:
@@ -162,7 +236,6 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
             // Show low quality fallback if medium not cached
             if !isMediumCached && isLowCached {
                 showLowQuality = true
-                shouldShowCachedLow = true // Show cached immediately, but let onSuccess set isLoaded
             }
             
         case .high:
@@ -171,10 +244,8 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
             if !isHighCached {
                 if isMediumCached {
                     showMediumQuality = true
-                    shouldShowCachedMedium = true // Show cached immediately
                 } else if isLowCached {
                     showLowQuality = true
-                    shouldShowCachedLow = true // Show cached immediately
                 }
             }
         }
@@ -182,10 +253,9 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
         print("[GenericAsyncImage] Quality: \(quality), Showing - Low: \(showLowQuality), Medium: \(showMediumQuality), High: \(showHighQuality)")
     }
     
-    // Fast cache check using Kingfisher's proper cache key with thread-safe result caching
     private func checkCache(for urlString: String) async -> Bool {
         // Check cached result first
-        if let cachedResult = GenericAsyncImageCache.getCachedResult(for: urlString) {
+        if let cachedResult = cacheManager.getCachedResult(for: urlString) {
             return cachedResult
         }
         
@@ -197,8 +267,8 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
             return KingfisherManager.shared.cache.isCached(forKey: resource.cacheKey)
         }.value
         
-        // Cache the result using thread-safe manager
-        GenericAsyncImageCache.setCachedResult(for: urlString, result: result)
+        // Cache the result using instance-based manager
+        cacheManager.setCachedResult(for: urlString, result: result)
         
         return result
     }
