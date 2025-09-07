@@ -8,10 +8,42 @@
 import SwiftUI
 import Kingfisher
 
-// Cache manager for GenericAsyncImage cache check results
+// Thread-safe cache manager for GenericAsyncImage cache check results
+@MainActor
 enum GenericAsyncImageCache {
-    static var cacheCheckResults: [String: (Bool, Date)] = [:]
-    static let cacheResultTTL: TimeInterval = 2.0 // 2 seconds TTL
+    private static var cacheCheckResults: [String: (Bool, Date)] = [:]
+    private static let cacheResultTTL: TimeInterval = 2.0 // 2 seconds TTL
+    private static let maxCacheSize = 100 // Prevent unbounded growth
+    
+    static func getCachedResult(for url: String) -> Bool? {
+        cleanupExpiredEntries()
+        
+        if let (cachedResult, timestamp) = cacheCheckResults[url],
+           Date().timeIntervalSince(timestamp) < cacheResultTTL {
+            return cachedResult
+        }
+        return nil
+    }
+    
+    static func setCachedResult(for url: String, result: Bool) {
+        // Prevent unbounded growth
+        if cacheCheckResults.count >= maxCacheSize {
+            // Remove oldest entries (simple cleanup - could be improved with LRU)
+            let now = Date()
+            cacheCheckResults = cacheCheckResults.filter { 
+                now.timeIntervalSince($0.value.1) < cacheResultTTL 
+            }
+        }
+        
+        cacheCheckResults[url] = (result, Date())
+    }
+    
+    private static func cleanupExpiredEntries() {
+        let now = Date()
+        cacheCheckResults = cacheCheckResults.filter { 
+            now.timeIntervalSince($0.value.1) < cacheResultTTL 
+        }
+    }
 }
 
 struct GenericAsyncImage<Content: View, Placeholder: View>: View {
@@ -35,10 +67,28 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
     @State private var shouldShowCachedLow = false
     @State private var shouldShowCachedMedium = false
     
+    // MARK: - Computed Properties for Clean State Logic
+    
+    private var shouldShowPlaceholder: Bool {
+        !(isLowLoaded || isMediumLoaded || isHighLoaded)
+    }
+    
+    private var shouldShowLowQuality: Bool {
+        (isLowLoaded || shouldShowCachedLow) && !isMediumLoaded && !isHighLoaded
+    }
+    
+    private var shouldShowMediumQuality: Bool {
+        (isMediumLoaded || shouldShowCachedMedium) && (!isHighLoaded || isHighFailed)
+    }
+    
+    private var shouldShowHighQuality: Bool {
+        isHighLoaded
+    }
+    
     var body: some View {
         ZStack {
             placeholder
-                .opacity(!(isLowLoaded || isMediumLoaded || isHighLoaded) ? 1 : 0)
+                .opacity(shouldShowPlaceholder ? 1 : 0)
             
             // Only create KFImage views that we actually need
             if showLowQuality {
@@ -47,7 +97,7 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
                     .onSuccess { _ in isLowLoaded = true }
                     .onFailure { _ in isLowLoaded = true }
                 )
-                .opacity((isLowLoaded || shouldShowCachedLow) && !isMediumLoaded && !isHighLoaded ? 1 : 0)
+                .opacity(shouldShowLowQuality ? 1 : 0)
             }
             
             if showMediumQuality {
@@ -56,7 +106,7 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
                     .onSuccess { _ in isMediumLoaded = true }
                     .onFailure { _ in isMediumLoaded = true }
                 )
-                .opacity((isMediumLoaded || shouldShowCachedMedium) && (!isHighLoaded || isHighFailed) ? 1 : 0)
+                .opacity(shouldShowMediumQuality ? 1 : 0)
             }
             
             if showHighQuality {
@@ -65,7 +115,7 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
                     .onSuccess { _ in isHighLoaded = true }
                     .onFailure { _ in isHighFailed = true }
                 )
-                .opacity(isHighLoaded ? 1 : 0)
+                .opacity(shouldShowHighQuality ? 1 : 0)
             }
         }
         .fixedSize(horizontal: shouldFixSize, vertical: shouldFixSize)
@@ -132,11 +182,10 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
         print("[GenericAsyncImage] Quality: \(quality), Showing - Low: \(showLowQuality), Medium: \(showMediumQuality), High: \(showHighQuality)")
     }
     
-    // Fast cache check using Kingfisher's proper cache key with result caching
+    // Fast cache check using Kingfisher's proper cache key with thread-safe result caching
     private func checkCache(for urlString: String) async -> Bool {
         // Check cached result first
-        if let (cachedResult, timestamp) = GenericAsyncImageCache.cacheCheckResults[urlString],
-           Date().timeIntervalSince(timestamp) < GenericAsyncImageCache.cacheResultTTL {
+        if let cachedResult = GenericAsyncImageCache.getCachedResult(for: urlString) {
             return cachedResult
         }
         
@@ -148,8 +197,8 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
             return KingfisherManager.shared.cache.isCached(forKey: resource.cacheKey)
         }.value
         
-        // Cache the result
-        GenericAsyncImageCache.cacheCheckResults[urlString] = (result, Date())
+        // Cache the result using thread-safe manager
+        GenericAsyncImageCache.setCachedResult(for: urlString, result: result)
         
         return result
     }
