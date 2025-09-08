@@ -110,7 +110,7 @@ extension EnterCodeScreen {
                 if !userExists {
                     coordinator.currentIconStep += 1
                     coordinator.highlightNextBar = false
-                    coordinator.path.append(2.0)
+                    coordinator.path.append(2.1)
                 } // else they are signed in since userSession was set in verifyCode
             }
         } else {

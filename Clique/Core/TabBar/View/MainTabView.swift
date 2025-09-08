@@ -290,6 +290,9 @@ struct MainTabView: View {
         .onAppear {
             checkNotifications()
             
+            // Also trigger inbox notification check for clique invites and follow requests
+            trigger(.checkInboxNotifications)
+            
             if userStore.currentUserId != "cad46bda-7c82-4684-a95d-bed84f88dcc1" {
                 AppService.isUpdateAvailable { result in
                     showUpdateAlert = result
@@ -317,6 +320,8 @@ struct MainTabView: View {
         }
         .onReceive(of: .checkNotifications) { _ in
             checkNotifications()
+            // Also check inbox notifications
+            trigger(.checkInboxNotifications)
         }
         .onReceive(NotificationCenter.default.publisher(for: .didReceiveDeviceToken)) { notification in
             Task {
@@ -337,13 +342,16 @@ struct MainTabView: View {
     private func checkNotifications() {
         Task {
             do {
-                let hasNoti = try await NotificationService.getNotificationStatus(.init())
-                if !hasNoti {
+                let hasGeneralNoti = try await NotificationService.getNotificationStatus(.init())
+                let hasInviteNoti = try await NotificationService.getNotificationInviteStatus(.init())
+                let hasAnyNoti = hasGeneralNoti || hasInviteNoti
+                
+                if !hasAnyNoti {
                     DispatchQueue.main.async {
                         UNUserNotificationCenter.current().setBadgeCount(0)
                     }
                 }
-                tabViewCoordinator.hasNotification = hasNoti
+                tabViewCoordinator.hasNotification = hasAnyNoti
             } catch {
                 tabViewCoordinator.hasNotification = false
             }

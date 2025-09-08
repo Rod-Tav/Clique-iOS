@@ -11,7 +11,12 @@ struct WhatsNewView: View {
     @Binding var isPresented: Bool
     
     private let releases: [(version: String, changes: [String])] = [
-        ("1.6.3 – August 29, 2025", [
+        ("1.6.4 – September 9, 2025", [
+            "Inbox notifications bug fix",
+            "Image performance improvements"
+        ]),
+        ("1.6.3 – August 30, 2025", [
+            "Grid view for flicks feed",
             "Design fixes and performance improvements"
         ]),
         ("1.6.2 – August 28, 2025", [

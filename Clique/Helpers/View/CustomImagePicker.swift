@@ -120,7 +120,8 @@ struct CropView: View {
     @State private var lastStoredOffset: CGSize = .zero
     @State private var zoomAnchor: UnitPoint = .center
     @State private var isZooming: Bool = false
-    @GestureState private var isInteracting: Bool = false
+    @State private var isInteracting: Bool = false
+    @GestureState private var isDragging: Bool = false
     
     let crop: Crop
     let image: UIImage?
