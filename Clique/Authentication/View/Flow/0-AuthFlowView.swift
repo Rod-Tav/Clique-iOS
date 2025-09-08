@@ -48,8 +48,6 @@ struct AuthFlowView: View {
                     Group {
                         if dest == 1.1 {
                             EnterCodeScreen()
-                        } else if dest == 2 {
-                            EnterBirthdayScreen()
                         } else if dest == 2.1 {
                             EnterNameScreen()
                         } else if dest == 2.2 {

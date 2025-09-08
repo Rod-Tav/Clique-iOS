@@ -60,6 +60,10 @@ extension CacheControl {
     }
     
     func refreshNotifications() async {
-        await invalidate(patterns: ["/notification"])
+        await invalidate(patterns: [
+            "/notification",
+            "/user/followRequests",
+            "/clique/invites"
+        ])
     }
 }

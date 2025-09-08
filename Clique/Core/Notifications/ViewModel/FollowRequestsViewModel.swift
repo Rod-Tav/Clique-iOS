@@ -22,6 +22,9 @@ import Foundation
                 if userStore.users[fr.fromUser.id]?.relationship != nil {
                     try await UserService.acceptFollowRequest(.init(path: .init(followRequestId: fr.id)))
                     
+                    // Clear cache for notifications after accepting follow request
+                    await CacheControl.shared.refreshNotifications()
+                    
                     userStore.users[userStore.currentUserId!]?.numFollowers += 1
                     
 //                    relationships[fr.fromUser.id] = relationship
@@ -29,6 +32,9 @@ import Foundation
                     print("rel is nil")
                     // TODO: Run both tasks in parallel
                     try await UserService.acceptFollowRequest(.init(path: .init(followRequestId: fr.id)))
+                    
+                    // Clear cache for notifications after accepting follow request
+                    await CacheControl.shared.refreshNotifications()
                     
                     let relationship = try await UserService.getFollowStatus(input: .init(path: .init(userId: fr.fromUser.id)))
                     
@@ -43,6 +49,21 @@ import Foundation
                 acceptButtonLoadings[fr.id] = false
                 triggerPresentToast.toggle()
             }
+        }
+    }
+    
+    func declineFollowRequest(_ fr: FollowRequest, _ vm: FollowRequestsPaginationViewModel) async {
+        do {
+            try await UserService.declineFollowRequest(.init(path: .init(followRequestId: fr.id)))
+            
+            // Clear cache for notifications after declining follow request
+            await CacheControl.shared.refreshNotifications()
+            
+            //                AppService.decrementAppBadge()
+            
+            vm.items.removeAll(where: { $0.id == fr.id })
+        } catch {
+            trigger(.toast404)
         }
     }
     

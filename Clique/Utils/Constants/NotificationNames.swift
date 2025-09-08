@@ -108,4 +108,7 @@ extension Notification.Name {
     
     /// Triggers camera reset
     static let cameraReset = Notification.Name("cameraReset")
+    
+    /// Triggers present "something went wrong" toast
+    static let toast404 = Notification.Name("toast404")
 }

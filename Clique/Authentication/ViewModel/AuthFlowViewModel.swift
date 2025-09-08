@@ -19,7 +19,6 @@ enum AuthFlowType {
     var countryCode: String = "US"
     var phone: String = ""
     var phoneCode: String = ""
-    var birthday: Date = Date()
     var firstName: String = ""
     var lastName: String = ""
     var username: String = ""
@@ -96,7 +95,6 @@ enum AuthFlowType {
         countryCode = "US"
         phone = ""
         phoneCode = ""
-        birthday = Date()
         firstName = ""
         lastName = ""
         username = ""
@@ -109,7 +107,6 @@ enum AuthFlowType {
 
 enum AuthEntryType {
     case phone
-    case birthday
     case name
     case username
 }

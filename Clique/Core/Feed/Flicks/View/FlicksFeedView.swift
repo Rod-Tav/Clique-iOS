@@ -171,14 +171,16 @@ struct FlicksFeedView: View {
         TabNavigationStack(path: $bindableTVC.flicksNavigationPath) {
             VStack(spacing: 0) {
                 // Grid header with toggle next to title
-                GridTopBar()
+                gridTopBar
                 
                 // Use AdvancedList for proper pagination like CollectionMainView
                 ScrollViewReader { reader in
                     AdvancedList(viewModel.items, listView: { items in
                         GridLayout(items)
                     }, content: { item in
-                        GridCell(item)
+                        if let imageUrl = collectionImageStore.images[item.flick.id]?.imageUrl {
+                            GridCell(item, urls: imageUrl)
+                        }
                     }, listState: listState, emptyStateView: {
                         EmptyStateView()
                     }, errorStateView: { _ in
@@ -230,86 +232,71 @@ struct FlicksFeedView: View {
         }
     }
     
-    @ViewBuilder private func GridTopBar() -> some View {
-        HStack {
-            Text("Flicks")
-                .font(.largeTitle.bold())
-                .textPrimary()
-            
-            // Toggle button right next to title
-//            Button {
-//                showGrid = false
-//                // Ensure we have a valid current flick when switching to carousel
-//                if currentFlickId == nil && !viewModel.items.isEmpty {
-//                    currentFlickId = viewModel.items.first?.id
-//                }
-//            } label: {
-//                IconImage("strip", color: .theme.iconPrimary, size: 24)
-//            }
-            
-            Spacer()
-            
-            // Column selector menu on the right
-            Menu {
-                ForEach([2, 3, 4], id: \.self) { count in
-                    Button {
-                        gridColumns = count
-                    } label: {
-                        HStack {
-                            Text("\(count) columns")
-                            if gridColumns == count {
-                                Spacer()
-                                Image(systemName: "checkmark")
+    // MARK: - Top Bar
+    private var gridTopBar: some View {
+        TopAppBar(
+            type: .medium,
+            leadingIcon: { },
+            header: { HeaderTextStar("Flicks") },
+            trailingIcon: {
+                Menu {
+                    ForEach([2, 3, 4], id: \.self) { count in
+                        Button {
+                            gridColumns = count
+                        } label: {
+                            HStack {
+                                Text("\(count) columns")
+                                if gridColumns == count {
+                                    Spacer()
+                                    Image(systemName: "checkmark")
+                                }
                             }
                         }
                     }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "square.grid.3x3")
+                            .font(.callout)
+                        Image(systemName: "chevron.down")
+                            .font(.caption2)
+                    }
+                    .textSecondary()
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.theme.textSecondary.opacity(0.1))
+                    .roundCorners(6)
                 }
-            } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: "square.grid.3x3")
-                        .font(.callout)
-                    Image(systemName: "chevron.down")
-                        .font(.caption2)
-                }
-                .foregroundStyle(Color.theme.textSecondary)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(Color.theme.textSecondary.opacity(0.1))
-                .clipShape(RoundedRectangle(cornerRadius: 6))
             }
-        }
-        .padding(.horizontal, 16)
+        )
         .padding(.vertical, 12)
+        .padding(.horizontal, 16)
     }
     
-    @ViewBuilder private func GridLayout(_ items: AdvancedList.Rows) -> some View {
+    private func GridLayout(_ items: AdvancedList.Rows) -> some View {
         ScrollView {
             LazyVGrid(
                 columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: gridColumns),
                 spacing: 2,
                 content: items
             )
-            .padding(.horizontal, 2)
             .scrollTargetLayout()
         }
     }
     
-    @ViewBuilder private func GridCell(_ item: InfiniteFeedItem) -> some View {
-        if let image = collectionImageStore.images[item.flick.id] {
-            CollectionPreviewAsyncImage(urls: image.imageUrl, quality: .medium)
-                .overlayCollectionPreviewStats(
-                    likes: item.flick.numLikes,
-                    comments: item.flick.numComments,
-                    hasLiked: item.flick.hasLiked
-                )
-                .id(item.flick.id)
-                .contentShape(.rect)
-                .onTapGesture {
-                    gridScrollPosition = item.flick.id  // Update grid position
-                    currentFlickId = item.flick.id      // Update carousel position
-                    showGrid = false                    // Switch to carousel
-                }
-        }
+    private func GridCell(_ item: InfiniteFeedItem, urls: PhotoUrls) -> some View {
+        CollectionPreviewAsyncImage(urls: urls, quality: .medium)
+            .overlayCollectionPreviewStats(
+                likes: item.flick.numLikes,
+                comments: item.flick.numComments,
+                hasLiked: item.flick.hasLiked
+            )
+            .id(item.flick.id)
+            .contentShape(.rect)
+            .onTapGesture {
+                gridScrollPosition = item.flick.id  // Update grid position
+                currentFlickId = item.flick.id      // Update carousel position
+                showGrid = false                    // Switch to carousel
+            }
     }
     
     private func refreshFeed() {

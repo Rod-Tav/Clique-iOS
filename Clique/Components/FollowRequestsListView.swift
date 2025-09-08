@@ -112,15 +112,7 @@ struct FollowRequestsListView: View {
                     Menu {
                         Button {
                             Task {
-                                do {
-                                    try await UserService.declineFollowRequest(.init(path: .init(followRequestId: fr.id)))
-                                    
-                                    AppService.decrementAppBadge()
-                                    
-                                    followRequestsVM.items.removeAll(where: { $0.id == fr.id })
-                                } catch {
-                                    presentToast(Toasts.somethingWentWrong)
-                                }
+                                await viewModel.declineFollowRequest(fr, followRequestsVM)
                             }
                         } label: {
                             Text("Decline")

@@ -275,72 +275,14 @@ struct CliqueApp: App {
         // Schedule next refresh immediately to maintain cadence
         CliqueApp.scheduleBackgroundFeedRefresh()
         
-        Task {
-            await refreshFeed() // Home Feed Refresh
-            // await refreshCliqueHubFeed() // Future: Clique Hub Feed Refresh
-            task.setTaskCompleted(success: true)
-        }
+        
+        trigger(.refreshHomeFeed)
+        task.setTaskCompleted(success: true)
         
         // Handle system forcing task completion
         task.expirationHandler = {
             task.setTaskCompleted(success: false)
         }
-    }
-    
-    /// Utility method to access SwiftUI views from background contexts.
-    ///
-    /// This method traverses the UIKit view hierarchy to find SwiftUI views
-    /// that need to be accessed from background tasks or other non-UI contexts.
-    /// It's primarily used for triggering data refreshes in specific views.
-    ///
-    /// ## How It Works
-    /// 1. **Find Scenes**: Locate all connected window scenes
-    /// 2. **Get Windows**: Extract windows from each scene
-    /// 3. **Find Controllers**: Look for UIHostingController instances
-    /// 4. **Extract Views**: Return the SwiftUI view if found
-    ///
-    /// ## Usage Example
-    /// ```swift
-    /// // Access a specific view for background refresh
-    /// if let homeFeed = getRootView(of: HomeFeedView.self) {
-    ///     await homeFeed.updateHomeFeed(.refresh)
-    /// }
-    /// ```
-    ///
-    /// - Parameter type: The SwiftUI view type to locate
-    /// - Returns: The view instance if found, nil otherwise
-    /// - Note: This is a bridge between UIKit app lifecycle and SwiftUI views
-    private func getRootView<T: View>(of type: T.Type) -> T? {
-        return UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .flatMap { $0.windows }
-            .compactMap { $0.rootViewController as? UIHostingController<T> }
-            .first?
-            .rootView
-    }
-    
-    /// Performs background refresh of the home feed.
-    ///
-    /// This method is called during background execution to update the home feed
-    /// with the latest content, ensuring users see fresh posts when they return.
-    ///
-    /// ## Process
-    /// 1. **Locate View**: Find the active HomeFeedView instance
-    /// 2. **Trigger Refresh**: Call the view's update method
-    /// 3. **Handle Failure**: Gracefully handle cases where view isn't found
-    ///
-    /// ## Failure Cases
-    /// - App is in a different state (auth, onboarding)
-    /// - View hierarchy has changed
-    /// - Memory pressure caused view deallocation
-    ///
-    /// - Note: This method bridges background tasks with SwiftUI view updates
-    private func refreshFeed() async {
-        guard let homeFeed = getRootView(of: HomeFeedView.self) else {
-            print("HomeFeedView not found")
-            return
-        }
-        await homeFeed.updateHomeFeed(.refresh)
     }
     
     /// Loads RocketSim development tools in debug builds.

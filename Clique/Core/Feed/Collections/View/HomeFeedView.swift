@@ -50,52 +50,9 @@ struct HomeFeedView: View {
         
         TabNavigationStack(path: $bindableTVC.collectionsNavigationPath) {
             VStack(spacing: 0) {
-                Header()
+                topBar
                 
-                AdvancedList(homeFeedPgVM.items, listView: { rows in
-                    FeedList(rows: rows)
-                }, content: { feedItem in
-                    FeedItemCellView(feedItem: feedItem)
-                }, listState: listState, emptyStateView: {
-                    EmptyStateView()
-                }, errorStateView: { _ in
-                    ErrorStateView()
-                }, loadingStateView: {
-                    LoadingStateView()
-                })
-                .pagination(.init(type: .lastItem, shouldLoadNextPage: { Task { await updateHomeFeed(.loadNextPage) } }){ })
-                .maxHeight()
-                .onAppear {
-                    Task {
-                        guard listState == .loading else { return }
-                        await updateHomeFeed(.loadFirstPage)
-                    }
-                }
-                .refreshable {
-                    guard paginationState == .idle else { return }
-                    homeFeedPgVM.refreshing = true
-                    
-                    // Clear cache for home feed before refreshing
-                    await CacheControl.shared.refreshHomeFeed()
-                    
-                    trigger(.refreshCollectionCells, object: homeFeedPgVM.items.compactMap(\.collection?.id))
-                    
-                    DispatchQueue.main.async { // no idea
-                        Task {
-                            async let updateFeed: () = await updateHomeFeed(.refresh)
-                            async let updateCliques: () = await updateCliques(.refresh)
-                            
-                            _ = await (updateFeed, updateCliques)
-                        }
-                    }
-                    
-                    homeFeedPgVM.refreshing = false
-                }
-                .onReceive(of: .refreshHomeFeed) { _ in
-                    Task {
-                        await updateHomeFeed(.refresh)
-                    }
-                }
+                feed
             }
             .bottomTabBarPadding()
             .primaryBackground()
@@ -108,20 +65,13 @@ struct HomeFeedView: View {
         }
     }
     
-    @ViewBuilder private func Header() -> some View {
+    // MARK: - Top Bar
+    private var topBar: some View {
         VStack(spacing: 0) {
             TopAppBar(
                 type: .medium,
                 leadingIcon: { },
-                header: {
-                    HStack(alignment: .top, spacing: 0) {
-                        Text("Clique")
-                            .font(Font.custom("NewakeDemo", size: 24))
-                            .textPrimary()
-                        
-                        IconImage("clique-star", color: Color.theme.cliquePink, size: 8)
-                    }
-                },
+                header: { HeaderTextStar("Clique") },
                 trailingIcon: {
                     NavigationLink(value: "NotificationsCenter") {
                         IconImage("inbox", color: .theme.iconPrimary, size: 24)
@@ -140,7 +90,55 @@ struct HomeFeedView: View {
         //        }
     }
     
-    @ViewBuilder private func FeedList(rows: AdvancedList.Rows) -> some View {
+    // MARK: - Feed
+    private var feed: some View {
+        AdvancedList(homeFeedPgVM.items, listView: { rows in
+            FeedList(rows: rows)
+        }, content: { feedItem in
+            FeedItemCellView(feedItem: feedItem)
+        }, listState: listState, emptyStateView: {
+            emptyStateView
+        }, errorStateView: { _ in
+            errorStateView
+        }, loadingStateView: {
+            loadingStateView
+        })
+        .pagination(.init(type: .lastItem, shouldLoadNextPage: { Task { await updateHomeFeed(.loadNextPage) } }){ })
+        .maxHeight()
+        .onAppear {
+            Task {
+                guard listState == .loading else { return }
+                await updateHomeFeed(.loadFirstPage)
+            }
+        }
+        .refreshable {
+            guard paginationState == .idle else { return }
+            homeFeedPgVM.refreshing = true
+            
+            // Clear cache for home feed before refreshing
+            await CacheControl.shared.refreshHomeFeed()
+            
+            trigger(.refreshCollectionCells, object: homeFeedPgVM.items.compactMap(\.collection?.id))
+            
+            DispatchQueue.main.async { // no idea
+                Task {
+                    async let updateFeed: () = await updateHomeFeed(.refresh)
+                    async let updateCliques: () = await updateCliques(.refresh)
+                    
+                    _ = await (updateFeed, updateCliques)
+                }
+            }
+            
+            homeFeedPgVM.refreshing = false
+        }
+        .onReceive(of: .refreshHomeFeed) { _ in
+            Task {
+                await updateHomeFeed(.refresh)
+            }
+        }
+    }
+    
+    private func FeedList(rows: AdvancedList.Rows) -> some View {
         ScrollView {
             LazyVStack(spacing: 0) {
                 // for scroll to top
@@ -240,8 +238,8 @@ struct HomeFeedView: View {
 }
 
 // MARK: Pagination state views
-extension HomeFeedView {
-    @ViewBuilder private func EmptyStateView() -> some View {
+private extension HomeFeedView {
+    var emptyStateView: some View {
         VStack(spacing: 16) {
             VStack(spacing: 8) {
                 IconImage("search", color: .primaryIcon, size: 32)
@@ -283,7 +281,7 @@ extension HomeFeedView {
         .infiniteFrame()
     }
     
-    @ViewBuilder private func ErrorStateView() -> some View {
+    var errorStateView: some View {
         SomethingWentWrong {
             listState = .loading
             await updateHomeFeed(.refresh)
@@ -291,7 +289,7 @@ extension HomeFeedView {
         //        .padding(.top, headerSize.height)
     }
     
-    @ViewBuilder private func LoadingStateView() -> some View {
+    var loadingStateView: some View {
         CliqueProgressView()
             .infiniteFrame()
     }
