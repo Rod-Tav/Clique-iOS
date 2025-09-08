@@ -275,11 +275,6 @@ struct CliqueApp: App {
         // Schedule next refresh immediately to maintain cadence
         CliqueApp.scheduleBackgroundFeedRefresh()
         
-//        Task {
-//            await refreshFeed() // Home Feed Refresh
-//            // await refreshCliqueHubFeed() // Future: Clique Hub Feed Refresh
-//            task.setTaskCompleted(success: true)
-//        }
         
         trigger(.refreshHomeFeed)
         task.setTaskCompleted(success: true)
