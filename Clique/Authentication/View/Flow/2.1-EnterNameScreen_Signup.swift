@@ -16,9 +16,10 @@ struct EnterNameScreen: View {
     @Environment(AuthFlowViewModel.self) var viewModel
     
     @FocusState private var focusedField: FocusedField?
+    @State private var ageConfirmed: Bool = false
     
     private var buttonEnabled: Bool {
-        !(viewModel.firstName.isEmpty || viewModel.lastName.isEmpty)
+        !(viewModel.firstName.isEmpty || viewModel.lastName.isEmpty) && ageConfirmed
     }
     
     var body: some View {
@@ -30,32 +31,38 @@ struct EnterNameScreen: View {
                     .font(.body)
             },
             inputView: {
-                NameEntry()
+                nameEntry
             }
         )
         .onAppear { focusedField = .first }
     }
     
-    @ViewBuilder
-    private func NameEntry() -> some View {
+    private var nameEntry:  some View {
         @Bindable var viewModel = viewModel
         
-        VStack(spacing: 8) {
-            Group {
-                TextField("First Name", text: $viewModel.firstName)
-                    .focused($focusedField, equals: .first)
-                    .submitLabel(.next)
-                    .onSubmit { focusedField = .last }
-                    .limitTextField(to: 50, text: $viewModel.firstName)
-                
-                TextField("Last Name", text: $viewModel.lastName)
-                    .focused($focusedField, equals: .last)
-                    .submitLabel(.next)
-                    .onSubmit { bottomButtonAction() }
-                    .limitTextField(to: 50, text: $viewModel.lastName)
+        return VStack(spacing: 24) {
+            VStack(spacing: 8) {
+                Group {
+                    TextField("First Name", text: $viewModel.firstName)
+                        .focused($focusedField, equals: .first)
+                        .submitLabel(.next)
+                        .onSubmit { focusedField = .last }
+                        .limitTextField(to: 50, text: $viewModel.firstName)
+                    
+                    TextField("Last Name", text: $viewModel.lastName)
+                        .focused($focusedField, equals: .last)
+                        .submitLabel(.next)
+                        .onSubmit { bottomButtonAction() }
+                        .limitTextField(to: 50, text: $viewModel.lastName)
+                }
+                .font(.largeTitle.bold())
+                .textPrimary()
             }
-            .font(.largeTitle.bold())
-            .textPrimary()
+            
+            Spacer()
+            
+            ageConfirmationCheckbox
+                .padding(.bottom, 24)
         }
         .padding(.top, 48)
         .onAppear {
@@ -65,6 +72,28 @@ struct EnterNameScreen: View {
         .onChange(of: buttonEnabled, initial: true) {
             coordinator.bottomButton = { AnyView(BottomButton()) }
         }
+    }
+    
+    // MARK: Age checkbox
+    private var ageConfirmationCheckbox: some View {
+        Button {
+            ageConfirmed.toggle()
+        } label: {
+            HStack(spacing: 8) {
+                IconImage(
+                    "check-circle-empty",
+                    color: ageConfirmed ? .theme.cliquePink : .theme.iconSecondary,
+                    size: 20
+                )
+                
+                Text("I confirm I am 16 years old or older")
+                    .font(.footnote)
+                    .textPrimary()
+            }
+            .contentShape(.rect)
+        }
+        .buttonStyle(.noHighlight)
+        .maxWidth(.leading)
     }
 }
 
@@ -80,6 +109,7 @@ extension EnterNameScreen {
     }
     
     private func bottomButtonAction() {
+        guard ageConfirmed else { return }
         coordinator.highlightNextBar = true
         coordinator.path.append(2.2) // username view
     }
