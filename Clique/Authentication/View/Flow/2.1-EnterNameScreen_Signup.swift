@@ -109,7 +109,6 @@ extension EnterNameScreen {
     }
     
     private func bottomButtonAction() {
-        guard ageConfirmed else { return }
         coordinator.highlightNextBar = true
         coordinator.path.append(2.2) // username view
     }
