@@ -9,6 +9,14 @@ import Foundation
 import Kingfisher
 import UIKit
 
+/// Network quality levels based on prefetch success rates
+private enum NetworkQuality {
+    case excellent  // 90%+ success rate
+    case good      // 70-90% success rate
+    case poor      // 40-70% success rate
+    case veryPoor  // <40% success rate
+}
+
 /// Instagram-level image prefetching system optimized for smooth scrolling
 final class CollectionImagePrefetcher {
     static let instance = CollectionImagePrefetcher()
@@ -30,6 +38,11 @@ final class CollectionImagePrefetcher {
     private var activePrefetchCount = 0
     private let maxConcurrentPrefetches = 3
 
+    // Network quality tracking
+    private var recentPrefetchResults: [Bool] = [] // Track last 20 results
+    private var networkQuality: NetworkQuality = .good
+    private let maxTrackedResults = 20
+
     private init() {
         setupMemoryWarningObserver()
     }
@@ -50,12 +63,78 @@ final class CollectionImagePrefetcher {
         }
     }
 
+    // MARK: - Network Quality Monitoring
+
+    private func updateNetworkQuality(success: Int, failed: Int) {
+        let total = success + failed
+        guard total > 0 else { return }
+
+        // Add results to tracking array
+        for _ in 0..<success {
+            recentPrefetchResults.append(true)
+        }
+        for _ in 0..<failed {
+            recentPrefetchResults.append(false)
+        }
+
+        // Keep only last N results
+        if recentPrefetchResults.count > maxTrackedResults {
+            recentPrefetchResults = Array(recentPrefetchResults.suffix(maxTrackedResults))
+        }
+
+        // Calculate overall success rate
+        let recentSuccessRate = Double(recentPrefetchResults.filter { $0 }.count) / Double(max(1, recentPrefetchResults.count))
+
+        // Update network quality assessment
+        switch recentSuccessRate {
+        case 0.9...1.0:
+            networkQuality = .excellent
+        case 0.7..<0.9:
+            networkQuality = .good
+        case 0.4..<0.7:
+            networkQuality = .poor
+        default:
+            networkQuality = .veryPoor
+        }
+
+        #if DEBUG
+        if networkQuality == .poor || networkQuality == .veryPoor {
+            print("⚠️ Network quality: \(networkQuality), success rate: \(Int(recentSuccessRate * 100))%")
+        }
+        #endif
+    }
+
+    /// Skip prefetching entirely if network is too poor
+    private func shouldSkipPrefetch(for context: PrefetchContext) -> Bool {
+        switch (networkQuality, context) {
+        case (.veryPoor, .detailView):
+            // Still try for detail view even in very poor network
+            return false
+        case (.veryPoor, _):
+            // Skip other prefetching in very poor network
+            return true
+        case (.poor, .backgroundRefresh):
+            // Skip background refresh in poor network
+            return true
+        default:
+            return false
+        }
+    }
+
     // MARK: - Smart Prefetching Based on Context
 
     /// Prefetch images based on context (feed, detail view, etc.)
     func prefetchForContext(_ context: PrefetchContext, collectionId: String, images: [CollectionImage]) {
         prefetchQueue.async { [weak self] in
             guard let self = self else { return }
+
+            // Check if we should skip prefetching based on network conditions
+            if self.shouldSkipPrefetch(for: context) {
+                #if DEBUG
+                print("⏩ Skipping prefetch for \(context) due to poor network conditions")
+                #endif
+                return
+            }
 
             switch context {
             case .feedScroll:
@@ -223,6 +302,36 @@ final class CollectionImagePrefetcher {
             processorSize = CGSize(width: screenSize.width * scale * 1.2, height: screenSize.height * scale * 1.2)
         }
 
+        // Adjust timeout based on network quality and context
+        let timeoutInterval: TimeInterval = {
+            switch (networkQuality, quality) {
+            case (.veryPoor, _):
+                return 10 // Fail fast in very poor conditions
+            case (.poor, .high):
+                return 15 // Reduced timeout for high quality in poor network
+            case (.poor, _):
+                return 12
+            case (_, .low):
+                return 15 // Thumbnails should load fast
+            default:
+                return 20 // Normal timeout for decent network
+            }
+        }()
+
+        // Configure retry strategy with adaptive delays based on network quality
+        let retryInterval: DelayRetryStrategy.Interval = networkQuality == .poor ? .seconds(1) : .accumulated(1)
+        let retryStrategy = DelayRetryStrategy(
+            maxRetryCount: networkQuality == .veryPoor ? 0 : (networkQuality == .poor ? 1 : 2),
+            retryInterval: retryInterval  // Poor network: constant 1s delay, Good: 1s, 2s, 3s progressive
+        )
+
+        // Create request modifier for timeout
+        let modifier = AnyModifier { request in
+            var modifiedRequest = request
+            modifiedRequest.timeoutInterval = timeoutInterval
+            return modifiedRequest
+        }
+
         let options: KingfisherOptionsInfo = [
             .processor(DownsamplingImageProcessor(size: processorSize)),
             .scaleFactor(scale),
@@ -230,7 +339,9 @@ final class CollectionImagePrefetcher {
             .diskCacheExpiration(.days(7)),
             .backgroundDecode,
             .cacheOriginalImage,
-            .callbackQueue(.dispatch(prefetchQueue))
+            .callbackQueue(.dispatch(prefetchQueue)),
+            .requestModifier(modifier),
+            .retryStrategy(retryStrategy)
         ]
 
         let prefetcher = Kingfisher.ImagePrefetcher(
@@ -240,9 +351,19 @@ final class CollectionImagePrefetcher {
                 DispatchQueue.main.async {
                     self?.activePrefetchCount = max(0, (self?.activePrefetchCount ?? 1) - 1)
 
+                    // Update network quality tracking
+                    self?.updateNetworkQuality(success: completedResources.count, failed: failedResources.count)
+
                     #if DEBUG
                     if !failedResources.isEmpty {
                         print("⚠️ Prefetch failed for \(failedResources.count) images in collection \(collectionId)")
+                        // Log first error for debugging
+                        if let firstFailed = failedResources.first {
+                            // failedResources contains Resource objects (URLs)
+                            if let url = (firstFailed as? KF.ImageResource)?.downloadURL {
+                                print("   First failed URL: \(url.lastPathComponent)")
+                            }
+                        }
                     }
                     #endif
                 }

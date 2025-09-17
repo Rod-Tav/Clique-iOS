@@ -62,7 +62,7 @@ struct KingfisherConfig {
 
         // Configure downloader for better network performance
         let downloader = KingfisherManager.shared.downloader
-        downloader.downloadTimeout = 30 // 30 seconds timeout
+        downloader.downloadTimeout = 30 // 30 seconds timeout for user-initiated loads
 
         // Configure URLSession for optimal performance
         let config = URLSessionConfiguration.default
@@ -74,6 +74,14 @@ struct KingfisherConfig {
 
         // Enable progressive JPEG loading for better perceived performance
         KingfisherManager.shared.defaultOptions.append(.progressiveJPEG(.init()))
+
+        // Add retry strategy for failed downloads with progressive delays
+        // This helps with poor network conditions (airplane WiFi, etc.)
+        let retryStrategy = DelayRetryStrategy(
+            maxRetryCount: 2,  // Try up to 3 times total (original + 2 retries)
+            retryInterval: .accumulated(2)  // 2s, 4s, 6s progressive delays
+        )
+        KingfisherManager.shared.defaultOptions.append(.retryStrategy(retryStrategy))
 
         print("✅ Kingfisher configured for Instagram-level performance:")
         print("   - Memory cache: \(cache.memoryStorage.config.totalCostLimit / 1024 / 1024)MB")

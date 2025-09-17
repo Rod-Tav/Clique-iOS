@@ -111,6 +111,9 @@ struct CollectionDetailView: View {
             }
             //        .opacity(coordinator.showDetailView ? 1 : 0)
             .onAppear {
+                // Mark pagination view model as detail view for high quality prefetching
+                imagesPgVM.isDetailView = true
+
                 tabCoordinator.pan = .disabled
                 if fromGallery {
                     tabCoordinator.showTabBar = false
@@ -369,6 +372,23 @@ extension CollectionDetailView {
         .scrollIndicators(.hidden)
         .scrollPosition(id: $bindableVM.detailScrollPosition)
         .scrollDisabled(dismissing)
+        .onChange(of: bindableVM.detailScrollPosition) { _, newValue in
+            // Prefetch adjacent images when scrolling
+            guard let newValue,
+                  let currentIndex = imagesPgVM.items.firstIndex(where: { $0.id == newValue }) else { return }
+
+            // Get 2 images before and 2 after current image
+            let startIndex = max(0, currentIndex - 2)
+            let endIndex = min(imagesPgVM.items.count - 1, currentIndex + 2)
+            let adjacentIds = Array(imagesPgVM.items[startIndex...endIndex])
+            let adjacentImages = adjacentIds.compactMap { collectionImageStore.images[$0] }
+
+            CollectionImagePrefetcher.instance.prefetchForContext(
+                .detailView,
+                collectionId: clCoordinator.collectionId,
+                images: adjacentImages
+            )
+        }
     }
     
     @ViewBuilder private func ImageDetailCell(_ image: CollectionImage) -> some View {

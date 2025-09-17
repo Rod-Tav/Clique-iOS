@@ -55,7 +55,12 @@ fileprivate func encodeCursorToBase64(_ cursor: InfiniteFeedCursor) -> String? {
                     
                     let feedItems = feedItemsRes.0
                     
-                    CollectionImagePrefetcher.instance.prefetchHighQuality(collectionId: String(self.seed), images: feedItems.compactMap({ $0.flick }))
+                    // Prefetch images for feed scrolling context
+                    CollectionImagePrefetcher.instance.prefetchForContext(
+                        .feedScroll,
+                        collectionId: String(self.seed),
+                        images: feedItems.compactMap({ $0.flick })
+                    )
                     
                     await collectionStore.updateCollections(feedItems.compactMap({ $0.collection }), collectionImageStore)
                     await collectionImageStore.updateImages(feedItems.compactMap({ $0.flick }))
