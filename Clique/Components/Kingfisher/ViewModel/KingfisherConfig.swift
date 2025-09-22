@@ -66,7 +66,7 @@ struct KingfisherConfig {
 
         // Configure URLSession for optimal performance
         let config = URLSessionConfiguration.default
-        config.httpMaximumConnectionsPerHost = 6 // Allow more concurrent downloads
+        config.httpMaximumConnectionsPerHost = 3 // Reduced from 6 to prevent UI blocking
         config.timeoutIntervalForRequest = 30
         config.timeoutIntervalForResource = 60
         config.requestCachePolicy = .returnCacheDataElseLoad

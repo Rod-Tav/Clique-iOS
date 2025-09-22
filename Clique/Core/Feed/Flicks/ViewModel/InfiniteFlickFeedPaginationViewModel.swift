@@ -55,9 +55,9 @@ fileprivate func encodeCursorToBase64(_ cursor: InfiniteFeedCursor) -> String? {
                     
                     let feedItems = feedItemsRes.0
                     
-                    // Prefetch images for feed scrolling context
+                    // Use grid view context for initial load - lighter prefetching
                     CollectionImagePrefetcher.instance.prefetchForContext(
-                        .feedScroll,
+                        .gridView,
                         collectionId: String(self.seed),
                         images: feedItems.compactMap({ $0.flick })
                     )
@@ -78,7 +78,12 @@ fileprivate func encodeCursorToBase64(_ cursor: InfiniteFeedCursor) -> String? {
                 
                 let feedItems = feedItemsRes.0
                 
-                CollectionImagePrefetcher.instance.prefetchHighQuality(collectionId: String(self.seed), images: feedItems.compactMap({ $0.flick }))
+                // Use grid context for subsequent pages - much lighter prefetching
+                CollectionImagePrefetcher.instance.prefetchForContext(
+                    .gridView,
+                    collectionId: String(self.seed),
+                    images: feedItems.compactMap({ $0.flick })
+                )
                 
                 await collectionStore.updateCollections(feedItems.compactMap({ $0.collection }), collectionImageStore)
                 await collectionImageStore.updateImages(feedItems.compactMap({ $0.flick }))

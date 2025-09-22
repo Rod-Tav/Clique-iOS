@@ -48,6 +48,7 @@ struct FlicksFeedView: View {
     @AppStorage("flicksGridColumns") private var gridColumns: Int = 3
     @State private var gridScrollPosition: String? = nil
     @State private var gridReaderProxy: ScrollViewProxy? = nil
+
     
     private var currentImage: CollectionImage? {
         if let currentFlickId {
@@ -188,8 +189,8 @@ struct FlicksFeedView: View {
                     }, loadingStateView: {
                         LoadingStateView()
                     })
-                    .pagination(.init(type: .lastItem, shouldLoadNextPage: { 
-                        Task { await updateFlicks(.loadNextPage) } 
+                    .pagination(.init(type: .lastItem, shouldLoadNextPage: {
+                        Task { await updateFlicks(.loadNextPage) }
                     }) { })
                     .onAppear {
                         gridReaderProxy = reader
@@ -284,7 +285,7 @@ struct FlicksFeedView: View {
     }
     
     private func GridCell(_ item: InfiniteFeedItem, urls: PhotoUrls) -> some View {
-        CollectionPreviewAsyncImage(urls: urls, quality: .medium)
+        GridCollectionPreviewImage(urls: urls)  // Use new lightweight grid component
             .overlayCollectionPreviewStats(
                 likes: item.flick.numLikes,
                 comments: item.flick.numComments,

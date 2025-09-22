@@ -119,9 +119,11 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
     var quality: ImageQuality
     var shouldFixSize: Bool = true
     var loadingBug: Bool = false
+    var performanceMode: Bool = false  // New parameter for lightweight mode
 
     let content: (KFImage) -> Content
     @ViewBuilder var placeholder: Placeholder
+
 
     // MARK: - Simplified State Machine
 
@@ -187,46 +189,16 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
         loadingState == .showingHigh
     }
 
+
     var body: some View {
         ZStack {
-            // Placeholder layer
-            placeholder
-                .opacity(shouldShowPlaceholder ? 1 : 0)
-                .allowsHitTesting(false)
-
-            // All image layers persistent - controlled by opacity
-            // Low quality layer
-            qualityImageView(
-                url: urls?.lowQualityUrl,
-                shouldFade: false, // Never fade fallback
-                onSuccess: { handleImageLoaded(.low) },
-                onFailure: { handleImageFailed(urls?.lowQualityUrl) }
-            )
-            .opacity(shouldShowLowQuality ? 1 : 0)
-            .allowsHitTesting(false) // Never allow interaction on background layers
-            .animation(.easeInOut(duration: 0.15), value: shouldShowLowQuality)
-
-            // Medium quality layer
-            qualityImageView(
-                url: urls?.medQualityUrl,
-                shouldFade: loadingState == .loadingMedium(fallback: nil), // Only fade when directly requested
-                onSuccess: { handleImageLoaded(.medium) },
-                onFailure: { handleImageFailed(urls?.medQualityUrl) }
-            )
-            .opacity(shouldShowMediumQuality ? 1 : 0)
-            .allowsHitTesting(false) // Never allow interaction on background layers
-            .animation(.easeInOut(duration: 0.15), value: shouldShowMediumQuality)
-
-            // High quality layer
-            qualityImageView(
-                url: urls?.highQualityUrl,
-                shouldFade: loadingState == .loadingHigh(fallback: nil), // Only fade when directly requested
-                onSuccess: { handleImageLoaded(.high) },
-                onFailure: { handleImageFailed(urls?.highQualityUrl) }
-            )
-            .opacity(shouldShowHighQuality ? 1 : 0)
-            .allowsHitTesting(shouldShowHighQuality) // Only top layer can receive touches
-            .animation(.easeInOut(duration: 0.15), value: shouldShowHighQuality)
+            if performanceMode {
+                // Performance mode: Single layer approach for fast scrolling
+                performanceModeView
+            } else {
+                // Standard mode: Multi-layer approach with smooth transitions
+                standardModeView
+            }
 
             // Error state with retry
             if loadingState == .failed {
@@ -251,13 +223,13 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
         }
         .fixedSize(horizontal: shouldFixSize, vertical: shouldFixSize)
         .onAppear {
-            // Synchronous cache check for immediate display
-            checkCacheSynchronously()
-
-            // Then async determination if needed
-            if !cacheCheckCompleted {
-                Task.detached(priority: .userInitiated) {
-                    await self.determineInitialState()
+            // Skip synchronous cache check - do everything async
+            Task.detached(priority: .userInitiated) {
+                await self.performAsyncCacheCheck()
+                await MainActor.run {
+                    if !self.cacheCheckCompleted {
+                        Task { await self.determineInitialState() }
+                    }
                 }
             }
         }
@@ -271,10 +243,14 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
             retryCount.removeAll()
             loadingState = .idle
 
-            // Check cache for new URLs
-            checkCacheSynchronously()
+            // Check cache for new URLs asynchronously
             Task.detached(priority: .userInitiated) {
-                await self.determineInitialState()
+                await self.performAsyncCacheCheck()
+                await MainActor.run {
+                    if !self.cacheCheckCompleted {
+                        Task { await self.determineInitialState() }
+                    }
+                }
             }
         }
         .onDisappear {
@@ -282,6 +258,85 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
             cacheTasks.values.forEach { $0.cancel() }
             cacheTasks.removeAll()
         }
+    }
+
+    // MARK: - Performance Mode View (Single Layer)
+
+    @ViewBuilder
+    private var performanceModeView: some View {
+        // In performance mode, show placeholder or the target quality image only
+        if shouldShowPlaceholder && !hasCachedHigh && !hasCachedMedium && !hasCachedLow {
+            placeholder
+        } else {
+            // Determine which URL to load based on quality
+            let targetUrl: String? = {
+                switch quality {
+                case .low:
+                    return urls?.lowQualityUrl
+                case .medium:
+                    return urls?.medQualityUrl ?? urls?.lowQualityUrl
+                case .high:
+                    return urls?.highQualityUrl ?? urls?.medQualityUrl ?? urls?.lowQualityUrl
+                }
+            }()
+
+            qualityImageView(
+                url: targetUrl,
+                shouldFade: false,  // No fade in performance mode
+                onSuccess: {
+                    switch quality {
+                    case .low: handleImageLoaded(.low)
+                    case .medium: handleImageLoaded(.medium)
+                    case .high: handleImageLoaded(.high)
+                    }
+                },
+                onFailure: { handleImageFailed(targetUrl) }
+            )
+        }
+    }
+
+    // MARK: - Standard Mode View (Multi-Layer)
+
+    @ViewBuilder
+    private var standardModeView: some View {
+        // Placeholder layer
+        placeholder
+            .opacity(shouldShowPlaceholder ? 1 : 0)
+            .allowsHitTesting(false)
+
+        // All image layers persistent - controlled by opacity
+        // Low quality layer
+        qualityImageView(
+            url: urls?.lowQualityUrl,
+            shouldFade: false, // Never fade fallback
+            onSuccess: { handleImageLoaded(.low) },
+            onFailure: { handleImageFailed(urls?.lowQualityUrl) }
+        )
+        .opacity(shouldShowLowQuality ? 1 : 0)
+        .allowsHitTesting(false) // Never allow interaction on background layers
+        .animation(.easeInOut(duration: 0.15), value: shouldShowLowQuality)
+
+        // Medium quality layer
+        qualityImageView(
+            url: urls?.medQualityUrl,
+            shouldFade: loadingState == .loadingMedium(fallback: nil), // Only fade when directly requested
+            onSuccess: { handleImageLoaded(.medium) },
+            onFailure: { handleImageFailed(urls?.medQualityUrl) }
+        )
+        .opacity(shouldShowMediumQuality ? 1 : 0)
+        .allowsHitTesting(false) // Never allow interaction on background layers
+        .animation(.easeInOut(duration: 0.15), value: shouldShowMediumQuality)
+
+        // High quality layer
+        qualityImageView(
+            url: urls?.highQualityUrl,
+            shouldFade: loadingState == .loadingHigh(fallback: nil), // Only fade when directly requested
+            onSuccess: { handleImageLoaded(.high) },
+            onFailure: { handleImageFailed(urls?.highQualityUrl) }
+        )
+        .opacity(shouldShowHighQuality ? 1 : 0)
+        .allowsHitTesting(shouldShowHighQuality) // Only top layer can receive touches
+        .animation(.easeInOut(duration: 0.15), value: shouldShowHighQuality)
     }
 
     // MARK: - Helper Methods
@@ -304,21 +359,51 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
         }
     }
 
-    // Synchronous cache check for immediate display
-    private func checkCacheSynchronously() {
+    // Async cache check to avoid main thread blocking
+    @MainActor
+    private func performAsyncCacheCheck() async {
         // Reset cache states
         hasCachedLow = false
         hasCachedMedium = false
         hasCachedHigh = false
 
-        if let low = urls?.lowQualityUrl {
-            hasCachedLow = cacheManager.checkCacheSync(for: low)
-        }
-        if let med = urls?.medQualityUrl {
-            hasCachedMedium = cacheManager.checkCacheSync(for: med)
-        }
-        if let high = urls?.highQualityUrl {
-            hasCachedHigh = cacheManager.checkCacheSync(for: high)
+        // Check cache asynchronously based on quality needed
+        switch quality {
+        case .low:
+            if let low = urls?.lowQualityUrl {
+                hasCachedLow = await checkCacheAsync(for: low)
+            }
+        case .medium:
+            if let low = urls?.lowQualityUrl {
+                hasCachedLow = await checkCacheAsync(for: low)
+            }
+            if let med = urls?.medQualityUrl {
+                hasCachedMedium = await checkCacheAsync(for: med)
+            }
+        case .high:
+            // For high quality, check all in parallel
+            async let lowCheck: Bool = {
+                if let url = urls?.lowQualityUrl {
+                    return await checkCacheAsync(for: url)
+                }
+                return false
+            }()
+            async let medCheck: Bool = {
+                if let url = urls?.medQualityUrl {
+                    return await checkCacheAsync(for: url)
+                }
+                return false
+            }()
+            async let highCheck: Bool = {
+                if let url = urls?.highQualityUrl {
+                    return await checkCacheAsync(for: url)
+                }
+                return false
+            }()
+
+            hasCachedLow = await lowCheck
+            hasCachedMedium = await medCheck
+            hasCachedHigh = await highCheck
         }
 
         // Set initial state based on cached content

@@ -36,12 +36,16 @@ final class CollectionImagePrefetcher {
 
     // Track active prefetch operations for smarter management
     private var activePrefetchCount = 0
-    private let maxConcurrentPrefetches = 3
+    private let maxConcurrentPrefetches = 2  // Reduced from 3 to prevent UI blocking
 
     // Network quality tracking
     private var recentPrefetchResults: [Bool] = [] // Track last 20 results
     private var networkQuality: NetworkQuality = .good
     private let maxTrackedResults = 20
+
+    // Debounce mechanism to prevent rapid prefetch calls during scrolling
+    private var prefetchDebounceTimer: Timer?
+    private var pendingPrefetchOperations: [(context: PrefetchContext, collectionId: String, images: [CollectionImage])] = []
 
     private init() {
         setupMemoryWarningObserver()
@@ -125,6 +129,30 @@ final class CollectionImagePrefetcher {
 
     /// Prefetch images based on context (feed, detail view, etc.)
     func prefetchForContext(_ context: PrefetchContext, collectionId: String, images: [CollectionImage]) {
+        // For grid view, debounce to prevent rapid calls during scrolling
+        if context == .gridView {
+            // Cancel existing timer
+            prefetchDebounceTimer?.invalidate()
+
+            // Store operation
+            pendingPrefetchOperations.append((context, collectionId, images))
+
+            // Keep only the latest operation per collection
+            pendingPrefetchOperations = pendingPrefetchOperations.filter { $0.collectionId == collectionId }.suffix(1)
+
+            // Schedule debounced execution
+            prefetchDebounceTimer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: false) { [weak self] _ in
+                guard let self = self, let operation = self.pendingPrefetchOperations.last else { return }
+                self.pendingPrefetchOperations.removeAll()
+                self.executePrefetch(context: operation.context, collectionId: operation.collectionId, images: operation.images)
+            }
+        } else {
+            // Execute immediately for non-grid contexts
+            executePrefetch(context: context, collectionId: collectionId, images: images)
+        }
+    }
+
+    private func executePrefetch(context: PrefetchContext, collectionId: String, images: [CollectionImage]) {
         prefetchQueue.async { [weak self] in
             guard let self = self else { return }
 
@@ -146,8 +174,9 @@ final class CollectionImagePrefetcher {
                 self.prefetchHighQuality(collectionId: collectionId, images: Array(images.prefix(5)))
 
             case .gridView:
-                // For grid view, prefetch low quality for many items
-                self.prefetchLowQuality(collectionId: collectionId, images: Array(images.prefix(20)))
+                // For grid view, prefetch low quality for fewer items to avoid blocking
+                // Grid thumbnails should load on-demand as user scrolls
+                self.prefetchLowQuality(collectionId: collectionId, images: Array(images.prefix(8)))
 
             case .backgroundRefresh:
                 // Background refresh - prefetch medium quality for first few items
@@ -182,7 +211,7 @@ final class CollectionImagePrefetcher {
         lowPrefetchers[collectionId]?.stop()
         activePrefetchCount += 1
         lowPrefetchers[collectionId] = createSmartPrefetcher(
-            with: Array(prefetchedLowURLs[collectionId]!.prefix(10)), // Limit to 10 for performance
+            with: Array(prefetchedLowURLs[collectionId]!.prefix(6)), // Reduced from 10 to prevent blocking
             quality: .low,
             collectionId: collectionId
         )
@@ -206,7 +235,7 @@ final class CollectionImagePrefetcher {
         medPrefetchers[collectionId]?.stop()
         activePrefetchCount += 1
         medPrefetchers[collectionId] = createSmartPrefetcher(
-            with: Array(prefetchedMedURLs[collectionId]!.prefix(8)), // Limit to 8 for balance
+            with: Array(prefetchedMedURLs[collectionId]!.prefix(4)), // Reduced from 8 to prevent blocking
             quality: .medium,
             collectionId: collectionId
         )
@@ -230,7 +259,7 @@ final class CollectionImagePrefetcher {
         highPrefetchers[collectionId]?.stop()
         activePrefetchCount += 1
         highPrefetchers[collectionId] = createSmartPrefetcher(
-            with: Array(prefetchedHighURLs[collectionId]!.prefix(5)), // Limit to 5 for high quality
+            with: Array(prefetchedHighURLs[collectionId]!.prefix(3)), // Reduced from 5 to prevent blocking
             quality: .high,
             collectionId: collectionId
         )
