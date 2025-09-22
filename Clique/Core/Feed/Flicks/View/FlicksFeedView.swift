@@ -78,7 +78,7 @@ struct FlicksFeedView: View {
         TabNavigationStack(path: $bindableTVC.flicksNavigationPath) {
             VStack(spacing: 0) {
                 if !viewModel.items.isEmpty {
-                    TopBar()
+                    topBar
                     
                     if currentFlickId == viewModel.items.first?.id {
                         Text("Swipe left to see more flicks")
@@ -311,7 +311,7 @@ struct FlicksFeedView: View {
         }
     }
     
-    @ViewBuilder private func TopBar() -> some View {
+    private var topBar: some View {
         HStack(spacing: 0) {
             if let currentRelevantUser {
                 NavigationLink(value: currentRelevantUser) {

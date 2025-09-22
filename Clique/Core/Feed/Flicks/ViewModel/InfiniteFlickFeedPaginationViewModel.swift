@@ -27,7 +27,7 @@ fileprivate func encodeCursorToBase64(_ cursor: InfiniteFeedCursor) -> String? {
     var items: [InfiniteFeedItem] = []
     
     var page: Int = 0
-    var size: Int { 10 }
+    var size: Int { 25 }
     
     var done: Bool = false
     var refreshing: Bool = false
