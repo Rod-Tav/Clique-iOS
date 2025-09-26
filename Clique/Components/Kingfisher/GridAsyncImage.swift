@@ -163,6 +163,7 @@ struct GridCollectionPreviewImage: View {
         } placeholder: {
             Rectangle()
                 .fill(Color.gray.opacity(0.2))
+                .aspectRatio(Constants.collectionPreviewRatio, contentMode: .fill)
         }
     }
 }

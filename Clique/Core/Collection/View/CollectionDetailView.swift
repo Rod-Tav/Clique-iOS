@@ -356,8 +356,42 @@ extension CollectionDetailView {
                     .frameRatio(width: UIScreen.width, ratio: Constants.collectionImageDetailRatio)
             }
             .offset(heroCoordinator.offset)
-            .simultaneousGesture(swipeDownToDismiss)
-            .simultaneousGesture(swipeUpToOpenComments)
+            .compatibleDragGesture(
+                minimumDistance: 10,
+                onChanged: { translation in
+                    guard (translation.height > 10 && abs(translation.width) < 20) || dismissing else { return }
+                    dismissing = true
+                    heroCoordinator.offset = fromGallery ? translation : CGSize(width: 0, height: translation.height)
+                    /// Progress For Fading Out the Detail View
+                    let heightProgress = max(min(translation.height / 200, 1), 0)
+                    heroCoordinator.dragProgress = heightProgress
+                },
+                onEnded: { translation in
+                    guard dismissing else { return }
+
+                    /// Close the View based on the Drag Amount
+                    if translation.height > 250 {
+                        heroCoordinator.toggleView(show: false)
+                    } else {
+                        /// Reset to its Initial Position
+                        heroCoordinator.offset = .zero
+                        heroCoordinator.dragProgress = 0
+                        dismissing = false
+                    }
+                }
+            )
+            .compatibleDragGesture(
+                minimumDistance: 10,
+                onChanged: { translation in
+                    guard heroCoordinator.offset == .zero else { return }
+                    // Check if the swipe was mostly vertical and upwards
+                    if translation.height < -20 && abs(translation.width) < 20 {
+                        haptics(.light)
+                        showCommentSheet = true
+                        hasSwipedUpToOpenComments = true
+                    }
+                }
+            )
         }
     }
     

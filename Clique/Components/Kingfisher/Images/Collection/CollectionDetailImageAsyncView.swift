@@ -13,7 +13,7 @@ struct CollectionDetailImageAsyncView: View {
     let quality: ImageQuality
     
     var body: some View {
-        GenericAsyncImage(urls: urls, quality: quality, performanceMode: true) { image in
+        GenericAsyncImage(urls: urls, quality: quality) { image in
             image
                 .contentConfigure { image in
                     image
@@ -22,7 +22,7 @@ struct CollectionDetailImageAsyncView: View {
                         .frameRatio(width: UIScreen.width, ratio: Constants.portraitPostRatio)
                         .clipped()
                 }
-            
+
         } placeholder: {
             Rectangle()
                 .fill(.gray)

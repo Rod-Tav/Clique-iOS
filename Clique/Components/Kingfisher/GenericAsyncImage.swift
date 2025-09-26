@@ -264,24 +264,22 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
 
     @ViewBuilder
     private var performanceModeView: some View {
-        // In performance mode, show placeholder or the target quality image only
-        if shouldShowPlaceholder && !hasCachedHigh && !hasCachedMedium && !hasCachedLow {
-            placeholder
-        } else {
-            // Determine which URL to load based on quality
-            let targetUrl: String? = {
-                switch quality {
-                case .low:
-                    return urls?.lowQualityUrl
-                case .medium:
-                    return urls?.medQualityUrl ?? urls?.lowQualityUrl
-                case .high:
-                    return urls?.highQualityUrl ?? urls?.medQualityUrl ?? urls?.lowQualityUrl
-                }
-            }()
+        // Determine which URL to load based on quality
+        let targetUrl: String? = {
+            switch quality {
+            case .low:
+                return urls?.lowQualityUrl
+            case .medium:
+                return urls?.medQualityUrl ?? urls?.lowQualityUrl
+            case .high:
+                return urls?.highQualityUrl ?? urls?.medQualityUrl ?? urls?.lowQualityUrl
+            }
+        }()
 
+        // In performance mode, show placeholder until image loads
+        if let url = targetUrl {
             qualityImageView(
-                url: targetUrl,
+                url: url,
                 shouldFade: false,  // No fade in performance mode
                 onSuccess: {
                     switch quality {
@@ -290,8 +288,11 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
                     case .high: handleImageLoaded(.high)
                     }
                 },
-                onFailure: { handleImageFailed(targetUrl) }
+                onFailure: { handleImageFailed(url) }
             )
+        } else {
+            // No URL available, show placeholder
+            placeholder
         }
     }
 
