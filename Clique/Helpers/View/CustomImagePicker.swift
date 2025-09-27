@@ -141,9 +141,10 @@ struct CropView: View {
                             
                             Button {
                                 /// Converting View to Image (Native iOS 16+)
-                                let renderer = ImageRenderer(content: ImageView(true))
+                                let renderer = ImageRenderer(content: ImageView(forRendering: true))
+                                renderer.proposedSize = .init(crop.size)
                                 renderer.scale = displayScale
-                                
+
                                 if let uiImage = renderer.uiImage?.withoutAlpha() {
                                     onCrop(uiImage, true)
                                 } else {
@@ -206,7 +207,7 @@ struct CropView: View {
     
     /// - Image View
     @ViewBuilder
-    func ImageView(_ hideGrids: Bool = false) -> some View {
+    func ImageView(hideGrids: Bool = false, forRendering: Bool = false) -> some View {
         let cropSize = crop.size
         GeometryReader {
             let size = $0.size
@@ -277,20 +278,22 @@ struct CropView: View {
 //            }
         })
         .overlay {
-            // UIKit gesture overlay for proper zoom anchoring and dragging
-            ZoomGestureHandler(
-                scale: $scale,
-                dragOffset: $offset,
-                zoomAnchor: $zoomAnchor,
-                isZooming: $isInteracting, // Use isInteracting for CropView boundary logic
-                maxScale: 10.0,
-                minScale: 1.0,
-                constrainOffset: { $0 }, // Let CropView handle its own boundary logic
-                snapBackIfNeeded: { 
-                    // Update lastStoredOffset when gesture ends
-                    lastStoredOffset = offset
-                }
-            )
+            if !forRendering {
+                // UIKit gesture overlay for proper zoom anchoring and dragging
+                ZoomGestureHandler(
+                    scale: $scale,
+                    dragOffset: $offset,
+                    zoomAnchor: $zoomAnchor,
+                    isZooming: $isInteracting, // Use isInteracting for CropView boundary logic
+                    maxScale: 10.0,
+                    minScale: 1.0,
+                    constrainOffset: { $0 }, // Let CropView handle its own boundary logic
+                    snapBackIfNeeded: {
+                        // Update lastStoredOffset when gesture ends
+                        lastStoredOffset = offset
+                    }
+                )
+            }
         }
         .coordinateSpace(name: "CROPVIEW")
         .frame(cropSize)
