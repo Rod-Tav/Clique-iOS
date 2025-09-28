@@ -69,13 +69,16 @@ public actor CacheMetrics {
             failedFetches += 1
         }
 
+        // Validate duration to prevent negative values from skewing metrics
+        let validDuration = max(0, duration)
+
         // Update fetch time metrics using circular buffer
         if fetchTimes.count < maxFetchTimeSamples {
-            fetchTimes.append(duration)
+            fetchTimes.append(validDuration)
             fetchTimesCount += 1
         } else {
             // Circular buffer: overwrite oldest value
-            fetchTimes[fetchTimeIndex] = duration
+            fetchTimes[fetchTimeIndex] = validDuration
             fetchTimeIndex = (fetchTimeIndex + 1) % maxFetchTimeSamples
             if fetchTimesCount < maxFetchTimeSamples {
                 fetchTimesCount = maxFetchTimeSamples
