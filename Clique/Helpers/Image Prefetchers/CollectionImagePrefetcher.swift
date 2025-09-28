@@ -444,9 +444,9 @@ final class CollectionImagePrefetcher {
         prefetchDebounceTimer = nil
 
         prefetchQueue.async { [weak self] in
-            self?.stopLowPrefetching(collectionId: collectionId)
-            self?.stopMediumPrefetching(collectionId: collectionId)
-            self?.stopHighPrefetching(collectionId: collectionId)
+            self?.stopLowPrefetching(for: collectionId)
+            self?.stopMediumPrefetching(for: collectionId)
+            self?.stopHighPrefetching(for: collectionId)
         }
     }
 
