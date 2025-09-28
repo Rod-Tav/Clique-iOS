@@ -5,6 +5,82 @@
 //  Created by Rod Tavangar on 3/5/25.
 //
 
+/// Intelligent image prefetching system with network quality adaptation.
+///
+/// ## Overview
+///
+/// This prefetcher implements Instagram-level prefetching strategies that adapt
+/// to network conditions and user behavior patterns.
+///
+/// ## Architecture
+///
+/// ```
+/// CollectionImagePrefetcher
+/// ├── Quality-based Prefetchers (Low/Med/High)
+/// ├── Network Quality Monitor
+/// ├── Context-aware Strategies
+/// └── Memory Pressure Handler
+/// ```
+///
+/// ## Prefetching Strategies
+///
+/// ### Context-Based Loading
+/// - **Feed Scrolling**: Low quality, first 2-4 images
+/// - **Detail Viewing**: Medium quality, visible + adjacent
+/// - **Grid Browsing**: Low quality, visible rows + 1
+/// - **Fullscreen**: High quality, current + next/prev
+///
+/// ### Network Adaptation
+/// ```swift
+/// Excellent (80-100%): Full prefetch all qualities
+/// Good (50-80%): Skip high quality prefetch
+/// Poor (20-50%): Only critical images
+/// Very Poor (0-20%): Skip all prefetching
+/// ```
+///
+/// ## Performance Optimizations
+///
+/// ### Debouncing
+/// - 300ms delay for prefetch requests
+/// - Prevents excessive operations during fast scrolling
+/// - Batches multiple requests together
+///
+/// ### Concurrent Limits
+/// - Maximum 2 concurrent prefetch operations
+/// - Prevents UI thread blocking
+/// - Cancels old operations for new ones
+///
+/// ### Memory Management
+/// - Monitors system memory warnings
+/// - Cancels all prefetching under pressure
+/// - Clears prefetch history to free memory
+///
+/// ## Usage Example
+///
+/// ```swift
+/// // In a collection view
+/// CollectionImagePrefetcher.instance.prefetchForContext(
+///     .feedScroll,
+///     collectionId: collection.id,
+///     images: collection.images
+/// )
+///
+/// // Stop when view disappears
+/// CollectionImagePrefetcher.instance.stopPrefetching(
+///     for: collection.id
+/// )
+/// ```
+///
+/// ## Network Quality Tracking
+///
+/// The system tracks the last 50 prefetch results to assess network quality:
+/// - Success/failure ratio determines quality level
+/// - Adapts timeout values based on quality
+/// - Skips non-critical prefetching in poor conditions
+///
+/// - Important: Test on real devices with various network conditions
+/// - Note: Prefetching is automatically disabled in very poor network conditions
+
 import Foundation
 import Kingfisher
 import UIKit
@@ -17,7 +93,10 @@ private enum NetworkQuality {
     case veryPoor  // <40% success rate
 }
 
-/// Instagram-level image prefetching system optimized for smooth scrolling
+/// Instagram-level image prefetching system optimized for smooth scrolling.
+///
+/// Singleton instance that manages intelligent prefetching across the app.
+/// Uses adaptive strategies based on context and network conditions.
 final class CollectionImagePrefetcher {
     static let instance = CollectionImagePrefetcher()
 
@@ -73,6 +152,9 @@ final class CollectionImagePrefetcher {
         let total = success + failed
         guard total > 0 else { return }
 
+        // Record metrics
+        CacheMetrics.shared.recordPrefetch(count: total)
+
         // Add results to tracking array
         for _ in 0..<success {
             recentPrefetchResults.append(true)
@@ -89,13 +171,13 @@ final class CollectionImagePrefetcher {
         // Calculate overall success rate
         let recentSuccessRate = Double(recentPrefetchResults.filter { $0 }.count) / Double(max(1, recentPrefetchResults.count))
 
-        // Update network quality assessment
+        // Update network quality assessment (less aggressive thresholds)
         switch recentSuccessRate {
-        case 0.9...1.0:
+        case 0.8...1.0:
             networkQuality = .excellent
-        case 0.7..<0.9:
+        case 0.5..<0.8:
             networkQuality = .good
-        case 0.4..<0.7:
+        case 0.2..<0.5:
             networkQuality = .poor
         default:
             networkQuality = .veryPoor
@@ -106,6 +188,13 @@ final class CollectionImagePrefetcher {
             print("⚠️ Network quality: \(networkQuality), success rate: \(Int(recentSuccessRate * 100))%")
         }
         #endif
+
+        // Record network fetch failures
+        if failed > 0 {
+            for _ in 0..<failed {
+                CacheMetrics.shared.recordNetworkFetch(duration: 0, success: false)
+            }
+        }
     }
 
     /// Skip prefetching entirely if network is too poor

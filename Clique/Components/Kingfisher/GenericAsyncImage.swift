@@ -5,11 +5,135 @@
 //  Created by Rod Tavangar on 3/13/25.
 //
 
+/// High-performance image loading system with Instagram-level optimizations.
+///
+/// ## Architecture Overview
+///
+/// The image loading system consists of three main components:
+/// - **GenericAsyncImage**: The main view component with dual-mode support (performance/standard)
+/// - **GenericAsyncImageCacheManager**: Instance-based cache for synchronous checks
+/// - **CollectionImagePrefetcher**: Intelligent prefetching with network adaptation
+///
+/// ## Caching Strategy
+///
+/// ### Multi-Level Cache
+/// ```
+/// Request Flow:
+/// 1. Synchronous Memory Check (instant)
+/// 2. TTL-based Result Cache (2 seconds)
+/// 3. Kingfisher Memory Cache (15-20% RAM)
+/// 4. Kingfisher Disk Cache (1-2GB)
+/// 5. Network Fetch (if needed)
+/// ```
+///
+/// ### Cache Sizes
+/// - **Memory**: 15-20% of device RAM (matching Instagram)
+/// - **Disk**: 2GB for iPad, 1GB for iPhone
+/// - **Result Cache**: 500 entries with 2-second TTL
+///
+/// ## Performance Modes
+///
+/// ### Performance Mode (Lightweight)
+/// - Minimal state changes to prevent recomposition
+/// - Direct Kingfisher integration
+/// - Best for grids and lists with many items
+/// - No progressive loading
+///
+/// ### Standard Mode (Full Features)
+/// - Progressive quality loading (low → medium → high)
+/// - Smooth transitions between qualities
+/// - Retry mechanism with error states
+/// - Best for detail views and hero images
+///
+/// ## Network Resilience
+///
+/// ### Adaptive Quality Detection
+/// ```swift
+/// // Quality thresholds (success rate):
+/// Excellent: 80-100% → Full prefetching
+/// Good: 50-80% → Reduced prefetching
+/// Poor: 20-50% → Minimal prefetching
+/// Very Poor: 0-20% → Skip non-critical
+/// ```
+///
+/// ### Retry Strategy
+/// - User-visible images: 2 retries with progressive delays
+/// - Prefetch images: Fail-fast with 10-20s timeout
+/// - Network quality affects retry behavior
+///
+/// ## Memory Management
+///
+/// ### Pressure Handling
+/// - Monitors system memory warnings
+/// - Cancels prefetch operations under pressure
+/// - Clears cache on app background
+/// - Auto-cleanup every 30 seconds
+///
+/// ### Thread Safety
+/// - @MainActor for UI updates
+/// - Background queues for cache checks
+/// - Task cancellation for race prevention
+/// - UUID-based request tracking
+///
+/// ## Usage Examples
+///
+/// ### Performance Mode (Grid)
+/// ```swift
+/// GenericAsyncImage(
+///     urls: image.urls,
+///     quality: .low,
+///     performanceMode: true
+/// ) { kfImage in
+///     kfImage
+///         .resizable()
+///         .aspectRatio(contentMode: .fill)
+/// } placeholder: {
+///     Color.gray.opacity(0.1)
+/// }
+/// ```
+///
+/// ### Standard Mode (Detail)
+/// ```swift
+/// GenericAsyncImage(
+///     urls: image.urls,
+///     quality: .high,
+///     performanceMode: false
+/// ) { kfImage in
+///     kfImage
+///         .resizable()
+///         .aspectRatio(contentMode: .fit)
+/// } placeholder: {
+///     ProgressView()
+/// }
+/// ```
+///
+/// ## Performance Metrics
+///
+/// Track performance with ``CacheMetrics``:
+/// - Cache hit rate
+/// - Network success rate
+/// - Prefetch effectiveness
+/// - Average fetch times
+///
+/// ## Best Practices
+///
+/// 1. Use performance mode for lists/grids
+/// 2. Use standard mode for detail views
+/// 3. Prefetch contextually (feed vs detail)
+/// 4. Monitor metrics in debug builds
+/// 5. Clear cache on memory warnings
+///
+/// - Important: Always test on real devices for accurate performance
+/// - Note: Simulator performance differs significantly from devices
+
 import SwiftUI
 import Kingfisher
 import Combine
 
-// Instance-based cache manager for GenericAsyncImage cache check results
+/// Instance-based cache manager for synchronous cache checking.
+///
+/// Provides instant cache hit detection to eliminate placeholder flash.
+/// Uses TTL-based caching with automatic cleanup and race condition prevention.
 @MainActor
 final class GenericAsyncImageCacheManager: ObservableObject {
     static let shared = GenericAsyncImageCacheManager()
@@ -17,7 +141,7 @@ final class GenericAsyncImageCacheManager: ObservableObject {
     private var cacheCheckResults: [String: (Bool, Date)] = [:]
     private var pendingChecks: [String: Task<Bool, Never>] = [:] // Prevent race conditions
     private let cacheResultTTL: TimeInterval = 2.0 // 2 seconds TTL
-    private let maxCacheSize = 100 // Prevent unbounded growth
+    private let maxCacheSize = 500 // Increased for large grids (was 100)
     private var lastCleanupTime: Date = Date()
     private let cleanupInterval: TimeInterval = 30.0 // Cleanup every 30 seconds
     private var cleanupTimer: Timer? // Store timer reference for proper cleanup
@@ -82,7 +206,7 @@ final class GenericAsyncImageCacheManager: ObservableObject {
     private func setupCleanupTimer() {
         // Store timer reference for proper lifecycle management
         cleanupTimer = Timer.scheduledTimer(withTimeInterval: cleanupInterval, repeats: true) { [weak self] _ in
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
                 self?.cleanupExpiredEntries()
             }
         }
@@ -114,6 +238,19 @@ final class GenericAsyncImageCacheManager: ObservableObject {
     }
 }
 
+/// High-performance async image view with dual-mode support.
+///
+/// Provides Instagram-level image loading performance with adaptive strategies
+/// based on context (grid vs detail) and network conditions.
+///
+/// - Parameters:
+///   - urls: Photo URLs for different quality levels
+///   - quality: Target quality level to load
+///   - shouldFixSize: Whether to fix size for layout stability
+///   - loadingBug: Legacy compatibility flag
+///   - performanceMode: Use lightweight mode for grids (default: false)
+///   - content: View builder for the loaded image
+///   - placeholder: View to show while loading
 struct GenericAsyncImage<Content: View, Placeholder: View>: View {
     let urls: PhotoUrls?
     var quality: ImageQuality
@@ -497,12 +634,24 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
     private func checkCacheAsync(for urlString: String) async -> Bool {
         // Check cached result first
         if let cachedResult = cacheManager.getCachedResult(for: urlString) {
+            // Record metrics for cached result
+            if cachedResult {
+                CacheMetrics.shared.recordCacheHit()
+            } else {
+                CacheMetrics.shared.recordCacheMiss()
+            }
             return cachedResult
         }
 
         // Check for existing pending operation to prevent race conditions
         if let existingTask = cacheTasks[urlString] {
-            return await existingTask.value
+            // Handle potential task cancellation
+            do {
+                return await existingTask.value
+            } catch {
+                // Task was cancelled, remove it and continue
+                cacheTasks[urlString] = nil
+            }
         }
 
         guard let url = URL(string: urlString) else { return false }
@@ -522,13 +671,24 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
         }
 
         cacheTasks[urlString] = task
-        let result = await task.value
 
-        // Cache the result
-        cacheManager.setCachedResult(for: urlString, result: result)
-        cacheTasks[urlString] = nil
-
-        return result
+        do {
+            let result = await task.value
+            // Record metrics
+            if result {
+                CacheMetrics.shared.recordCacheHit()
+            } else {
+                CacheMetrics.shared.recordCacheMiss()
+            }
+            // Cache the result
+            cacheManager.setCachedResult(for: urlString, result: result)
+            cacheTasks[urlString] = nil
+            return result
+        } catch {
+            // Task was cancelled
+            cacheTasks[urlString] = nil
+            return false
+        }
     }
 
     private func handleImageLoaded(_ quality: ImageQuality) {
