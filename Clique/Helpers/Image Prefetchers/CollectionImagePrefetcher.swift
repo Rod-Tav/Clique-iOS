@@ -124,7 +124,9 @@ final class CollectionImagePrefetcher {
 
     // Debounce mechanism to prevent rapid prefetch calls during scrolling
     private var prefetchDebounceTimer: Timer?
-    private var pendingPrefetchOperations: [(context: PrefetchContext, collectionId: String, images: [CollectionImage])] = []
+    // Use serial queue to synchronize access to pendingPrefetchOperations
+    private let pendingOperationsQueue = DispatchQueue(label: "com.clique.prefetch.pending", attributes: .concurrent)
+    private var _pendingPrefetchOperations: [(context: PrefetchContext, collectionId: String, images: [CollectionImage])] = []
 
     private init() {
         setupMemoryWarningObserver()
@@ -153,7 +155,9 @@ final class CollectionImagePrefetcher {
         guard total > 0 else { return }
 
         // Record metrics
-        CacheMetrics.shared.recordPrefetch(count: total)
+        Task {
+            await CacheMetrics.shared.recordPrefetch(count: total)
+        }
 
         // Add results to tracking array
         for _ in 0..<success {
@@ -191,8 +195,10 @@ final class CollectionImagePrefetcher {
 
         // Record network fetch failures
         if failed > 0 {
-            for _ in 0..<failed {
-                CacheMetrics.shared.recordNetworkFetch(duration: 0, success: false)
+            Task {
+                for _ in 0..<failed {
+                    await CacheMetrics.shared.recordNetworkFetch(duration: 0, success: false)
+                }
             }
         }
     }
@@ -223,17 +229,28 @@ final class CollectionImagePrefetcher {
             // Cancel existing timer
             prefetchDebounceTimer?.invalidate()
 
-            // Store operation
-            pendingPrefetchOperations.append((context, collectionId, images))
-
-            // Keep only the latest operation per collection
-            pendingPrefetchOperations = pendingPrefetchOperations.filter { $0.collectionId == collectionId }.suffix(1)
+            // Store operation (thread-safe)
+            pendingOperationsQueue.async(flags: .barrier) { [weak self] in
+                guard let self = self else { return }
+                self._pendingPrefetchOperations.append((context, collectionId, images))
+                // Keep only the latest operation per collection
+                self._pendingPrefetchOperations = Array(self._pendingPrefetchOperations.filter { $0.collectionId == collectionId }.suffix(1))
+            }
 
             // Schedule debounced execution
             prefetchDebounceTimer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: false) { [weak self] _ in
-                guard let self = self, let operation = self.pendingPrefetchOperations.last else { return }
-                self.pendingPrefetchOperations.removeAll()
-                self.executePrefetch(context: operation.context, collectionId: operation.collectionId, images: operation.images)
+                guard let self = self else { return }
+
+                // Get pending operation (thread-safe)
+                self.pendingOperationsQueue.async(flags: .barrier) {
+                    guard let operation = self._pendingPrefetchOperations.last else { return }
+                    self._pendingPrefetchOperations.removeAll()
+
+                    // Execute on prefetch queue
+                    self.prefetchQueue.async {
+                        self.executePrefetch(context: operation.context, collectionId: operation.collectionId, images: operation.images)
+                    }
+                }
             }
         } else {
             // Execute immediately for non-grid contexts
@@ -356,6 +373,10 @@ final class CollectionImagePrefetcher {
 
     // MARK: - Stop Prefetching
     func stopPrefetching(collectionId: String) {
+        // Invalidate timer to prevent memory leak
+        prefetchDebounceTimer?.invalidate()
+        prefetchDebounceTimer = nil
+
         prefetchQueue.async { [weak self] in
             self?.stopLowPrefetching(collectionId: collectionId)
             self?.stopMediumPrefetching(collectionId: collectionId)
@@ -364,6 +385,10 @@ final class CollectionImagePrefetcher {
     }
 
     private func stopAllPrefetching() {
+        // Invalidate timer to prevent memory leak
+        prefetchDebounceTimer?.invalidate()
+        prefetchDebounceTimer = nil
+
         lowPrefetchers.values.forEach { $0.stop() }
         medPrefetchers.values.forEach { $0.stop() }
         highPrefetchers.values.forEach { $0.stop() }

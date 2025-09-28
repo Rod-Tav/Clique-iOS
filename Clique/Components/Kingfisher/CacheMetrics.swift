@@ -8,30 +8,30 @@
 import Foundation
 
 /// Tracks cache performance metrics for optimization and debugging
-@MainActor
-public final class CacheMetrics: ObservableObject {
+/// Thread-safe implementation using actor isolation for concurrent access
+public actor CacheMetrics {
     static let shared = CacheMetrics()
 
     // MARK: - Metrics
-    @Published public private(set) var cacheHits: Int = 0
-    @Published public private(set) var cacheMisses: Int = 0
-    @Published public private(set) var totalRequests: Int = 0
-    @Published public private(set) var hitRate: Double = 0.0
+    public private(set) var cacheHits: Int = 0
+    public private(set) var cacheMisses: Int = 0
+    public private(set) var totalRequests: Int = 0
+    public private(set) var hitRate: Double = 0.0
 
     // Network metrics
-    @Published public private(set) var networkFetches: Int = 0
-    @Published public private(set) var failedFetches: Int = 0
-    @Published public private(set) var avgFetchTime: TimeInterval = 0.0
+    public private(set) var networkFetches: Int = 0
+    public private(set) var failedFetches: Int = 0
+    public private(set) var avgFetchTime: TimeInterval = 0.0
 
     // Latency percentiles
-    @Published public private(set) var p50FetchTime: TimeInterval = 0.0
-    @Published public private(set) var p90FetchTime: TimeInterval = 0.0
-    @Published public private(set) var p99FetchTime: TimeInterval = 0.0
+    public private(set) var p50FetchTime: TimeInterval = 0.0
+    public private(set) var p90FetchTime: TimeInterval = 0.0
+    public private(set) var p99FetchTime: TimeInterval = 0.0
 
     // Performance metrics
-    @Published public private(set) var prefetchedImages: Int = 0
-    @Published public private(set) var prefetchHits: Int = 0
-    @Published public private(set) var memoryWarnings: Int = 0
+    public private(set) var prefetchedImages: Int = 0
+    public private(set) var prefetchHits: Int = 0
+    public private(set) var memoryWarnings: Int = 0
 
     // Session tracking
     private var sessionStartTime: Date
@@ -110,15 +110,15 @@ public final class CacheMetrics: ObservableObject {
         let sortedTimes = fetchTimes.sorted()
         let count = sortedTimes.count
 
-        // Calculate percentile indices
-        let p50Index = Int(Double(count) * 0.5)
-        let p90Index = Int(Double(count) * 0.9)
-        let p99Index = Int(Double(count) * 0.99)
+        // Calculate percentile indices (corrected for small sample sizes)
+        let p50Index = max(0, Int(Double(count - 1) * 0.5))
+        let p90Index = max(0, Int(Double(count - 1) * 0.9))
+        let p99Index = max(0, Int(Double(count - 1) * 0.99))
 
-        // Ensure indices are within bounds
-        p50FetchTime = sortedTimes[min(p50Index, count - 1)]
-        p90FetchTime = sortedTimes[min(p90Index, count - 1)]
-        p99FetchTime = sortedTimes[min(p99Index, count - 1)]
+        // Get percentile values (indices are guaranteed to be within bounds)
+        p50FetchTime = sortedTimes[p50Index]
+        p90FetchTime = sortedTimes[p90Index]
+        p99FetchTime = sortedTimes[p99Index]
     }
 
     /// Get session duration

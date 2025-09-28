@@ -671,10 +671,12 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
         // Check cached result first
         if let cachedResult = cacheManager.getCachedResult(for: urlString) {
             // Record metrics for cached result
-            if cachedResult {
-                CacheMetrics.shared.recordCacheHit()
-            } else {
-                CacheMetrics.shared.recordCacheMiss()
+            Task {
+                if cachedResult {
+                    await CacheMetrics.shared.recordCacheHit()
+                } else {
+                    await CacheMetrics.shared.recordCacheMiss()
+                }
             }
             return cachedResult
         }
@@ -711,10 +713,12 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
         do {
             let result = await task.value
             // Record metrics
-            if result {
-                CacheMetrics.shared.recordCacheHit()
-            } else {
-                CacheMetrics.shared.recordCacheMiss()
+            Task {
+                if result {
+                    await CacheMetrics.shared.recordCacheHit()
+                } else {
+                    await CacheMetrics.shared.recordCacheMiss()
+                }
             }
             // Cache the result
             cacheManager.setCachedResult(for: urlString, result: result)
