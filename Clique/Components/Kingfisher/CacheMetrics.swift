@@ -41,9 +41,11 @@ public actor CacheMetrics {
     public private(set) var ttfbCount: Int = 0
     public private(set) var avgTTFB: TimeInterval = 0.0
 
-    // View-specific hit rates
+    // View-specific hit rates (bounded to prevent memory growth)
     private var viewHitRates: [String: (hits: Int, misses: Int)] = [:]
     public private(set) var viewMetrics: [String: Double] = [:]
+    private let maxViewContexts = 50 // Limit number of tracked view contexts
+    private var viewContextAccessOrder: [String] = [] // LRU tracking
 
     // Session tracking
     private var sessionStartTime: Date
@@ -68,6 +70,7 @@ public actor CacheMetrics {
 
         // Track view-specific metrics
         if let context = viewContext {
+            enforceViewContextLimit(context)
             let current = viewHitRates[context] ?? (0, 0)
             viewHitRates[context] = (current.hits + 1, current.misses)
             updateViewMetrics(for: context)
@@ -82,6 +85,7 @@ public actor CacheMetrics {
 
         // Track view-specific metrics
         if let context = viewContext {
+            enforceViewContextLimit(context)
             let current = viewHitRates[context] ?? (0, 0)
             viewHitRates[context] = (current.hits, current.misses + 1)
             updateViewMetrics(for: context)
@@ -152,6 +156,20 @@ public actor CacheMetrics {
         ttfbSum += duration
         ttfbCount += 1
         avgTTFB = ttfbSum / Double(max(1, ttfbCount))
+    }
+
+    private func enforceViewContextLimit(_ context: String) {
+        // Remove from current position if exists
+        viewContextAccessOrder.removeAll { $0 == context }
+        // Add to end (most recently used)
+        viewContextAccessOrder.append(context)
+
+        // Evict least recently used contexts if over limit
+        while viewContextAccessOrder.count > maxViewContexts {
+            let evictedContext = viewContextAccessOrder.removeFirst()
+            viewHitRates.removeValue(forKey: evictedContext)
+            viewMetrics.removeValue(forKey: evictedContext)
+        }
     }
 
     private func updateViewMetrics(for context: String) {
@@ -292,6 +310,7 @@ public actor CacheMetrics {
         avgTTFB = 0.0
         viewHitRates.removeAll()
         viewMetrics.removeAll()
+        viewContextAccessOrder.removeAll()
         fetchTimes.removeAll()
         fetchTimeIndex = 0
         fetchTimesCount = 0
