@@ -22,7 +22,7 @@ struct CollectionDetailImageAsyncView: View {
                         .frameRatio(width: UIScreen.width, ratio: Constants.portraitPostRatio)
                         .clipped()
                 }
-            
+
         } placeholder: {
             Rectangle()
                 .fill(.gray)

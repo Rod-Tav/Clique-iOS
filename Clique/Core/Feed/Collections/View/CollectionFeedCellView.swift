@@ -258,6 +258,19 @@ extension CollectionFeedCellView {
                     .offset(y: -verticalOffset(proxy, totalHeight: 0))
             }
             .onAppear {
+                // Prefetch images for smooth scrolling when this card becomes visible
+                if let collection {
+                    let imagesToPrefetch = Array(imagesPgVM.items.dropFirst(index).prefix(6))
+                        .compactMap { collectionImageStore.images[$0.id] }
+
+                    CollectionImagePrefetcher.instance.prefetchForContext(
+                        .feedScroll,
+                        collectionId: collection.id,
+                        images: imagesToPrefetch
+                    )
+                }
+
+                // Load next page when approaching end
                 if imagesPgVM.size - (index + 1) % imagesPgVM.size == 2 || index == imagesPgVM.items.count - 1 {
                     Task {
                         await updateImages(.loadNextPage)
@@ -267,6 +280,22 @@ extension CollectionFeedCellView {
             .contentShape(.rect)
             .onTapGesture {
                 clCoordinator.selectedImageId = image.id
+
+                // Prefetch adjacent images for detail view
+                if let collection, let currentIndex = imagesPgVM.items.firstIndex(where: { $0.id == image.id }) {
+                    // Get 2 images before and 2 after current image
+                    let startIndex = max(0, currentIndex - 2)
+                    let endIndex = min(imagesPgVM.items.count - 1, currentIndex + 2)
+                    let adjacentIds = Array(imagesPgVM.items[startIndex...endIndex])
+                    let adjacentImages = adjacentIds.compactMap { collectionImageStore.images[$0.id] }
+
+                    CollectionImagePrefetcher.instance.prefetchForContext(
+                        .detailView,
+                        collectionId: collection.id,
+                        images: adjacentImages
+                    )
+                }
+
                 showDetailView = true
             }
             .zIndex(-Double(index))

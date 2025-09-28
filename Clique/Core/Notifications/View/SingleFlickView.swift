@@ -126,9 +126,43 @@ struct SingleFlickView: View {
                 }
                 .pinchZoom()
                 .swipeUpToOpenCommentsTutorial()
-                .simultaneousGesture(swipeUpToOpenComments)
+                .compatibleDragGesture(
+                    minimumDistance: 10,
+                    onChanged: { translation in
+                        guard !dismissing else { return }
+                        // Check if the swipe was mostly vertical and upwards
+                        if translation.height < -20 && abs(translation.width) < 20 {
+                            haptics(.light)
+                            showCommentSheet = true
+                            hasSwipedUpToOpenComments = true
+                        }
+                    }
+                )
                 .offset(dismissOffset)
-                .simultaneousGesture(swipeDownToDismiss)
+                .compatibleDragGesture(
+                    minimumDistance: 10,
+                    onChanged: { translation in
+                        guard (translation.height > 10 && abs(translation.width) < 20) || dismissing else { return }
+
+                        dismissing = true
+                        dismissOffset = CGSize(width: 0, height: translation.height)
+                    },
+                    onEnded: { translation in
+                        guard dismissing else { return }
+                        // Simplified without velocity
+                        let height = translation.height
+
+                        if height > 10 {
+                            dismiss()
+                        } else {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                dismissOffset = .zero
+                            } completion: {
+                                dismissing = false
+                            }
+                        }
+                    }
+                )
                 .overlay {
                     IconImage("heart-filled", color: .theme.red, size: 70)
                         .likeAnimation($likeAnimation)

@@ -48,6 +48,7 @@ struct FlicksFeedView: View {
     @AppStorage("flicksGridColumns") private var gridColumns: Int = 3
     @State private var gridScrollPosition: String? = nil
     @State private var gridReaderProxy: ScrollViewProxy? = nil
+
     
     private var currentImage: CollectionImage? {
         if let currentFlickId {
@@ -77,7 +78,7 @@ struct FlicksFeedView: View {
         TabNavigationStack(path: $bindableTVC.flicksNavigationPath) {
             VStack(spacing: 0) {
                 if !viewModel.items.isEmpty {
-                    TopBar()
+                    topBar
                     
                     if currentFlickId == viewModel.items.first?.id {
                         Text("Swipe left to see more flicks")
@@ -100,7 +101,6 @@ struct FlicksFeedView: View {
                             currentCollection = item.collection
                             currentCliqueMembers = item.cliqueMembers
                         }
-                    //                        FlickFeedCell(flick: item.flick, collection: item.collection, relevantUser: owner, cliqueMembers: item.cliqueMembers)
                     // overlay the next image to preload high quality image
                         .overlay {
                             if let idx = viewModel.items.firstIndex(where: { $0.id == item.id }),
@@ -109,6 +109,7 @@ struct FlicksFeedView: View {
                                 if let nextImage = collectionImageStore.images[nextItem.id] {
                                     CollectionDetailImageAsyncView(urls: nextImage.imageUrl, quality: .high)
                                         .opacity(0)
+                                        .allowsHitTesting(false)
                                 }
                             }
                         }
@@ -125,13 +126,15 @@ struct FlicksFeedView: View {
                 }, loadingStateView: {
                     LoadingStateView()
                 })
-                .pagination(.init(type: .thresholdItem(offset: 1), shouldLoadNextPage: { Task { await updateFlicks(.loadNextPage) } }) { })
+                .pagination(.init(type: .lastItem, shouldLoadNextPage: { Task { await updateFlicks(.loadNextPage) } }) { })
                 .onAppear {
                     Task {
-                        guard listState == .loading else { return }
-                        await updateFlicks(.loadFirstPage)
-                        if let first = viewModel.items.first {
-                            currentFlickId = first.id
+                        // Only load data if we haven't already
+                        if viewModel.items.isEmpty && listState == .loading {
+                            await updateFlicks(.loadFirstPage)
+                            if let first = viewModel.items.first {
+                                currentFlickId = first.id
+                            }
                         }
                     }
                 }
@@ -188,8 +191,8 @@ struct FlicksFeedView: View {
                     }, loadingStateView: {
                         LoadingStateView()
                     })
-                    .pagination(.init(type: .lastItem, shouldLoadNextPage: { 
-                        Task { await updateFlicks(.loadNextPage) } 
+                    .pagination(.init(type: .lastItem, shouldLoadNextPage: {
+                        Task { await updateFlicks(.loadNextPage) }
                     }) { })
                     .onAppear {
                         gridReaderProxy = reader
@@ -223,8 +226,11 @@ struct FlicksFeedView: View {
                     }
                 }
             } else {
-                // Switching TO carousel: sync carousel position from grid  
-                currentFlickId = gridScrollPosition
+                // Switching TO carousel: sync carousel position from grid
+                // Set the position immediately so ScrollView can use it
+                if let gridPos = gridScrollPosition {
+                    currentFlickId = gridPos
+                }
             }
         }
         .onReceive(of: .refreshFlicksFeed) { _ in
@@ -284,7 +290,7 @@ struct FlicksFeedView: View {
     }
     
     private func GridCell(_ item: InfiniteFeedItem, urls: PhotoUrls) -> some View {
-        CollectionPreviewAsyncImage(urls: urls, quality: .medium)
+        GridCollectionPreviewImage(urls: urls)  // Use new lightweight grid component
             .overlayCollectionPreviewStats(
                 likes: item.flick.numLikes,
                 comments: item.flick.numComments,
@@ -310,7 +316,7 @@ struct FlicksFeedView: View {
         }
     }
     
-    @ViewBuilder private func TopBar() -> some View {
+    private var topBar: some View {
         HStack(spacing: 0) {
             if let currentRelevantUser {
                 NavigationLink(value: currentRelevantUser) {
@@ -555,9 +561,8 @@ struct FlicksFeedView: View {
     }
     
     // MARK: Flick Image
-    @ViewBuilder private func FlickImage(_ image: CollectionImage) -> some View {
+    private func FlickImage(_ image: CollectionImage) -> some View {
         CollectionDetailImageAsyncView(urls: image.imageUrl, quality: .high)
-        // TODO: DRY
             .contentShape(.rect)
             .id(image.id)
             .pinchZoom()
@@ -574,7 +579,17 @@ struct FlicksFeedView: View {
                     .likeAnimation($likeAnimation)
             }
             .swipeUpToOpenCommentsTutorial()
-            .simultaneousGesture(swipeUpToOpenComments)
+            .compatibleDragGesture(
+                minimumDistance: 10,
+                onChanged: { translation in
+                    // Check if the swipe was mostly vertical and upwards
+                    if translation.height < -20 && abs(translation.width) < 20 {
+                        haptics(.light)
+                        showCommentSheet = true
+                        hasSwipedUpToOpenComments = true
+                    }
+                }
+            )
     }
     
     private var swipeUpToOpenComments: some Gesture {

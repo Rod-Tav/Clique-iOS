@@ -56,6 +56,7 @@ enum SortOption: String, CaseIterable, Identifiable {
     
     private var collectionDataId: String
     var sortOption: SortOption
+    var isDetailView: Bool = false // Track if used in detail view context
     
     init(collectionDataId: String, sortOption: SortOption, _ collectionStore: CollectionStore, _ collectionImageStore: CollectionImageStore) {
         self.collectionDataId = collectionDataId
@@ -69,7 +70,13 @@ enum SortOption: String, CaseIterable, Identifiable {
             
             let collectionImages = collection.images
             
-            CollectionImagePrefetcher.instance.prefetchHighQuality(collectionId: collection.id, images: collection.images)
+            // Prefetch based on context - detail view needs high quality, grid needs low quality
+            let context: CollectionImagePrefetcher.PrefetchContext = self.isDetailView ? .detailView : .gridView
+            CollectionImagePrefetcher.instance.prefetchForContext(
+                context,
+                collectionId: collection.id,
+                images: collection.images
+            )
             
             await collectionStore.updateCollection(collection, collectionImageStore)
             

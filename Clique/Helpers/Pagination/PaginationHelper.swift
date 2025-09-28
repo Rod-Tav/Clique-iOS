@@ -194,7 +194,7 @@ extension PaginationViewModel where Self: AnyObject {
             guard latestRequestId == requestId else { return }
             
             done = newItems.count < size
-            
+
             // Apply deduplication safety net when appending
             if let stringItems = items as? [String],
                let stringNewItems = newItems as? [String] {
