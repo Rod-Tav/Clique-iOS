@@ -122,9 +122,9 @@ public actor CacheMetrics {
         }
 
         // Get actual values from circular buffer
-        let actualTimes = fetchTimesCount < maxFetchTimeSamples ? fetchTimes : fetchTimes
-        let sortedTimes = actualTimes.sorted()
-        let count = min(fetchTimesCount, actualTimes.count)
+        // When buffer is full, we use all values; when not full, use only the filled portion
+        let sortedTimes = fetchTimes.prefix(min(fetchTimesCount, maxFetchTimeSamples)).sorted()
+        let count = sortedTimes.count
 
         // Calculate percentile indices (corrected for small sample sizes)
         let p50Index = max(0, Int(Double(count - 1) * 0.5))
