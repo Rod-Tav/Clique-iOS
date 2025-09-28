@@ -177,19 +177,44 @@ public actor CacheMetrics {
         }
 
         // Get actual values from circular buffer
-        // When buffer is full, we use all values; when not full, use only the filled portion
-        let sortedTimes = fetchTimes.prefix(min(fetchTimesCount, maxFetchTimeSamples)).sorted()
-        let count = sortedTimes.count
+        let actualCount = min(fetchTimesCount, maxFetchTimeSamples)
+        let sortedTimes = Array(fetchTimes.prefix(actualCount).sorted())
 
-        // Calculate percentile indices (corrected for small sample sizes)
-        let p50Index = max(0, Int(Double(count - 1) * 0.5))
-        let p90Index = max(0, Int(Double(count - 1) * 0.9))
-        let p99Index = max(0, Int(Double(count - 1) * 0.99))
+        // Handle edge cases for small sample sizes
+        switch sortedTimes.count {
+        case 1:
+            // With 1 sample, all percentiles are the same
+            p50FetchTime = sortedTimes[0]
+            p90FetchTime = sortedTimes[0]
+            p99FetchTime = sortedTimes[0]
+        case 2:
+            // With 2 samples, p50 is average, p90/p99 is max
+            p50FetchTime = (sortedTimes[0] + sortedTimes[1]) / 2
+            p90FetchTime = sortedTimes[1]
+            p99FetchTime = sortedTimes[1]
+        case 3...5:
+            // With 3-5 samples, use simplified percentiles
+            p50FetchTime = sortedTimes[sortedTimes.count / 2]
+            p90FetchTime = sortedTimes[sortedTimes.count - 1] // Use max for p90
+            p99FetchTime = sortedTimes[sortedTimes.count - 1] // Use max for p99
+        case 6...10:
+            // With 6-10 samples, differentiate p90 and p99
+            let p50Index = sortedTimes.count / 2
+            let p90Index = min(sortedTimes.count - 1, Int(Double(sortedTimes.count) * 0.9))
+            p50FetchTime = sortedTimes[p50Index]
+            p90FetchTime = sortedTimes[p90Index]
+            p99FetchTime = sortedTimes[sortedTimes.count - 1] // Still use max for p99
+        default:
+            // With 11+ samples, use standard percentile calculation
+            let count = sortedTimes.count
+            let p50Index = Int(Double(count - 1) * 0.5)
+            let p90Index = Int(Double(count - 1) * 0.9)
+            let p99Index = Int(Double(count - 1) * 0.99)
 
-        // Get percentile values (indices are guaranteed to be within bounds)
-        p50FetchTime = sortedTimes[p50Index]
-        p90FetchTime = sortedTimes[p90Index]
-        p99FetchTime = sortedTimes[p99Index]
+            p50FetchTime = sortedTimes[p50Index]
+            p90FetchTime = sortedTimes[p90Index]
+            p99FetchTime = sortedTimes[p99Index]
+        }
     }
 
     /// Get session duration
