@@ -153,13 +153,16 @@ final class GenericAsyncImageCacheManager: ObservableObject {
     private var _pendingChecks: [String: Task<Bool, Never>] = [:]
     private var _lastCleanupTime: Date = Date()
     private var cleanupTimer: Timer? // Store timer reference for proper cleanup
+    private var cleanupTask: Task<Void, Never>? // Single cleanup task to prevent races
 
     private init() {
         setupCleanupTimer()
+        setupMemoryWarningObserver()
     }
 
     deinit {
         cleanupTimer?.invalidate()
+        cleanupTask?.cancel()
     }
 
     func getCachedResult(for url: String) -> Bool? {
@@ -207,18 +210,26 @@ final class GenericAsyncImageCacheManager: ObservableObject {
     }
 
     private func cleanupIfNeeded() {
-        let shouldCleanup = cacheQueue.sync {
-            let now = Date()
-            if now.timeIntervalSince(_lastCleanupTime) > ImageCacheConfig.cleanupInterval {
-                return true
-            }
-            return false
-        }
+        // Cancel any existing cleanup task to prevent races
+        cleanupTask?.cancel()
 
-        if shouldCleanup {
-            cleanupExpiredEntries()
-            cacheQueue.async(flags: .barrier) { [weak self] in
-                self?._lastCleanupTime = Date()
+        // Create new coordinated cleanup task
+        cleanupTask = Task { [weak self] in
+            guard let self = self else { return }
+
+            let shouldCleanup = await self.cacheQueue.sync {
+                let now = Date()
+                if now.timeIntervalSince(self._lastCleanupTime) > ImageCacheConfig.cleanupInterval {
+                    return true
+                }
+                return false
+            }
+
+            if shouldCleanup && !Task.isCancelled {
+                await self.cleanupExpiredEntries()
+                await self.cacheQueue.async(flags: .barrier) {
+                    self._lastCleanupTime = Date()
+                }
             }
         }
     }
@@ -240,8 +251,9 @@ final class GenericAsyncImageCacheManager: ObservableObject {
     private func setupCleanupTimer() {
         // Store timer reference for proper lifecycle management
         cleanupTimer = Timer.scheduledTimer(withTimeInterval: ImageCacheConfig.cleanupInterval, repeats: true) { [weak self] _ in
+            // Reuse single cleanup task to prevent multiple concurrent cleanups
             Task { @MainActor [weak self] in
-                self?.cleanupExpiredEntries()
+                self?.cleanupIfNeeded()
             }
         }
 
@@ -254,6 +266,28 @@ final class GenericAsyncImageCacheManager: ObservableObject {
             Task { @MainActor in
                 self?.clearCache()
             }
+        }
+    }
+
+    private func setupMemoryWarningObserver() {
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.didReceiveMemoryWarningNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.handleMemoryPressure()
+            }
+        }
+    }
+
+    private func handleMemoryPressure() {
+        // Reduce cache size by 50% on memory warning
+        cacheQueue.async(flags: .barrier) { [weak self] in
+            guard let self = self else { return }
+            let entriesToKeep = self._cacheCheckResults.count / 2
+            let sortedEntries = self._cacheCheckResults.sorted { $0.value.1 > $1.value.1 }
+            self._cacheCheckResults = Dictionary(uniqueKeysWithValues: sortedEntries.prefix(entriesToKeep))
         }
     }
 

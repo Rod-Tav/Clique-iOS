@@ -33,6 +33,18 @@ public actor CacheMetrics {
     public private(set) var prefetchHits: Int = 0
     public private(set) var memoryWarnings: Int = 0
 
+    // Enhanced metrics
+    public private(set) var cacheEvictions: Int = 0
+    public private(set) var totalImageBytes: Int64 = 0
+    public private(set) var avgImageSize: Int64 = 0
+    public private(set) var ttfbSum: TimeInterval = 0.0 // Time to first byte
+    public private(set) var ttfbCount: Int = 0
+    public private(set) var avgTTFB: TimeInterval = 0.0
+
+    // View-specific hit rates
+    private var viewHitRates: [String: (hits: Int, misses: Int)] = [:]
+    public private(set) var viewMetrics: [String: Double] = [:]
+
     // Session tracking
     private var sessionStartTime: Date
 
@@ -49,17 +61,31 @@ public actor CacheMetrics {
     // MARK: - Recording Methods
 
     /// Record a cache hit
-    func recordCacheHit() {
+    func recordCacheHit(viewContext: String? = nil) {
         cacheHits += 1
         totalRequests += 1
         updateHitRate()
+
+        // Track view-specific metrics
+        if let context = viewContext {
+            let current = viewHitRates[context] ?? (0, 0)
+            viewHitRates[context] = (current.hits + 1, current.misses)
+            updateViewMetrics(for: context)
+        }
     }
 
     /// Record a cache miss
-    func recordCacheMiss() {
+    func recordCacheMiss(viewContext: String? = nil) {
         cacheMisses += 1
         totalRequests += 1
         updateHitRate()
+
+        // Track view-specific metrics
+        if let context = viewContext {
+            let current = viewHitRates[context] ?? (0, 0)
+            viewHitRates[context] = (current.hits, current.misses + 1)
+            updateViewMetrics(for: context)
+        }
     }
 
     /// Record a network fetch
@@ -105,6 +131,35 @@ public actor CacheMetrics {
     /// Record memory warning
     func recordMemoryWarning() {
         memoryWarnings += 1
+    }
+
+    /// Record cache eviction
+    func recordCacheEviction(count: Int = 1) {
+        cacheEvictions += count
+    }
+
+    /// Record image size
+    func recordImageSize(bytes: Int64) {
+        totalImageBytes += bytes
+        let imageCount = cacheHits + networkFetches
+        if imageCount > 0 {
+            avgImageSize = totalImageBytes / Int64(imageCount)
+        }
+    }
+
+    /// Record time to first byte
+    func recordTTFB(duration: TimeInterval) {
+        ttfbSum += duration
+        ttfbCount += 1
+        avgTTFB = ttfbSum / Double(max(1, ttfbCount))
+    }
+
+    private func updateViewMetrics(for context: String) {
+        guard let stats = viewHitRates[context] else { return }
+        let total = stats.hits + stats.misses
+        if total > 0 {
+            viewMetrics[context] = Double(stats.hits) / Double(total)
+        }
     }
 
     // MARK: - Computed Metrics
@@ -165,11 +220,13 @@ public actor CacheMetrics {
         - Hit Rate: \(String(format: "%.1f%%", hitRate * 100))
         - Total Requests: \(totalRequests)
         - Hits: \(cacheHits) | Misses: \(cacheMisses)
+        - Evictions: \(cacheEvictions)
 
         Network:
         - Fetches: \(networkFetches)
         - Success Rate: \(String(format: "%.1f%%", networkSuccessRate * 100))
         - Avg Fetch Time: \(String(format: "%.2fs", avgFetchTime))
+        - Avg TTFB: \(String(format: "%.2fs", avgTTFB))
         - P50 Latency: \(String(format: "%.2fs", p50FetchTime))
         - P90 Latency: \(String(format: "%.2fs", p90FetchTime))
         - P99 Latency: \(String(format: "%.2fs", p99FetchTime))
@@ -180,6 +237,10 @@ public actor CacheMetrics {
 
         System:
         - Memory Warnings: \(memoryWarnings)
+        - Avg Image Size: \(String(format: "%.1f KB", Double(avgImageSize) / 1024))
+
+        View-Specific Hit Rates:
+        \(viewMetrics.map { "- \($0.key): \(String(format: "%.1f%%", $0.value * 100))" }.joined(separator: "\n"))
         """
     }
 
@@ -198,6 +259,14 @@ public actor CacheMetrics {
         prefetchedImages = 0
         prefetchHits = 0
         memoryWarnings = 0
+        cacheEvictions = 0
+        totalImageBytes = 0
+        avgImageSize = 0
+        ttfbSum = 0.0
+        ttfbCount = 0
+        avgTTFB = 0.0
+        viewHitRates.removeAll()
+        viewMetrics.removeAll()
         fetchTimes.removeAll()
         fetchTimeIndex = 0
         fetchTimesCount = 0
