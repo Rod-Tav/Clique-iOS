@@ -698,14 +698,10 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
         let task = Task<Bool, Never> {
             let resource = KF.ImageResource(downloadURL: url)
             let cache = KingfisherManager.shared.cache
-            return await withCheckedContinuation { continuation in
-                // Check cache on background queue to avoid main thread blocking
-                DispatchQueue.global(qos: .userInitiated).async {
-                    let isCached = cache.isCached(forKey: resource.cacheKey) ||
-                                  cache.isCached(forKey: urlString)
-                    continuation.resume(returning: isCached)
-                }
-            }
+            // Simplified async cache check without unnecessary continuation
+            return await Task.detached(priority: .userInitiated) {
+                cache.isCached(forKey: resource.cacheKey) || cache.isCached(forKey: urlString)
+            }.value
         }
 
         cacheTasks[urlString] = task

@@ -35,8 +35,12 @@ public actor CacheMetrics {
 
     // Session tracking
     private var sessionStartTime: Date
+
+    // Circular buffer for efficient fetch time tracking
     private var fetchTimes: [TimeInterval] = []
+    private var fetchTimeIndex: Int = 0
     private let maxFetchTimeSamples = 100
+    private var fetchTimesCount: Int = 0
 
     private init() {
         sessionStartTime = Date()
@@ -65,10 +69,17 @@ public actor CacheMetrics {
             failedFetches += 1
         }
 
-        // Update fetch time metrics
-        fetchTimes.append(duration)
-        if fetchTimes.count > maxFetchTimeSamples {
-            fetchTimes.removeFirst()
+        // Update fetch time metrics using circular buffer
+        if fetchTimes.count < maxFetchTimeSamples {
+            fetchTimes.append(duration)
+            fetchTimesCount += 1
+        } else {
+            // Circular buffer: overwrite oldest value
+            fetchTimes[fetchTimeIndex] = duration
+            fetchTimeIndex = (fetchTimeIndex + 1) % maxFetchTimeSamples
+            if fetchTimesCount < maxFetchTimeSamples {
+                fetchTimesCount = maxFetchTimeSamples
+            }
         }
 
         // Calculate average
@@ -107,8 +118,10 @@ public actor CacheMetrics {
             return
         }
 
-        let sortedTimes = fetchTimes.sorted()
-        let count = sortedTimes.count
+        // Get actual values from circular buffer
+        let actualTimes = fetchTimesCount < maxFetchTimeSamples ? fetchTimes : fetchTimes
+        let sortedTimes = actualTimes.sorted()
+        let count = min(fetchTimesCount, actualTimes.count)
 
         // Calculate percentile indices (corrected for small sample sizes)
         let p50Index = max(0, Int(Double(count - 1) * 0.5))
@@ -183,6 +196,8 @@ public actor CacheMetrics {
         prefetchHits = 0
         memoryWarnings = 0
         fetchTimes.removeAll()
+        fetchTimeIndex = 0
+        fetchTimesCount = 0
         sessionStartTime = Date()
     }
 
