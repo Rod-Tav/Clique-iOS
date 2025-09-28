@@ -35,20 +35,17 @@ import Foundation
             await collectionStore.updateCollections(feedItems.compactMap({ $0.collection }), collectionImageStore)
             await cliqueStore.updateCliques(feedItems.compactMap({ $0.clique }))
             await userStore.updateUsers(feedItems.compactMap({ $0.relevantUser }))
-            
-//            for feedItem in feedItems {
-//                if let collection = feedItem.collection {
-//                    CollectionImagePrefetcher.instance.prefetchLowQuality(collectionId: collection.id, images: collection.images)
-//                    
-//                    await collectionStore.updateCollection(collection, collectionImageStore)
-//                }
-//                
-//                await cliqueStore.updateClique(feedItem.clique)
-//                
-//                if let relevantUser = feedItem.relevantUser {
-//                    await userStore.updateUser(relevantUser)
-//                }
-//            }
+
+            // Prefetch images for collections in the feed using grid context
+            for feedItem in feedItems {
+                if let collection = feedItem.collection {
+                    CollectionImagePrefetcher.instance.prefetchForContext(
+                        .gridView,  // Using grid context for clique feed thumbnails
+                        collectionId: collection.id,
+                        images: collection.images
+                    )
+                }
+            }
             
             return feedItems
         }
