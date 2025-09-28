@@ -111,6 +111,9 @@ struct CollectionDetailView: View {
             }
             //        .opacity(coordinator.showDetailView ? 1 : 0)
             .onAppear {
+                // Mark pagination view model as detail view for high quality prefetching
+                imagesPgVM.isDetailView = true
+
                 tabCoordinator.pan = .disabled
                 if fromGallery {
                     tabCoordinator.showTabBar = false
@@ -353,8 +356,42 @@ extension CollectionDetailView {
                     .frameRatio(width: UIScreen.width, ratio: Constants.collectionImageDetailRatio)
             }
             .offset(heroCoordinator.offset)
-            .simultaneousGesture(swipeDownToDismiss)
-            .simultaneousGesture(swipeUpToOpenComments)
+            .compatibleDragGesture(
+                minimumDistance: 10,
+                onChanged: { translation in
+                    guard (translation.height > 10 && abs(translation.width) < 20) || dismissing else { return }
+                    dismissing = true
+                    heroCoordinator.offset = fromGallery ? translation : CGSize(width: 0, height: translation.height)
+                    /// Progress For Fading Out the Detail View
+                    let heightProgress = max(min(translation.height / 200, 1), 0)
+                    heroCoordinator.dragProgress = heightProgress
+                },
+                onEnded: { translation in
+                    guard dismissing else { return }
+
+                    /// Close the View based on the Drag Amount
+                    if translation.height > 250 {
+                        heroCoordinator.toggleView(show: false)
+                    } else {
+                        /// Reset to its Initial Position
+                        heroCoordinator.offset = .zero
+                        heroCoordinator.dragProgress = 0
+                        dismissing = false
+                    }
+                }
+            )
+            .compatibleDragGesture(
+                minimumDistance: 10,
+                onChanged: { translation in
+                    guard heroCoordinator.offset == .zero else { return }
+                    // Check if the swipe was mostly vertical and upwards
+                    if translation.height < -20 && abs(translation.width) < 20 {
+                        haptics(.light)
+                        showCommentSheet = true
+                        hasSwipedUpToOpenComments = true
+                    }
+                }
+            )
         }
     }
     
@@ -369,6 +406,23 @@ extension CollectionDetailView {
         .scrollIndicators(.hidden)
         .scrollPosition(id: $bindableVM.detailScrollPosition)
         .scrollDisabled(dismissing)
+        .onChange(of: bindableVM.detailScrollPosition) { _, newValue in
+            // Prefetch adjacent images when scrolling
+            guard let newValue,
+                  let currentIndex = imagesPgVM.items.firstIndex(where: { $0.id == newValue }) else { return }
+
+            // Get 2 images before and 2 after current image
+            let startIndex = max(0, currentIndex - 2)
+            let endIndex = min(imagesPgVM.items.count - 1, currentIndex + 2)
+            let adjacentIds = Array(imagesPgVM.items[startIndex...endIndex])
+            let adjacentImages = adjacentIds.compactMap { collectionImageStore.images[$0] }
+
+            CollectionImagePrefetcher.instance.prefetchForContext(
+                .detailView,
+                collectionId: clCoordinator.collectionId,
+                images: adjacentImages
+            )
+        }
     }
     
     @ViewBuilder private func ImageDetailCell(_ image: CollectionImage) -> some View {

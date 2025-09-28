@@ -13,7 +13,7 @@ struct CollectionDetailBackgroundAsyncImage: View {
     let quality: ImageQuality
     
     var body: some View {
-        GenericAsyncImage(urls: urls, quality: quality, shouldFixSize: false) { image in
+        GenericAsyncImage(urls: urls, quality: quality, shouldFixSize: false, performanceMode: true) { image in
             image
                 .contentConfigure { image in
                     image

@@ -9,15 +9,22 @@ import UIKit
 import Kingfisher
 
 extension KFImage {
-    func kfModifiers(shouldFade: Bool = false, loadingBug: Bool = false) -> KFImage {
-        self
+    func kfModifiers(shouldFade: Bool = false, loadingBug: Bool = false, isPrefetch: Bool = false) -> KFImage {
+        // Adjust retry strategy based on context
+        // Prefetch: fail fast with fewer retries
+        // Display: more retries for user-visible content
+        let retryCount = isPrefetch ? 0 : 2
+        let retryInterval: TimeInterval = isPrefetch ? 0.5 : 1.0
+
+        return self
             .startLoadingBeforeViewAppear(loadingBug)
             .cacheOriginalImage()
             .fade(duration: shouldFade ? 0.15 : 0) // Reduced from 0.25s
             .onFailureImage(UIImage(named: "default-gradient"))
             .memoryCacheExpiration(.seconds(3600))
             .diskCacheExpiration(.days(7))
-            .retry(maxCount: 1, interval: .seconds(0.5)) // Reduced from 3 retries with 2s interval
+            .retry(maxCount: retryCount, interval: .seconds(retryInterval)) // Adaptive retry based on context
+            .downloadPriority(isPrefetch ? 0.3 : 0.8) // Lower priority for prefetch
     }
 }
 

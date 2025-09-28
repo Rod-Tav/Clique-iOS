@@ -90,7 +90,7 @@ struct CliqueApp: App {
     /// - Note: Firebase configuration happens in AppDelegate for proper timing
     init() {
         // Development tools (commented out for production)
-        // loadRocketSimConnect()
+//         loadRocketSimConnect()
         
         registerBackgroundTasks()
         KingfisherConfig.configure()
