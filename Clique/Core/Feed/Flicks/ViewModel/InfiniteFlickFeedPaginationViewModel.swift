@@ -29,7 +29,7 @@ fileprivate func encodeCursorToBase64(_ cursor: InfiniteFeedCursor) -> String? {
     var page: Int = 0
 
     // Batch size for grid view - fetches multiple backend pages to reach this count
-    private let batchSize = 10
+    private let batchSize = 35
     var size: Int { batchSize }
 
     var done: Bool = false
