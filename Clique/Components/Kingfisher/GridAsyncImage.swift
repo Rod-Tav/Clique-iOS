@@ -73,19 +73,28 @@ struct GridAsyncImage<Content: View, Placeholder: View>: View {
 
     var body: some View {
         ZStack {
-            if hasLoaded, let url = url {
-                // Show the loaded image
+            if let url = url, (hasLoaded || isLoading) {
+                // Show the image (either cached or loading)
                 content(
                     KFImage(URL(string: url))
                         .resizable()
                         .fade(duration: 0) // No fade animation
                         .forceTransition(false) // Disable transitions
+                        .onSuccess { _ in
+                            // Set hasLoaded when download completes successfully
+                            if !hasLoaded {
+                                hasLoaded = true
+                                isLoading = false
+                            }
+                        }
+                        .onFailure { _ in
+                            // Reset loading state on failure
+                            isLoading = false
+                            hasLoaded = false
+                        }
                 )
-            } else if isLoading {
-                // Show placeholder while loading
-                placeholder()
             } else {
-                // Show placeholder before loading starts
+                // Show placeholder before loading starts or if no URL
                 placeholder()
             }
         }
@@ -140,9 +149,9 @@ struct GridAsyncImage<Content: View, Placeholder: View>: View {
             hasLoaded = true
             isLoading = false
         } else {
-            // Need to download - the KFImage will handle it
-            hasLoaded = true
-            isLoading = false
+            // Need to download - keep loading state and let KFImage handle it
+            // hasLoaded will be set after download completes
+            isLoading = true
         }
 
         throttler.loadCompleted(for: urlString)

@@ -100,15 +100,22 @@ private enum NetworkQuality {
 final class CollectionImagePrefetcher {
     static let instance = CollectionImagePrefetcher()
 
+    // Size limits to prevent unbounded memory growth
+    private let maxCollectionsTracked = 20  // Maximum number of collections to track
+    private let maxURLsPerCollection = 100  // Maximum URLs per collection per quality level
+
     // Prefetchers by collection ID
     private var lowPrefetchers: [String: Kingfisher.ImagePrefetcher] = [:]
     private var medPrefetchers: [String: Kingfisher.ImagePrefetcher] = [:]
     private var highPrefetchers: [String: Kingfisher.ImagePrefetcher] = [:]
 
-    // Track prefetched URLs to support pagination
+    // Track prefetched URLs to support pagination (with size limits)
     private var prefetchedLowURLs: [String: Set<URL>] = [:]
     private var prefetchedMedURLs: [String: Set<URL>] = [:]
     private var prefetchedHighURLs: [String: Set<URL>] = [:]
+
+    // Track access order for LRU eviction
+    private var collectionAccessOrder: [String] = []
 
     // Prefetching queue to avoid blocking main thread
     private let prefetchQueue = DispatchQueue(label: "com.clique.imagePrefetcher", qos: .utility)
@@ -220,21 +227,62 @@ final class CollectionImagePrefetcher {
         }
     }
 
+    // MARK: - LRU Eviction and Size Management
+
+    private func updateCollectionAccess(_ collectionId: String) {
+        // Remove from current position if exists
+        collectionAccessOrder.removeAll { $0 == collectionId }
+        // Add to end (most recently used)
+        collectionAccessOrder.append(collectionId)
+
+        // Evict least recently used collections if over limit
+        while collectionAccessOrder.count > maxCollectionsTracked {
+            let evictedId = collectionAccessOrder.removeFirst()
+            evictCollection(evictedId)
+        }
+    }
+
+    private func evictCollection(_ collectionId: String) {
+        // Stop all prefetching for this collection
+        stopLowQualityPrefetching(for: collectionId)
+        stopMediumQualityPrefetching(for: collectionId)
+        stopHighQualityPrefetching(for: collectionId)
+
+        // Remove from URL tracking
+        prefetchedLowURLs.removeValue(forKey: collectionId)
+        prefetchedMedURLs.removeValue(forKey: collectionId)
+        prefetchedHighURLs.removeValue(forKey: collectionId)
+    }
+
+    private func enforceURLLimit(for urls: inout Set<URL>) {
+        // If URLs exceed limit, keep only the most recent ones
+        if urls.count > maxURLsPerCollection {
+            let urlArray = Array(urls)
+            // Keep the last N URLs (most recently added)
+            urls = Set(urlArray.suffix(maxURLsPerCollection))
+        }
+    }
+
     // MARK: - Smart Prefetching Based on Context
 
     /// Prefetch images based on context (feed, detail view, etc.)
     func prefetchForContext(_ context: PrefetchContext, collectionId: String, images: [CollectionImage]) {
+        // Update LRU tracking for this collection
+        updateCollectionAccess(collectionId)
+
         // For grid view, debounce to prevent rapid calls during scrolling
         if context == .gridView {
             // Cancel existing timer
             prefetchDebounceTimer?.invalidate()
 
-            // Store operation (thread-safe)
+            // Store operation (thread-safe with optimized filter)
             pendingOperationsQueue.async(flags: .barrier) { [weak self] in
                 guard let self = self else { return }
+
+                // Remove previous operations for this collection more efficiently
+                self._pendingPrefetchOperations.removeAll { $0.collectionId == collectionId }
+                // Add new operation
                 self._pendingPrefetchOperations.append((context, collectionId, images))
-                // Keep only the latest operation per collection
-                self._pendingPrefetchOperations = Array(self._pendingPrefetchOperations.filter { $0.collectionId == collectionId }.suffix(1))
             }
 
             // Schedule debounced execution
@@ -310,6 +358,12 @@ final class CollectionImagePrefetcher {
         let previousLowURLs = prefetchedLowURLs[collectionId] ?? []
         prefetchedLowURLs[collectionId, default: []].formUnion(lowQualityUrls)
 
+        // Enforce size limit for this collection
+        if var urls = prefetchedLowURLs[collectionId] {
+            enforceURLLimit(for: &urls)
+            prefetchedLowURLs[collectionId] = urls
+        }
+
         // If all new URLs are already being prefetched, skip
         if lowQualityUrls.allSatisfy({ previousLowURLs.contains($0) }) { return }
 
@@ -335,6 +389,12 @@ final class CollectionImagePrefetcher {
         let previousMedURLs = prefetchedMedURLs[collectionId] ?? []
         prefetchedMedURLs[collectionId, default: []].formUnion(medUrls)
 
+        // Enforce size limit for this collection
+        if var urls = prefetchedMedURLs[collectionId] {
+            enforceURLLimit(for: &urls)
+            prefetchedMedURLs[collectionId] = urls
+        }
+
         // If all new URLs are already being prefetched, skip
         if medUrls.allSatisfy({ previousMedURLs.contains($0) }) { return }
 
@@ -358,6 +418,12 @@ final class CollectionImagePrefetcher {
 
         let previousHighURLs = prefetchedHighURLs[collectionId] ?? []
         prefetchedHighURLs[collectionId, default: []].formUnion(highUrls)
+
+        // Enforce size limit for this collection
+        if var urls = prefetchedHighURLs[collectionId] {
+            enforceURLLimit(for: &urls)
+            prefetchedHighURLs[collectionId] = urls
+        }
 
         // If all new URLs are already being prefetched, skip
         if highUrls.allSatisfy({ previousHighURLs.contains($0) }) { return }
