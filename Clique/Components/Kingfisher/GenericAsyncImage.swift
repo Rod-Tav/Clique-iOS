@@ -130,20 +130,28 @@ import SwiftUI
 import Kingfisher
 import Combine
 
+/// Configuration constants for image caching system
+struct ImageCacheConfig {
+    static let cacheResultTTL: TimeInterval = 2.0 // 2 seconds TTL for result cache
+    static let maxCacheSize = 500 // Maximum cached results
+    static let cleanupInterval: TimeInterval = 30.0 // Cleanup interval in seconds
+    static let maxConcurrentChecks = 10 // Maximum concurrent cache checks
+}
+
 /// Instance-based cache manager for synchronous cache checking.
 ///
 /// Provides instant cache hit detection to eliminate placeholder flash.
 /// Uses TTL-based caching with automatic cleanup and race condition prevention.
+/// Thread-safe using concurrent queue with barrier for writes.
 @MainActor
 final class GenericAsyncImageCacheManager: ObservableObject {
     static let shared = GenericAsyncImageCacheManager()
 
-    private var cacheCheckResults: [String: (Bool, Date)] = [:]
-    private var pendingChecks: [String: Task<Bool, Never>] = [:] // Prevent race conditions
-    private let cacheResultTTL: TimeInterval = 2.0 // 2 seconds TTL
-    private let maxCacheSize = 500 // Increased for large grids (was 100)
-    private var lastCleanupTime: Date = Date()
-    private let cleanupInterval: TimeInterval = 30.0 // Cleanup every 30 seconds
+    // Thread-safe access using concurrent queue
+    private let cacheQueue = DispatchQueue(label: "com.clique.imagecache.queue", attributes: .concurrent)
+    private var _cacheCheckResults: [String: (Bool, Date)] = [:]
+    private var _pendingChecks: [String: Task<Bool, Never>] = [:]
+    private var _lastCleanupTime: Date = Date()
     private var cleanupTimer: Timer? // Store timer reference for proper cleanup
 
     private init() {
@@ -158,54 +166,80 @@ final class GenericAsyncImageCacheManager: ObservableObject {
         // Lazy cleanup - only when needed and not too frequently
         cleanupIfNeeded()
 
-        if let (cachedResult, timestamp) = cacheCheckResults[url],
-           Date().timeIntervalSince(timestamp) < cacheResultTTL {
-            return cachedResult
+        return cacheQueue.sync {
+            if let (cachedResult, timestamp) = _cacheCheckResults[url],
+               Date().timeIntervalSince(timestamp) < ImageCacheConfig.cacheResultTTL {
+                return cachedResult
+            }
+            return nil
         }
-        return nil
     }
 
     func setCachedResult(for url: String, result: Bool) {
-        // Prevent unbounded growth
-        if cacheCheckResults.count >= maxCacheSize {
-            cleanupExpiredEntries()
-        }
+        cacheQueue.async(flags: .barrier) { [weak self] in
+            guard let self = self else { return }
 
-        cacheCheckResults[url] = (result, Date())
-        pendingChecks[url] = nil // Remove from pending after completion
+            // Prevent unbounded growth
+            if self._cacheCheckResults.count >= ImageCacheConfig.maxCacheSize {
+                self.cleanupExpiredEntriesUnsafe() // Internal cleanup without queue
+            }
+
+            self._cacheCheckResults[url] = (result, Date())
+            self._pendingChecks[url] = nil // Remove from pending after completion
+        }
     }
 
     // Get or create a cache check task to prevent race conditions
     func getCacheCheckTask(for url: String) -> Task<Bool, Never>? {
-        return pendingChecks[url]
+        return cacheQueue.sync { _pendingChecks[url] }
     }
 
     func setPendingCacheCheck(for url: String, task: Task<Bool, Never>) {
-        pendingChecks[url] = task
+        cacheQueue.async(flags: .barrier) { [weak self] in
+            self?._pendingChecks[url] = task
+        }
     }
 
     func removePendingCheck(for url: String) {
-        pendingChecks[url] = nil
+        cacheQueue.async(flags: .barrier) { [weak self] in
+            self?._pendingChecks[url] = nil
+        }
     }
 
     private func cleanupIfNeeded() {
-        let now = Date()
-        if now.timeIntervalSince(lastCleanupTime) > cleanupInterval {
+        let shouldCleanup = cacheQueue.sync {
+            let now = Date()
+            if now.timeIntervalSince(_lastCleanupTime) > ImageCacheConfig.cleanupInterval {
+                return true
+            }
+            return false
+        }
+
+        if shouldCleanup {
             cleanupExpiredEntries()
-            lastCleanupTime = now
+            cacheQueue.async(flags: .barrier) { [weak self] in
+                self?._lastCleanupTime = Date()
+            }
         }
     }
 
     private func cleanupExpiredEntries() {
+        cacheQueue.async(flags: .barrier) { [weak self] in
+            self?.cleanupExpiredEntriesUnsafe()
+        }
+    }
+
+    // Internal cleanup without queue (must be called from within barrier)
+    private func cleanupExpiredEntriesUnsafe() {
         let now = Date()
-        cacheCheckResults = cacheCheckResults.filter {
-            now.timeIntervalSince($0.value.1) < cacheResultTTL
+        _cacheCheckResults = _cacheCheckResults.filter {
+            now.timeIntervalSince($0.value.1) < ImageCacheConfig.cacheResultTTL
         }
     }
 
     private func setupCleanupTimer() {
         // Store timer reference for proper lifecycle management
-        cleanupTimer = Timer.scheduledTimer(withTimeInterval: cleanupInterval, repeats: true) { [weak self] _ in
+        cleanupTimer = Timer.scheduledTimer(withTimeInterval: ImageCacheConfig.cleanupInterval, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.cleanupExpiredEntries()
             }
@@ -225,8 +259,10 @@ final class GenericAsyncImageCacheManager: ObservableObject {
 
     // Clear cache when app backgrounds to free memory
     func clearCache() {
-        cacheCheckResults.removeAll()
-        pendingChecks.removeAll() // Clear pending operations too
+        cacheQueue.async(flags: .barrier) { [weak self] in
+            self?._cacheCheckResults.removeAll()
+            self?._pendingChecks.removeAll() // Clear pending operations too
+        }
     }
 
     // Synchronous cache check for immediate display

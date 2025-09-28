@@ -23,6 +23,11 @@ public final class CacheMetrics: ObservableObject {
     @Published public private(set) var failedFetches: Int = 0
     @Published public private(set) var avgFetchTime: TimeInterval = 0.0
 
+    // Latency percentiles
+    @Published public private(set) var p50FetchTime: TimeInterval = 0.0
+    @Published public private(set) var p90FetchTime: TimeInterval = 0.0
+    @Published public private(set) var p99FetchTime: TimeInterval = 0.0
+
     // Performance metrics
     @Published public private(set) var prefetchedImages: Int = 0
     @Published public private(set) var prefetchHits: Int = 0
@@ -60,12 +65,17 @@ public final class CacheMetrics: ObservableObject {
             failedFetches += 1
         }
 
-        // Update average fetch time
+        // Update fetch time metrics
         fetchTimes.append(duration)
         if fetchTimes.count > maxFetchTimeSamples {
             fetchTimes.removeFirst()
         }
+
+        // Calculate average
         avgFetchTime = fetchTimes.reduce(0, +) / Double(max(1, fetchTimes.count))
+
+        // Calculate percentiles
+        updatePercentiles()
     }
 
     /// Record prefetch activity
@@ -87,6 +97,28 @@ public final class CacheMetrics: ObservableObject {
 
     private func updateHitRate() {
         hitRate = totalRequests > 0 ? Double(cacheHits) / Double(totalRequests) : 0.0
+    }
+
+    private func updatePercentiles() {
+        guard !fetchTimes.isEmpty else {
+            p50FetchTime = 0
+            p90FetchTime = 0
+            p99FetchTime = 0
+            return
+        }
+
+        let sortedTimes = fetchTimes.sorted()
+        let count = sortedTimes.count
+
+        // Calculate percentile indices
+        let p50Index = Int(Double(count) * 0.5)
+        let p90Index = Int(Double(count) * 0.9)
+        let p99Index = Int(Double(count) * 0.99)
+
+        // Ensure indices are within bounds
+        p50FetchTime = sortedTimes[min(p50Index, count - 1)]
+        p90FetchTime = sortedTimes[min(p90Index, count - 1)]
+        p99FetchTime = sortedTimes[min(p99Index, count - 1)]
     }
 
     /// Get session duration
@@ -122,6 +154,9 @@ public final class CacheMetrics: ObservableObject {
         - Fetches: \(networkFetches)
         - Success Rate: \(String(format: "%.1f%%", networkSuccessRate * 100))
         - Avg Fetch Time: \(String(format: "%.2fs", avgFetchTime))
+        - P50 Latency: \(String(format: "%.2fs", p50FetchTime))
+        - P90 Latency: \(String(format: "%.2fs", p90FetchTime))
+        - P99 Latency: \(String(format: "%.2fs", p99FetchTime))
 
         Prefetching:
         - Images Prefetched: \(prefetchedImages)
@@ -141,6 +176,9 @@ public final class CacheMetrics: ObservableObject {
         networkFetches = 0
         failedFetches = 0
         avgFetchTime = 0.0
+        p50FetchTime = 0.0
+        p90FetchTime = 0.0
+        p99FetchTime = 0.0
         prefetchedImages = 0
         prefetchHits = 0
         memoryWarnings = 0
