@@ -296,6 +296,16 @@ struct FlicksFeedView: View {
             )
             .scrollTargetLayout()
         }
+        .refreshable {
+            guard paginationState == .idle else { return }
+            viewModel.refreshing = true
+
+            await CacheControl.shared.refreshFlicksFeed()
+            await updateFlicks(.refresh)
+            currentFlickId = viewModel.items.first?.id
+
+            viewModel.refreshing = false
+        }
     }
     
     private func GridCell(_ item: InfiniteFeedItem, urls: PhotoUrls) -> some View {
