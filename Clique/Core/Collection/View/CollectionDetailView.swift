@@ -132,6 +132,10 @@ struct CollectionDetailView: View {
             }
             .onDisappear {
                 tabCoordinator.pan = .pan
+                // Ensure dismissing flag is reset to prevent stale state
+                dismissing = false
+                // Reset pagination view model state
+                imagesPgVM.isDetailView = false
             }
             .background {
                 if let selectedImage {
@@ -357,21 +361,23 @@ extension CollectionDetailView {
             }
             .offset(heroCoordinator.offset)
             .compatibleDragGesture(
-                minimumDistance: 10,
+                minimumDistance: GestureConstants.minimumRecognitionDistance,
                 onChanged: { translation in
-                    guard (translation.height > 10 && abs(translation.width) < 20) || dismissing else { return }
+                    guard (translation.height > GestureConstants.minimumVerticalSwipe && abs(translation.width) < GestureConstants.maximumHorizontalDeviation) || dismissing else { return }
                     dismissing = true
                     heroCoordinator.offset = fromGallery ? translation : CGSize(width: 0, height: translation.height)
                     /// Progress For Fading Out the Detail View
-                    let heightProgress = max(min(translation.height / 200, 1), 0)
+                    let heightProgress = max(min(translation.height / GestureConstants.dragProgressDivisor, 1), 0)
                     heroCoordinator.dragProgress = heightProgress
                 },
-                onEnded: { translation in
+                onEnded: { translation, velocity in
                     guard dismissing else { return }
 
-                    /// Close the View based on the Drag Amount
-                    if translation.height > 250 {
-                        heroCoordinator.toggleView(show: false)
+                    /// Close the View based on drag distance OR velocity (for flick gestures)
+                    let height = translation.height + (velocity.height / GestureConstants.velocityDampening)
+
+                    if height > GestureConstants.dismissThresholdWithVelocity {
+                        closeImage()
                     } else {
                         /// Reset to its Initial Position
                         heroCoordinator.offset = .zero
@@ -390,7 +396,8 @@ extension CollectionDetailView {
                         showCommentSheet = true
                         hasSwipedUpToOpenComments = true
                     }
-                }
+                },
+                onEnded: { _, _ in }  // Required for CompatibleDragGestureModifier signature
             )
         }
     }
@@ -717,24 +724,24 @@ extension CollectionDetailView {
     }
     
     private var swipeDownToDismiss: some Gesture {
-        DragGesture(minimumDistance: 10)
+        DragGesture(minimumDistance: GestureConstants.minimumRecognitionDistance)
             .onChanged { value in
-                guard (value.translation.height > 10 && abs(value.translation.width) < 20) || dismissing else { return }
+                guard (value.translation.height > GestureConstants.minimumVerticalSwipe && abs(value.translation.width) < GestureConstants.maximumHorizontalDeviation) || dismissing else { return }
                 dismissing = true
                 let translation = value.translation
                 heroCoordinator.offset = fromGallery ? translation : CGSize(width: 0, height: translation.height)
                 /// Progress For Fading Out the Detail View
-                let heightProgress = max(min(translation.height / 200, 1), 0)
+                let heightProgress = max(min(translation.height / GestureConstants.dragProgressDivisor, 1), 0)
                 heroCoordinator.dragProgress = heightProgress
             }
             .onEnded { value in
                 guard dismissing else { return }
                 let translation = value.translation
                 let velocity = value.velocity
-                //let width = translation.width + (velocity.width / 5)
-                let height = translation.height + (velocity.height / 5)
-                
-                if height > 10 {
+                //let width = translation.width + (velocity.width / GestureConstants.velocityDampening)
+                let height = translation.height + (velocity.height / GestureConstants.velocityDampening)
+
+                if height > GestureConstants.dismissThresholdBasic {
                     /// Close View
                     closeImage()
                 } else {
@@ -755,11 +762,13 @@ extension CollectionDetailView {
             heroCoordinator.toggleView(show: false) {
                 clCoordinator.resetAnimationProperties()
                 heroCoordinator.resetAnimationProperties()
+                dismissing = false
             }
         } else {
             // Reset coordinator state to prevent stale state on rapid open/close
             heroCoordinator.resetAnimationProperties()
             clCoordinator.resetAnimationProperties()
+            dismissing = false
             dismiss()
         }
     }

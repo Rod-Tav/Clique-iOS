@@ -607,7 +607,8 @@ struct FlicksFeedView: View {
                         showCommentSheet = true
                         hasSwipedUpToOpenComments = true
                     }
-                }
+                },
+                onEnded: { _, _ in }  // Required for CompatibleDragGestureModifier signature
             )
     }
     
