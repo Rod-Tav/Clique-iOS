@@ -60,11 +60,11 @@ struct SingleFlickView: View {
     }
     
     private var swipeUpToOpenComments: some Gesture {
-        DragGesture(minimumDistance: 10)
+        DragGesture(minimumDistance: GestureConstants.minimumRecognitionDistance)
             .onChanged { value in
                 guard !dismissing else { return }
                 // Check if the swipe was mostly vertical and upwards
-                if value.translation.height < -20 && abs(value.translation.width) < 20 {
+                if value.translation.height < -GestureConstants.minimumUpwardSwipeForAction && abs(value.translation.width) < GestureConstants.maximumHorizontalDeviation {
                     haptics(.light)
                     showCommentSheet = true
                     hasSwipedUpToOpenComments = true
@@ -127,11 +127,11 @@ struct SingleFlickView: View {
                 .pinchZoom()
                 .swipeUpToOpenCommentsTutorial()
                 .compatibleDragGesture(
-                    minimumDistance: 10,
+                    minimumDistance: GestureConstants.minimumRecognitionDistance,
                     onChanged: { translation in
                         guard !dismissing else { return }
                         // Check if the swipe was mostly vertical and upwards
-                        if translation.height < -20 && abs(translation.width) < 20 {
+                        if translation.height < -GestureConstants.minimumUpwardSwipeForAction && abs(translation.width) < GestureConstants.maximumHorizontalDeviation {
                             haptics(.light)
                             showCommentSheet = true
                             hasSwipedUpToOpenComments = true
@@ -141,9 +141,9 @@ struct SingleFlickView: View {
                 )
                 .offset(dismissOffset)
                 .compatibleDragGesture(
-                    minimumDistance: 10,
+                    minimumDistance: GestureConstants.minimumRecognitionDistance,
                     onChanged: { translation in
-                        guard (translation.height > 10 && abs(translation.width) < 20) || dismissing else { return }
+                        guard (translation.height > GestureConstants.minimumVerticalSwipe && abs(translation.width) < GestureConstants.maximumHorizontalDeviation) || dismissing else { return }
 
                         dismissing = true
                         dismissOffset = CGSize(width: 0, height: translation.height)
@@ -257,9 +257,9 @@ private extension SingleFlickView {
     
     // TODO: DRY
     var swipeDownToDismiss: some Gesture {
-        DragGesture(minimumDistance: 10)
+        DragGesture(minimumDistance: GestureConstants.minimumRecognitionDistance)
             .onChanged { value in
-                guard (value.translation.height > 10 && abs(value.translation.width) < 20) || dismissing else { return }
+                guard (value.translation.height > GestureConstants.minimumVerticalSwipe && abs(value.translation.width) < GestureConstants.maximumHorizontalDeviation) || dismissing else { return }
                 
                 dismissing = true
                 dismissOffset = CGSize(width: 0, height: value.translation.height)

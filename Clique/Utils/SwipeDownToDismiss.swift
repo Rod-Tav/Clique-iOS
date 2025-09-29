@@ -18,7 +18,7 @@ struct SwipeToDismissModifier: ViewModifier {
             .simultaneousGesture(
                 DragGesture(minimumDistance: GestureConstants.minimumRecognitionDistance)
                     .onChanged { value in
-                        guard value.translation.height > 10 && abs(value.translation.width) < 20 else { return }
+                        guard value.translation.height > GestureConstants.minimumVerticalSwipe && abs(value.translation.width) < GestureConstants.maximumHorizontalDeviation else { return }
                         dismissOffset = CGSize(width: 0, height: value.translation.height)
                     }
                     .onEnded { value in

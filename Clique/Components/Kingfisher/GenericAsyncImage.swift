@@ -153,10 +153,12 @@ actor GenericAsyncImageCacheManager {
     private var isCleaningUp: Bool = false
 
     private init() {
-        // Setup notifications synchronously on main queue to ensure observers are registered
-        // before any lifecycle events occur (background, memory warnings)
-        DispatchQueue.main.async {
-            setupNotificationObservers()
+        // Trigger lifecycle manager initialization on main thread
+        // This ensures notification observers are registered as early as possible
+        // The manager is accessed via its singleton, which will initialize synchronously
+        // when first accessed from main thread
+        Task { @MainActor in
+            _ = ImageCacheLifecycleManager.shared
         }
     }
 
@@ -242,44 +244,62 @@ actor GenericAsyncImageCacheManager {
 
 // MARK: - MainActor Setup
 
-// Timer reference for cleanup lifecycle management
+/// Lifecycle manager for image cache cleanup and memory management.
+///
+/// This class manages the timer and notification observers for the singleton cache manager.
+/// Even though the cache manager is a singleton with app lifetime, we store observer tokens
+/// as a best practice for proper resource management.
 @MainActor
-private var cleanupTimer: Timer?
+private final class ImageCacheLifecycleManager {
+    static let shared = ImageCacheLifecycleManager()
 
-@MainActor
-private func setupNotificationObservers() {
-    let manager = GenericAsyncImageCacheManager.shared
+    private var cleanupTimer: Timer?
+    private var notificationTokens: [NSObjectProtocol] = []
 
-    // Invalidate existing timer before creating new one
-    cleanupTimer?.invalidate()
-
-    // Periodic cleanup timer
-    cleanupTimer = Timer.scheduledTimer(withTimeInterval: ImageCacheConfig.cleanupInterval, repeats: true) { _ in
-        Task {
-            await manager.performCleanup()
-        }
+    private init() {
+        setupObservers()
     }
 
-    // Clear cache when app backgrounds
-    NotificationCenter.default.addObserver(
-        forName: UIApplication.didEnterBackgroundNotification,
-        object: nil,
-        queue: .main
-    ) { _ in
-        Task {
-            await manager.clearCache()
+    private func setupObservers() {
+        let manager = GenericAsyncImageCacheManager.shared
+
+        // Invalidate existing timer before creating new one
+        cleanupTimer?.invalidate()
+
+        // Periodic cleanup timer
+        cleanupTimer = Timer.scheduledTimer(withTimeInterval: ImageCacheConfig.cleanupInterval, repeats: true) { _ in
+            Task {
+                await manager.performCleanup()
+            }
         }
+
+        // Store notification observer tokens for proper cleanup
+        let backgroundToken = NotificationCenter.default.addObserver(
+            forName: UIApplication.didEnterBackgroundNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            Task {
+                await manager.clearCache()
+            }
+        }
+        notificationTokens.append(backgroundToken)
+
+        let memoryWarningToken = NotificationCenter.default.addObserver(
+            forName: UIApplication.didReceiveMemoryWarningNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            Task {
+                await manager.handleMemoryPressure()
+            }
+        }
+        notificationTokens.append(memoryWarningToken)
     }
 
-    // Handle memory warnings
-    NotificationCenter.default.addObserver(
-        forName: UIApplication.didReceiveMemoryWarningNotification,
-        object: nil,
-        queue: .main
-    ) { _ in
-        Task {
-            await manager.handleMemoryPressure()
-        }
+    deinit {
+        cleanupTimer?.invalidate()
+        notificationTokens.forEach { NotificationCenter.default.removeObserver($0) }
     }
 }
 
