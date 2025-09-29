@@ -11,7 +11,7 @@ import Toasts
 
 /// Delay after dismissing views before starting upload (0.1 seconds)
 /// Ensures smooth dismissal animation completion before navigation changes
-private let dismissalDelayNanoseconds: UInt64 = 100_000_000
+private let dismissalDelayMilliseconds = Duration.milliseconds(100)
 
 extension SelectedPhotosView {
     internal func removeCurrentPhoto() {
@@ -114,7 +114,7 @@ extension SelectedPhotosView {
         }
 
         // Wait for dismiss animation to complete
-        try? await Task.sleep(nanoseconds: dismissalDelayNanoseconds)
+        try? await Task.sleep(for: dismissalDelayMilliseconds)
 
         // Start upload with skipProcessing since already done
         await MainActor.run {

@@ -25,11 +25,12 @@ struct LibraryCreateFlow: View {
     @State private var showChooseCollectionSheet: Bool = false
     @State private var buttonLoading: Bool = false
     @State private var currentImageIndex: Int = 0
+    @State internal var showClearConfirmation: Bool = false
     
     private var unprocessedCount: Int { viewModel.selectedAssets.subtracting(viewModel.processedAssets).count
     }
     
-    private var totalCount: Int {
+    internal var totalCount: Int {
         viewModel.selectedImages.count + unprocessedCount
     }
     
@@ -93,6 +94,18 @@ struct LibraryCreateFlow: View {
             tabViewCoordinator.createFlowInitialCollection = nil
             tabViewCoordinator.shouldOpenLibrary = false
         }
+        .confirmationDialog(
+            "Clear \(totalCount) selected photos?",
+            isPresented: $showClearConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Clear All", role: .destructive) {
+                clearAllSelections()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will remove all selected photos and any processed data.")
+        }
     }
     
     
@@ -128,7 +141,7 @@ struct LibraryCreateFlow: View {
     
     @ViewBuilder private func TrailingIcon() -> some View {
         if totalCount > 0 {
-            ClearPhotosButton(count: totalCount, action: clearAllSelections)
+            ClearPhotosButton(count: totalCount, action: handleClearTap)
         } else {
             // Show camera icon to switch flows
             Button {

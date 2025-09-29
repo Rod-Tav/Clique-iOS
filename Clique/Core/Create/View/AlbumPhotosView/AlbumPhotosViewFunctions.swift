@@ -31,6 +31,15 @@ extension AlbumPhotosView {
         context.toggleSelection(asset, viewModel: viewModel)
     }
 
+    internal func handleClearTap() {
+        // Show confirmation for 5+ photos to prevent accidental loss of work
+        if viewModel.selectedAssets.count >= 5 {
+            showClearConfirmation = true
+        } else {
+            clearAllSelections()
+        }
+    }
+
     internal func clearAllSelections() {
         viewModel.clearAllSelections()
     }
