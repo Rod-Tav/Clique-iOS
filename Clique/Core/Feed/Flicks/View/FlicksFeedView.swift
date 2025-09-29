@@ -42,9 +42,8 @@ struct FlicksFeedView: View {
     @State private var showCliqueMembers: Bool = false
     
     @State var loadedImage: UIImage?
-    
+
     // Grid view state
-    @State private var showGrid: Bool = true  // Default to grid view
     @AppStorage("flicksGridColumns") private var gridColumns: Int = 3
     @State private var gridScrollPosition: String? = nil
     @State private var gridReaderProxy: ScrollViewProxy? = nil
@@ -64,7 +63,7 @@ struct FlicksFeedView: View {
     
     var body: some View {
         Group {
-            if showGrid {
+            if tabViewCoordinator.flicksShowGrid {
                 gridView
             } else {
                 existingCarouselView
@@ -216,7 +215,7 @@ struct FlicksFeedView: View {
                 }
             }
         }
-        .onChange(of: showGrid) { oldValue, newValue in
+        .onChange(of: tabViewCoordinator.flicksShowGrid) { oldValue, newValue in
             if newValue == true {
                 // Switching TO grid: sync grid position from carousel and scroll to it
                 gridScrollPosition = currentFlickId
@@ -232,6 +231,14 @@ struct FlicksFeedView: View {
                 // Set the position immediately so ScrollView can use it
                 if let gridPos = gridScrollPosition {
                     currentFlickId = gridPos
+                }
+            }
+        }
+        .onChange(of: tabViewCoordinator.triggerScrollToTopOfFlicksGrid) { oldValue, newValue in
+            // Scroll to top when trigger changes
+            if let firstItem = viewModel.items.first, let proxy = gridReaderProxy {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    proxy.scrollTo(firstItem.id, anchor: .top)
                 }
             }
         }
@@ -303,7 +310,7 @@ struct FlicksFeedView: View {
             .onTapGesture {
                 gridScrollPosition = item.flick.id  // Update grid position
                 currentFlickId = item.flick.id      // Update carousel position
-                showGrid = false                    // Switch to carousel
+                tabViewCoordinator.flicksShowGrid = false  // Switch to carousel
             }
     }
     
@@ -413,7 +420,7 @@ struct FlicksFeedView: View {
             Spacer()
             
             Button {
-                showGrid = true
+                tabViewCoordinator.flicksShowGrid = true
                 // currentFlickId is already synced automatically
             } label: {
                 Image(systemName: "square.grid.3x3")
