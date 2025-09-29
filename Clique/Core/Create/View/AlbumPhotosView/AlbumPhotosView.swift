@@ -19,7 +19,8 @@ struct AlbumPhotosView: View {
     @Environment(PhotoPickerContext.self) var context
     
     @State var albumAssets: [PHAsset] = []
-    
+    @State var showClearConfirmation: Bool = false
+
     let assetCollection: PHAssetCollection
     let title: String
     
@@ -46,6 +47,18 @@ struct AlbumPhotosView: View {
             .primaryBackground()
             .task {
                 loadPhotosFromAlbum()
+            }
+            .confirmationDialog(
+                "Clear \(viewModel.selectedAssets.count) selected photos?",
+                isPresented: $showClearConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Clear All", role: .destructive) {
+                    clearAllSelections()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This will remove all selected photos and any processed data.")
             }
         }
     }
@@ -100,21 +113,7 @@ struct AlbumPhotosView: View {
             Spacer()
                 .frame(24)
         } else {
-            // Any selection - always show count and "Add" button
-            Button {
-                processSelectedPhotos()
-            } label: {
-                HStack(spacing: 8) {
-                    HStack(spacing: 4) {
-                        Text("\(viewModel.selectedAssets.count)")
-                        IconImage("images-posts", color: .theme.iconPrimary, size: 20)
-                    }
-                    Text("Add")
-                }
-                .font(.caption.bold())
-                .textPrimary()
-            }
-            .disabled(context.isProcessing)
+            ClearPhotosButton(count: viewModel.selectedAssets.count, action: handleClearTap)
         }
     }
 }
