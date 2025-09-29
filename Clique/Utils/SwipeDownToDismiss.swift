@@ -16,14 +16,14 @@ struct SwipeToDismissModifier: ViewModifier {
         content
             .offset(dismissOffset)
             .simultaneousGesture(
-                DragGesture(minimumDistance: 10)
+                DragGesture(minimumDistance: GestureConstants.minimumRecognitionDistance)
                     .onChanged { value in
-                        guard value.translation.height > 10 && abs(value.translation.width) < 20 else { return }
+                        guard value.translation.height > GestureConstants.minimumVerticalSwipe && abs(value.translation.width) < GestureConstants.maximumHorizontalDeviation else { return }
                         dismissOffset = CGSize(width: 0, height: value.translation.height)
                     }
                     .onEnded { value in
-                        let height = value.translation.height + (value.velocity.height / 5)
-                        if height > 10 {
+                        let height = value.translation.height + (value.velocity.height / GestureConstants.velocityDampening)
+                        if height > GestureConstants.dismissThresholdBasic {
                             dismiss()
                         } else {
                             withAnimation(.easeInOut(duration: 0.2)) {

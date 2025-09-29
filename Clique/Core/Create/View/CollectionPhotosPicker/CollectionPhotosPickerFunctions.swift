@@ -149,20 +149,15 @@ extension CollectionPhotosPicker {
         }
     }
     
-    /// Processing Selected Photos
-    internal func processSelectedPhotos() {
-        context.processSelectedPhotos(
-            viewModel: viewModel,
-            tabViewCoordinator: tabViewCoordinator,
-            presentToast: { toast in presentToast(toast) },
-            clearExistingData: true // Clear for collection picker - fresh start
-        )
+    /// Clear All Selections
+    internal func clearAllSelections() {
+        viewModel.clearAllSelections()
     }
-    
+
     internal func toggleSelection(_ asset: PHAsset) {
         context.toggleSelection(asset, viewModel: viewModel)
     }
-    
+
     internal func loadThumbnail(for asset: PHAsset) {
         context.loadThumbnail(for: asset)
     }

@@ -138,11 +138,7 @@ struct NewCollectionDetailsView: View {
                 fullWidth: true,
                 isLoading: buttonLoading
             ) {
-                viewModel.startUpload(userStore, tabViewCoordinator)
-                
-                if viewModel.fromLibrary {
-                    dismiss()
-                }
+                handleLibraryUpload()
             }
             .disabled(!buttonEnabled || buttonLoading)
             .padding(.bottom, 16)
@@ -163,7 +159,13 @@ struct NewCollectionDetailsView: View {
                 .bottomSheetModifiers()
         }
     }
-    
+
+    /// Handle upload from library flow - signal to SelectedPhotosView to process and upload
+    private func handleLibraryUpload() {
+        viewModel.shouldProcessAndUploadForNewCollection = true
+        // SelectedPhotosView will handle dismissal and processing
+    }
+
     @ViewBuilder private func VisibilityButton(visibility: Visibility) -> some View {
         let isSelected = viewModel.newCollectionVisibility == visibility
         

@@ -42,17 +42,42 @@ class AppService {
             }
         }
     }
-    
-    static func isUpdateAvailable(completion: @escaping (Bool) -> Void) {
+
+    /// Generic function to fetch data from Firebase app_config collection
+    static func getFirebaseConfig<T>(document: String, field: String? = nil) async -> T? {
         let db = Firestore.firestore()
-        db.collection("app_config").document("latest_version").getDocument { document, error in
-            if let document = document, document.exists,
-               let latestVersion = document.data()?["version"] as? String {
-                completion(latestVersion != AppConfig.currentVersion)
-            } else {
-                completion(false) // Handle error or missing data by assuming no update
+
+        do {
+            let documentSnapshot = try await db.collection("app_config").document(document).getDocument()
+
+            guard documentSnapshot.exists else {
+                print("⚠️ Firebase config document '\(document)' does not exist")
+                return nil
             }
+
+            let data = documentSnapshot.data()
+
+            if let field = field {
+                return data?[field] as? T
+            } else {
+                return data as? T
+            }
+        } catch {
+            print("❌ Firebase config fetch error: \(error.localizedDescription)")
+            return nil
         }
+    }
+
+    static func isUpdateAvailable() async -> Bool {
+        let latestVersion: String? = await getFirebaseConfig(document: "latest_version", field: "version")
+        guard let latestVersion = latestVersion else { return false }
+        return latestVersion != AppConfig.currentVersion
+    }
+
+    /// Check if app is in maintenance mode (bricked)
+    static func isAppBricked() async -> Bool {
+        let isBricked: Bool? = await getFirebaseConfig(document: "maintenance", field: "is_bricked")
+        return isBricked ?? false
     }
     
     @MainActor static func checkAndRegisterPushNotificationsIfNeeded(userStore: UserStore) {

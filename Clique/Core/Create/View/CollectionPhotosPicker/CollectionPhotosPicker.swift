@@ -12,14 +12,11 @@ import PhotosUI
 struct CollectionPhotosPicker: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.presentToast) var presentToast
-    
+
     @Environment(TabViewCoordinator.self) var tabViewCoordinator
-    
+
     @Environment(CreateViewModel.self) var viewModel
     @Environment(PhotoPickerContext.self) var context
-    
-    @Binding var shouldProcess: Bool
-    @Binding var isProcessing: Bool
     
     @State internal var flicksAssets: [PHAsset] = [] // All photos for Flicks tab
     @State internal var sharedAlbums: [(collection: PHAssetCollection, title: String, count: Int, thumbnail: UIImage?)] = []
@@ -67,15 +64,6 @@ struct CollectionPhotosPicker: View {
             guard !hasLoadedAlbums else { return }
             checkPhotoLibraryAuthorization()
             hasLoadedAlbums = true
-        }
-        .onChange(of: shouldProcess) { _, newValue in
-            if newValue {
-                processSelectedPhotos()
-                shouldProcess = false
-            }
-        }
-        .onChange(of: context.isProcessing) { _, newValue in
-            isProcessing = newValue
         }
         .primaryBackground()
     }

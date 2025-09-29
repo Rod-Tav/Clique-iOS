@@ -10,14 +10,41 @@ import Photos
 
 struct SelectedPhotosView: View {
     @Environment(\.dismiss) var dismiss
+    @Environment(\.presentToast) var presentToast
     @Environment(CreateViewModel.self) var viewModel
     @Environment(PhotoPickerContext.self) var context
-    
+
+    @Environment(UserStore.self) var userStore
+    @Environment(CollectionStore.self) var collectionStore
+    @Environment(CollectionImageStore.self) var collectionImageStore
+    @Environment(CliqueStore.self) var cliqueStore
+    @Environment(TabViewCoordinator.self) var tabViewCoordinator
+
     @State var currentIndex: Int = 0
     @State var scrollPosition: PHAsset?
     @State var zoomScales: [PHAsset: CGFloat] = [:]
     @State var dragOffsets: [PHAsset: CGSize] = [:]
     @State var galleryProxy: ScrollViewProxy?
+
+    // Upload-related state
+    @State var activeSheet: SheetType?
+    @State var isProcessing: Bool = false
+    @State var processingProgress: Double = 0.0
+    @State var processedCount: Int = 0
+    @State var totalCount: Int = 0
+
+    // Sheet type enum
+    enum SheetType: Identifiable {
+        case chooseCollection
+        case newCollection
+
+        var id: Int {
+            switch self {
+            case .chooseCollection: return 0
+            case .newCollection: return 1
+            }
+        }
+    }
     
     // Convert Set to Array for indexed access
     var selectedAssetsArray: [PHAsset] {
@@ -32,18 +59,69 @@ struct SelectedPhotosView: View {
     }
     
     var body: some View {
+        @Bindable var bindableViewModel = viewModel
+
         ZStack {
             VStack(spacing: 0) {
                 topBar
                 centerImagePreview
                 bottomCarousel
+                Spacer()
+                uploadButton
             }
             .primaryBackground()
+
+            // Processing overlay
+            if isProcessing {
+                ProcessingOverlay(
+                    progress: processingProgress,
+                    processedCount: processedCount,
+                    totalCount: totalCount
+                )
+            }
         }
         .onAppear {
             // Initialize scroll position to first item
             if !selectedAssetsArray.isEmpty {
                 scrollPosition = selectedAssetsArray[0]
+            }
+        }
+        .onChange(of: viewModel.showNewCollectionSheet) { _, newValue in
+            if newValue {
+                activeSheet = .newCollection
+                viewModel.showNewCollectionSheet = false // Reset to avoid conflicts
+            }
+        }
+        .onChange(of: tabViewCoordinator.activeTab) { oldTab, newTab in
+            // Auto-dismiss when tab switches away (mimics NavigationDestination auto-dismiss behavior)
+            if oldTab != newTab {
+                dismiss()
+            }
+        }
+        .onChange(of: viewModel.shouldProcessAndUploadForNewCollection) { _, shouldUpload in
+            if shouldUpload {
+                viewModel.shouldProcessAndUploadForNewCollection = false
+                // Dismiss sheet first
+                activeSheet = nil
+                // Then process and upload
+                Task {
+                    await processPhotosAndUploadForNewCollection()
+                }
+            }
+        }
+        .sheet(item: $activeSheet) { sheetType in
+            switch sheetType {
+            case .chooseCollection:
+                if let uid = userStore.currentUserId {
+                    ChooseCollectionView(uid: uid, collectionStore, collectionImageStore)
+                        .environment(viewModel)
+                        .bottomSheetModifiers()
+                }
+            case .newCollection:
+                NewCollectionDetailsView()
+                    .environment(viewModel)
+                    .bottomSheetModifiers()
+                    .presentationDetents([.fraction(0.999)])
             }
         }
     }
@@ -114,7 +192,12 @@ struct SelectedPhotosView: View {
                                     dragOffset: Binding(
                                         get: { dragOffsets[asset] ?? .zero },
                                         set: { dragOffsets[asset] = $0 }
-                                    )
+                                    ),
+                                    viewModel: viewModel,
+                                    collectionStore: collectionStore,
+                                    onCollectionTap: {
+                                        activeSheet = .chooseCollection
+                                    }
                                 )
                                 .containerRelativeFrame(.horizontal)
                                 .id(asset)
@@ -183,6 +266,21 @@ struct SelectedPhotosView: View {
             }
         }
     }
+
+    // MARK: - Upload Button
+    private var uploadButton: some View {
+        CliqueButton(
+            type: .primary,
+            text: viewModel.selectedCollectionId == nil ? "Add to collection" : "Upload \(pluralizeWithCount(count: viewModel.selectedAssets.count, singular: "Flick"))",
+            fullWidth: true,
+            isLoading: isProcessing
+        ) {
+            handleUpload()
+        }
+        .padding(.horizontal, 24)
+        .padding(.bottom, 16)
+        .disabled(isProcessing)
+    }
 }
 
 // MARK: - Supporting Views
@@ -192,14 +290,14 @@ struct CarouselThumbnail: View {
     let isSelected: Bool
     let index: Int
     let onTap: () -> Void
-    
+
     @Environment(PhotoPickerContext.self) var context
     @State private var carouselImage: UIImage?
-    
+
     var body: some View {
         Button(action: onTap) {
             ZStack {
-                if let image = carouselImage {
+                if let image = carouselImage ?? context.thumbnailCache[asset] {
                     Image(uiImage: image)
                         .resizable()
                         .aspectRatio(contentMode: .fill)
@@ -209,18 +307,22 @@ struct CarouselThumbnail: View {
                     RoundedRectangle(cornerRadius: 8)
                         .fill(Color.theme.surfacesElevatedBlur)
                         .frame(width: 60, height: 60)
-                        .onAppear {
-                            // Load smaller carousel-specific thumbnail
-                            context.loadCarouselThumbnail(for: asset) { image in
-                                carouselImage = image
-                            }
-                        }
                 }
-                
+
                 if isSelected {
                     RoundedRectangle(cornerRadius: 8)
                         .stroke(Color.theme.buttonCTA, lineWidth: 3)
                         .frame(width: 60, height: 60)
+                }
+            }
+            .task {
+                // Try to use cached thumbnail first, otherwise load it
+                if let cached = context.thumbnailCache[asset] {
+                    carouselImage = cached
+                } else {
+                    context.loadCarouselThumbnail(for: asset) { image in
+                        carouselImage = image
+                    }
                 }
             }
         }
@@ -233,9 +335,12 @@ struct PhotoGalleryItem: View {
     let geometry: GeometryProxy
     @Binding var zoomScale: CGFloat
     @Binding var dragOffset: CGSize
-    
+    let viewModel: CreateViewModel
+    let collectionStore: CollectionStore
+    let onCollectionTap: () -> Void
+
     @Environment(PhotoPickerContext.self) var context
-    
+
     var body: some View {
         ZStack {
             PhotoZoomContainer(
@@ -251,6 +356,39 @@ struct PhotoGalleryItem: View {
                 )
                 .frame(maxWidth: geometry.size.width)
                 .frame(maxHeight: geometry.size.height)
+            }
+            .overlay(alignment: .topLeading) {
+                if let cid = viewModel.selectedCollectionClique?.id {
+                    CliquePill(cid, type: .newCollection)
+                        .padding(16)
+                }
+            }
+            .overlay(alignment: .bottomLeading) {
+                if let collectionId = viewModel.selectedCollectionId {
+                    Button {
+                        onCollectionTap()
+                    } label: {
+                        HStack(spacing: 6) {
+                            IconImage("collections", color: .theme.iconPrimary, size: 12)
+
+                            if let name = collectionStore.collections[collectionId]?.name {
+                                Text(name)
+                                    .font(.caption.bold())
+                                    .textPrimary()
+                            }
+
+                            if viewModel.newCollectionVisibility == .priv {
+                                IconImage("lock", color: .theme.iconPrimary, size: 12)
+                            }
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Color.theme.surfacesPrimary)
+                        .roundCorners(32)
+                        .padding(16)
+                        .contentShape(.rect)
+                    }.noHighlight()
+                }
             }
             .onTapGesture(count: 2) {
                 withAnimation(.spring(response: 0.3)) {

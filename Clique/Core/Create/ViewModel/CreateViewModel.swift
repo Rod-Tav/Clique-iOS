@@ -38,16 +38,33 @@ enum CreateFlowDestination: Hashable {
     var preparedImageVariants: [(high: PreparedImageVariant, med: PreparedImageVariant, low: PreparedImageVariant)] = []
     
     var collectionToGoTo: ClCollection?
-    
-    var triggerAddToNew: Bool = false
-    
-    @MainActor func startUpload(_ userStore: UserStore, _ tabViewCoordinator: TabViewCoordinator) {
+
+    /// Flag to coordinate photo processing between NewCollectionDetailsView and SelectedPhotosView.
+    ///
+    /// **Why this exists**: SelectedPhotosView is presented as a fullScreenCover (not a NavigationDestination).
+    /// Unlike NavigationDestination which auto-dismisses when NavigationPath is cleared, fullScreenCover
+    /// requires manual dismissal coordination.
+    ///
+    /// **Flow**:
+    /// 1. User taps upload in NewCollectionDetailsView → sets this flag to true
+    /// 2. SelectedPhotosView's onChange detects the flag
+    /// 3. SelectedPhotosView processes photos (PHAssets → UIImages → upload variants)
+    /// 4. SelectedPhotosView dismisses itself
+    /// 5. Upload proceeds with processed data
+    ///
+    /// This pattern ensures photo processing happens in SelectedPhotosView where the processing UI lives,
+    /// while maintaining the simple upload logic in NewCollectionDetailsView.
+    var shouldProcessAndUploadForNewCollection: Bool = false
+
+    @MainActor func startUpload(_ userStore: UserStore, _ tabViewCoordinator: TabViewCoordinator, skipProcessing: Bool = false) {
         guard let cuid = userStore.currentUserId else { return }
-        
-        // Process photos for upload first
+
+        // Process photos for upload first (unless already done)
         Task {
-            await PhotoProcessingHelper.processSelectedPhotosForUpload(viewModel: self)
-            
+            if !skipProcessing {
+                await PhotoProcessingHelper.processSelectedPhotosForUpload(viewModel: self)
+            }
+
             tabViewCoordinator.profileNavigationPath = NavigationPath()
             tabViewCoordinator.activeTab = tabViewCoordinator.previousTab
             tabViewCoordinator.showTabBar = true
@@ -64,11 +81,11 @@ enum CreateFlowDestination: Hashable {
             
             let collection = collectionToGoTo ?? getCollectionObj(cuid: cuid, flicks: flicks)
             let makingNew = collectionToGoTo == nil
-            
-            
+
+
             NotificationCenter.default.post(name: .showProcessingImagesForUpload, object: nil)
-            
-            
+
+
             NotificationCenter.default.post(
                 name: .uploadImagesToCollection,
                 object: nil,
@@ -119,17 +136,26 @@ enum CreateFlowDestination: Hashable {
         for item in assets {
             // Skip if already processed
             guard !processedAssets.contains(item.asset) else { continue }
-            
+
             // Update tracking sets/dictionaries
             processedAssets.insert(item.asset)
             processedImageData[item.asset.localIdentifier] = (image: item.image, date: item.date)
-            
+
             // Directly append to arrays - no rebuild needed!
             selectedImages.append(item.image)
             selectedImagesDates.append(item.date)
         }
     }
-    
+
+    /// Clear all selected photos and processed data
+    func clearAllSelections() {
+        selectedAssets.removeAll()
+        selectedImages.removeAll()
+        selectedImagesDates.removeAll()
+        processedAssets.removeAll()
+        processedImageData.removeAll()
+    }
+
     func reset() {
         selectedCollectionId = nil
         selectedCollectionClique = nil
@@ -150,7 +176,8 @@ enum CreateFlowDestination: Hashable {
         processedImageData = [:]
         photoDatePairs = []
         preparedImageVariants = []
-        
+
         collectionToGoTo = nil
+        shouldProcessAndUploadForNewCollection = false
     }
 }

@@ -63,8 +63,9 @@ struct TwoStageImageLoader: View {
     private func loadFullResolution() {
         guard fullImage == nil && !isLoadingFull else { return }
         isLoadingFull = true
-        
+
         let options = PHImageRequestOptions()
+        options.version = .current
         options.deliveryMode = .highQualityFormat
         options.isNetworkAccessAllowed = true
         options.isSynchronous = false
