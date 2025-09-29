@@ -32,6 +32,8 @@ enum CreateFlowDestination: Hashable {
     var processedAssets: Set<PHAsset> = []
     // Maps PHAsset identifiers to their processed image and date
     var processedImageData: [String: (image: UIImage, date: Date)] = [:]
+    // Tracks which assets are Live Photos (by localIdentifier)
+    var livePhotoAssets: Set<String> = []
     /// Prepared upload metadata
     var photoDatePairs: [Components.Schemas.PhotoVideoDate] = []
     /// Prepared image variants for upload
@@ -110,11 +112,11 @@ enum CreateFlowDestination: Hashable {
     func removeAsset(_ asset: PHAsset) {
         // Remove from selected assets
         selectedAssets.remove(asset)
-        
+
         // If it was processed, remove it from all collections
         if processedAssets.contains(asset),
            let imageData = processedImageData[asset.localIdentifier] {
-            
+
             // Find and remove from arrays
             if let index = selectedImages.firstIndex(where: { $0 === imageData.image }) {
                 selectedImages.remove(at: index)
@@ -123,10 +125,11 @@ enum CreateFlowDestination: Hashable {
                     selectedImagesDates.remove(at: index)
                 }
             }
-            
+
             // Clean up tracking data
             processedAssets.remove(asset)
             processedImageData.removeValue(forKey: asset.localIdentifier)
+            livePhotoAssets.remove(asset.localIdentifier)
         }
     }
     
@@ -154,6 +157,7 @@ enum CreateFlowDestination: Hashable {
         selectedImagesDates.removeAll()
         processedAssets.removeAll()
         processedImageData.removeAll()
+        livePhotoAssets.removeAll()
     }
 
     func reset() {
@@ -174,10 +178,16 @@ enum CreateFlowDestination: Hashable {
         selectedAssets = []
         processedAssets = []
         processedImageData = [:]
+        livePhotoAssets = []
         photoDatePairs = []
         preparedImageVariants = []
 
         collectionToGoTo = nil
         shouldProcessAndUploadForNewCollection = false
+    }
+
+    /// Check if an asset is a Live Photo
+    func isLivePhoto(_ asset: PHAsset) -> Bool {
+        return livePhotoAssets.contains(asset.localIdentifier)
     }
 }

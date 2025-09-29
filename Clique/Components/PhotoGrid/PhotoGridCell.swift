@@ -20,6 +20,11 @@ struct PhotoGridCell: View {
     var isBeingRemoved: Bool = false
     /// Tap action callback
     let action: () -> Void
+
+    /// Whether this asset is a Live Photo
+    private var isLivePhoto: Bool {
+        asset.mediaSubtypes.contains(.photoLive)
+    }
     
     /// Calculated cell size for 3-column grid
     private var cellSize: CGFloat {
@@ -38,7 +43,12 @@ struct PhotoGridCell: View {
                 } else {
                     loadingView
                 }
-                
+
+                // Live Photo badge (bottom-left)
+                if isLivePhoto {
+                    livePhotoBadge
+                }
+
                 if isSelected && !isBeingRemoved {
                     selectionOverlay
                 } else if isBeingRemoved {
@@ -93,26 +103,43 @@ struct PhotoGridCell: View {
     private var removalOverlay: some View {
         ZStack {
             Color.red.opacity(0.4)
-            
+
             VStack {
                 HStack {
                     Spacer()
-                    
+
                     ZStack {
                         Circle()
                             .fill(Color.red)
                             .frame(width: 24, height: 24)
-                        
+
                         Image(systemName: "minus")
                             .foregroundColor(.white)
                             .font(.system(size: 14, weight: .bold))
                     }
                     .padding(4)
                 }
-                
+
                 Spacer()
             }
         }
         .animation(.snappy(duration: 0.25, extraBounce: 0), value: isBeingRemoved)
+    }
+
+    /// Live Photo badge indicator (bottom-left corner)
+    private var livePhotoBadge: some View {
+        VStack {
+            Spacer()
+
+            HStack {
+                Image(systemName: "livephoto")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
+                    .padding(6)
+
+                Spacer()
+            }
+        }
     }
 }
