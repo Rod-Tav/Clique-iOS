@@ -225,7 +225,7 @@ struct MainTabView: View {
         .onReceive(NotificationCenter.default.publisher(for: .uploadImagesToCollection)) { notification in
             guard let collection = notification.userInfo?["collection"] as? ClCollection,
                   let makingNew = notification.userInfo?["makingNew"] as? Bool,
-                  let photoDatePairs = notification.userInfo?["photoDatePairs"] as? [Components.Schemas.PhotoDatePair],
+                  let photoDatePairs = notification.userInfo?["photoDatePairs"] as? [Components.Schemas.PhotoVideoDate],
                   let variants  = notification.userInfo?["variants"] as? [(PreparedImageVariant, PreparedImageVariant, PreparedImageVariant)]
             else { return }
             

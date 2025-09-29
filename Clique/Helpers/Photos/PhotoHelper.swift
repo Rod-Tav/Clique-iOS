@@ -108,7 +108,7 @@ enum ImageQuality: String {
 // MARK: - Photo Helper
 
 struct PhotoHelper {
-    static func createPhotoDatePairs(images: [UIImage], dates: [Date]) -> [Components.Schemas.PhotoDatePair] {
+    static func createPhotoDatePairs(images: [UIImage], dates: [Date]) -> [Components.Schemas.PhotoVideoDate] {
         return zip(images, dates).map { image, date in
             let photoDataNoPath = prepareUIImage(image)
             return mapToPhotoDatePair(photo: photoDataNoPath?.photoData, date: date)

@@ -31,7 +31,7 @@ func mapToUser(_ user: Components.Schemas.User) -> User {
         lastname: user.lastName!,
         number: user.phoneNumber ?? "",
         username: user.username!,
-        profilePic: user.profilePic == nil ? nil : mapToPhotoUrls(user.profilePic!),
+        profilePic: user.profilePic == nil ? nil : mapToMediaUrls(user.profilePic!),
         bio: user.bio ?? "",
         isPrivate: user.isPrivate!,
         numCliques: user.cliqueCount!,

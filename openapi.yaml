@@ -2354,7 +2354,7 @@ components:
         lastName:
           type: string
         profilePic:
-          $ref: '#/components/schemas/PhotoUrls'
+          $ref: '#/components/schemas/MediaUrls'
         isPrivate:
           type: boolean
         followStatus:
@@ -2385,7 +2385,7 @@ components:
 #            maxLength: 36
         dateCreated:
           type: string
-    PhotoUrls:
+    MediaUrls:
       type: object
       properties:
         url:
@@ -2408,9 +2408,9 @@ components:
         bio:
           type: string
         cliqueBanner:
-          $ref: '#/components/schemas/PhotoUrls'
+          $ref: '#/components/schemas/MediaUrls'
         cliqueProfilePic:
-          $ref: '#/components/schemas/PhotoUrls'
+          $ref: '#/components/schemas/MediaUrls'
         dateCreated:
           type: string
         memberCount:
@@ -2498,6 +2498,14 @@ components:
           format: int64
         contentMd5:
           type: string
+    UploadVideoParams:
+      type: object
+      properties:
+        contentType:
+          type: string
+        contentLength:
+          type: integer
+          format: int64
     PhotoDataNoPath:
       type: object
       properties:
@@ -2507,7 +2515,12 @@ components:
           $ref: '#/components/schemas/UploadPhotoParams'
         lowQualityPhoto:
           $ref: '#/components/schemas/UploadPhotoParams'
-    PhotoData:
+    VideoDataNoPath:
+      type: object
+      properties:
+        baseVideo:
+          $ref: '#/components/schemas/UploadVideoParams'
+    MediaData:
       type: object
       properties:
         basePhoto:
@@ -2516,8 +2529,12 @@ components:
           $ref: '#/components/schemas/UploadPhotoParams'
         lowQualityPhoto:
           $ref: '#/components/schemas/UploadPhotoParams'
+        baseVideo:
+          $ref: '#/components/schemas/UploadVideoParams'
         path:
           type: string
+        mediaType:
+          $ref: '#/components/schemas/MediaType'
     PhotoUploadUrl:
       type: object
       properties:
@@ -2533,13 +2550,39 @@ components:
           pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
           minLength: 36
           maxLength: 36
+    CollectionItemMediaUploadUrl:
+      type: object
+      properties:
+        photoS3Url:
+          type: string
+        photoId:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+          maxLength: 36
+        videoS3Url:
+          type: string
+        videoId:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+          maxLength: 36
+    UploadCollectionItemMediaResponseBody:
+      type: object
+      properties:
+        urls:
+          type: array
+          items:
+            $ref: "#/components/schemas/CollectionItemMediaUploadUrl"
     UploadPhotosRequestBody:
       type: object
       properties:
         photos:
           type: array
           items:
-            $ref: "#/components/schemas/PhotoData"
+            $ref: "#/components/schemas/MediaData"
     UploadPhotosResponseBody:
       type: object
       properties:
@@ -2551,12 +2594,16 @@ components:
       type: object
       properties:
         urls:
-          $ref: '#/components/schemas/PhotoUrls'
-    PhotoDatePair:
+          $ref: '#/components/schemas/MediaUrls'
+    PhotoVideoDate:
       type: object
       properties:
         photo:
           $ref: "#/components/schemas/PhotoDataNoPath"
+        video:
+          $ref: '#/components/schemas/VideoDataNoPath'
+        mediaType:
+          $ref: '#/components/schemas/MediaType'
         dateCreated:
           type: string
     PrivacySetting:
@@ -2641,12 +2688,14 @@ components:
         picCount:
           type: integer
         coverPhoto:
-          $ref: '#/components/schemas/PhotoUrls'
+          $ref: '#/components/schemas/MediaUrls'
     UrlCollectionItem:
       type: object
       properties:
         urls:
-          $ref: '#/components/schemas/PhotoUrls'
+          $ref: '#/components/schemas/MediaUrls'
+        videoUrls:
+          $ref: '#/components/schemas/MediaUrls'
         collectionItem:
           $ref: "#/components/schemas/CollectionItem"
         isLiked:
@@ -2668,10 +2717,18 @@ components:
           pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
           minLength: 36
           maxLength: 36
+        videoId:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+          maxLength: 36
         likes:
           type: integer
         commentCount:
           type: integer
+        mediaType:
+          $ref: '#/components/schemas/MediaType'
         dateCreated:
           type: string
     UploadCollectionItemsRequestBody:
@@ -2686,7 +2743,7 @@ components:
         photos:
           type: array
           items:
-            $ref: "#/components/schemas/PhotoDatePair"
+            $ref: "#/components/schemas/PhotoVideoDate"
     MarkUploadedRequestBody:
       type: object
       properties:
@@ -3182,6 +3239,43 @@ components:
       properties:
         hasAlert:
           type: boolean
+    MediaType:
+      type: string
+      enum:
+        - PHOTO
+        - LIVE
+        - VIDEO
+    NewMediaCreatedMessage:
+      type: object
+      properties:
+        messageId:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+          maxLength: 36
+        collectionItemId:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+          maxLength: 36
+        photoId:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+          maxLength: 36
+        videoId:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          minLength: 36
+          maxLength: 36
+        mediaType:
+          $ref: '#/components/schemas/MediaType'
+        timestamp:
+          type: string
     ErrorResponse:
       type: object
       properties:

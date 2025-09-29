@@ -13,7 +13,7 @@ struct User: Identifiable, Hashable, Codable {
     var lastname: String = ""
     let number: String
     var username: String
-    var profilePic: PhotoUrls? = nil
+    var profilePic: MediaUrls? = nil
     var bio: String = ""
     var isPrivate: Bool = true
     

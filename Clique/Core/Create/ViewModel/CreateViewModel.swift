@@ -33,7 +33,7 @@ enum CreateFlowDestination: Hashable {
     // Maps PHAsset identifiers to their processed image and date
     var processedImageData: [String: (image: UIImage, date: Date)] = [:]
     /// Prepared upload metadata
-    var photoDatePairs: [Components.Schemas.PhotoDatePair] = []
+    var photoDatePairs: [Components.Schemas.PhotoVideoDate] = []
     /// Prepared image variants for upload
     var preparedImageVariants: [(high: PreparedImageVariant, med: PreparedImageVariant, low: PreparedImageVariant)] = []
     

@@ -22,17 +22,19 @@ struct PhotoProcessingHelper {
         let datesToProcess = viewModel.selectedImagesDates
         
         // Define result type for clarity
-        typealias ProcessResult = (index: Int, photoData: Components.Schemas.PhotoDatePair?, variants: (high: PreparedImageVariant, med: PreparedImageVariant, low: PreparedImageVariant)?)
-        
+        typealias ProcessResult = (index: Int, photoData: Components.Schemas.PhotoVideoDate?, variants: (high: PreparedImageVariant, med: PreparedImageVariant, low: PreparedImageVariant)?)
+
         await withTaskGroup(of: ProcessResult.self) { group in
             // Add all processing tasks
             for (index, image) in imagesToProcess.enumerated() {
                 group.addTask {
                     let date = index < datesToProcess.count ? datesToProcess[index] : Date()
-                    
+
                     if let (photoData, variants) = prepareUIImage(image) {
-                        let photoPair = Components.Schemas.PhotoDatePair(
+                        let photoPair = Components.Schemas.PhotoVideoDate(
                             photo: photoData,
+                            video: nil,
+                            mediaType: .PHOTO,
                             dateCreated: convertFromDate(date)
                         )
                         return (index, photoPair, (high: variants.high, med: variants.medium, low: variants.low))

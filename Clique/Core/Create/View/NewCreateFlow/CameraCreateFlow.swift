@@ -195,9 +195,9 @@ struct CameraCreateFlow: View {
                         viewModel.selectedImagesDates = [Date()]
                         
                         guard let (photoData, imageVariants) = prepareUIImage(capturedImage) else { return }
-                        
-                        let photoPair = Components.Schemas.PhotoDatePair(photo: photoData, dateCreated: convertFromDate(Date()))
-                        
+
+                        let photoPair = Components.Schemas.PhotoVideoDate(photo: photoData, video: nil, mediaType: .PHOTO, dateCreated: convertFromDate(Date()))
+
                         viewModel.photoDatePairs.append(photoPair)
                         viewModel.preparedImageVariants.append((high: imageVariants.high, med: imageVariants.medium, low: imageVariants.low))
                         

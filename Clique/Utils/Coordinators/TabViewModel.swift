@@ -34,7 +34,7 @@ import SwiftUI
     
     func uploadToCollection(
         makingNew: Bool,
-        photoDatePairs: [Components.Schemas.PhotoDatePair],
+        photoDatePairs: [Components.Schemas.PhotoVideoDate],
         preparedImages: [(high: PreparedImageVariant, med: PreparedImageVariant, low: PreparedImageVariant)],
         collection: ClCollection,
         _ collectionStore: CollectionStore,
