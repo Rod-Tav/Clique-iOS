@@ -43,7 +43,7 @@ class ReportViewModel {
         }
 
         let task = URLSession.shared.dataTask(with: request) { data, response, error in
-            if let error = error {
+            if error != nil {
                 DispatchQueue.main.async {
                     completion(.failure)
                 }
@@ -60,7 +60,7 @@ class ReportViewModel {
             do {
                 if let jsonResponse = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
                     if let status = jsonResponse["status"] as? Int,
-                       let message = jsonResponse["message"] as? String {
+                       let _ = jsonResponse["message"] as? String {
 
                         switch status {
                         case 201:

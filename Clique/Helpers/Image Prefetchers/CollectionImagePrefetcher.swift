@@ -244,9 +244,9 @@ final class CollectionImagePrefetcher {
 
     private func evictCollection(_ collectionId: String) {
         // Stop all prefetching for this collection
-        stopLowQualityPrefetching(for: collectionId)
-        stopMediumQualityPrefetching(for: collectionId)
-        stopHighQualityPrefetching(for: collectionId)
+        stopLowPrefetching(for: collectionId)
+        stopMediumPrefetching(for: collectionId)
+        stopHighPrefetching(for: collectionId)
 
         // Remove from URL tracking
         prefetchedLowURLs.removeValue(forKey: collectionId)
@@ -444,9 +444,9 @@ final class CollectionImagePrefetcher {
         prefetchDebounceTimer = nil
 
         prefetchQueue.async { [weak self] in
-            self?.stopLowPrefetching(collectionId: collectionId)
-            self?.stopMediumPrefetching(collectionId: collectionId)
-            self?.stopHighPrefetching(collectionId: collectionId)
+            self?.stopLowPrefetching(for: collectionId)
+            self?.stopMediumPrefetching(for: collectionId)
+            self?.stopHighPrefetching(for: collectionId)
         }
     }
 
@@ -470,21 +470,21 @@ final class CollectionImagePrefetcher {
         activePrefetchCount = 0
     }
 
-    func stopLowPrefetching(collectionId: String) {
+    func stopLowPrefetching(for collectionId: String) {
         lowPrefetchers[collectionId]?.stop()
         lowPrefetchers.removeValue(forKey: collectionId)
         prefetchedLowURLs.removeValue(forKey: collectionId)
         activePrefetchCount = max(0, activePrefetchCount - 1)
     }
 
-    func stopMediumPrefetching(collectionId: String) {
+    func stopMediumPrefetching(for collectionId: String) {
         medPrefetchers[collectionId]?.stop()
         medPrefetchers.removeValue(forKey: collectionId)
         prefetchedMedURLs.removeValue(forKey: collectionId)
         activePrefetchCount = max(0, activePrefetchCount - 1)
     }
 
-    func stopHighPrefetching(collectionId: String) {
+    func stopHighPrefetching(for collectionId: String) {
         highPrefetchers[collectionId]?.stop()
         highPrefetchers.removeValue(forKey: collectionId)
         prefetchedHighURLs.removeValue(forKey: collectionId)
