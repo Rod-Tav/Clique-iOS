@@ -137,7 +137,7 @@ struct SingleFlickView: View {
                             hasSwipedUpToOpenComments = true
                         }
                     },
-                    onEnded: { _, _ in }  // Need onEnded for signature compatibility
+                    onEnded: { _, _ in }  // Required for CompatibleDragGestureModifier signature
                 )
                 .offset(dismissOffset)
                 .compatibleDragGesture(
