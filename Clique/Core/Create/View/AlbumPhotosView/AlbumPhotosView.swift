@@ -100,21 +100,7 @@ struct AlbumPhotosView: View {
             Spacer()
                 .frame(24)
         } else {
-            // Any selection - always show count and "Add" button
-            Button {
-                processSelectedPhotos()
-            } label: {
-                HStack(spacing: 8) {
-                    HStack(spacing: 4) {
-                        Text("\(viewModel.selectedAssets.count)")
-                        IconImage("images-posts", color: .theme.iconPrimary, size: 20)
-                    }
-                    Text("Add")
-                }
-                .font(.caption.bold())
-                .textPrimary()
-            }
-            .disabled(context.isProcessing)
+            ClearPhotosButton(count: viewModel.selectedAssets.count, action: clearAllSelections)
         }
     }
 }

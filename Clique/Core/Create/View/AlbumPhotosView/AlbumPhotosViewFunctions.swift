@@ -30,16 +30,11 @@ extension AlbumPhotosView {
     internal func toggleSelection(_ asset: PHAsset) {
         context.toggleSelection(asset, viewModel: viewModel)
     }
-    
-    internal func processSelectedPhotos() {
-        context.processSelectedPhotos(
-            viewModel: viewModel,
-            tabViewCoordinator: tabViewCoordinator,
-            presentToast: { toast in presentToast(toast) },
-            clearExistingData: false // Don't clear for album view - we append
-        )
+
+    internal func clearAllSelections() {
+        viewModel.clearAllSelections()
     }
-    
+
     internal func selectAllPhotos() {
         albumAssets.forEach { asset in
             if !viewModel.selectedAssets.contains(asset) {

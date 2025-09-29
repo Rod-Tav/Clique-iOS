@@ -25,8 +25,6 @@ struct LibraryCreateFlow: View {
     @State private var showChooseCollectionSheet: Bool = false
     @State private var buttonLoading: Bool = false
     @State private var currentImageIndex: Int = 0
-    @State private var isProcessingPhotos: Bool = false
-    @State private var shouldTriggerProcessing: Bool = false
     
     private var unprocessedCount: Int { viewModel.selectedAssets.subtracting(viewModel.processedAssets).count
     }
@@ -46,11 +44,8 @@ struct LibraryCreateFlow: View {
                 
                 // Photo picker as root view
                 PhotoPickerContainer { context in
-                    CollectionPhotosPicker(
-                        shouldProcess: $shouldTriggerProcessing,
-                        isProcessing: $isProcessingPhotos
-                    )
-                    .environment(context)
+                    CollectionPhotosPicker()
+                        .environment(context)
                 }
             }
             .primaryBackground()
@@ -132,28 +127,10 @@ struct LibraryCreateFlow: View {
     }
     
     @ViewBuilder private func TrailingIcon() -> some View {
-        // Show count of unprocessed selections + already processed images
         if totalCount > 0 {
-            // Add button
-            Button {
-                shouldTriggerProcessing = true
-            } label: {
-                HStack(spacing: 8) {
-                    // Photo count
-                    HStack(spacing: 4) {
-                        Text("\(totalCount)")
-                        
-                        IconImage("images-posts", color: .theme.iconPrimary, size: 20)
-                    }
-                    
-                    Text("Add")
-                }
-                .font(.caption.bold())
-                .textPrimary()
-            }
-            .font(.callout)
-            .disabled(isProcessingPhotos)
+            ClearPhotosButton(count: totalCount, action: clearAllSelections)
         } else {
+            // Show camera icon to switch flows
             Button {
                 tabViewCoordinator.createFlowMode = .camera
             } label: {

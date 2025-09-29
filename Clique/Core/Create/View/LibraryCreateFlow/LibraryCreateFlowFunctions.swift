@@ -8,7 +8,11 @@
 import Foundation
 
 extension LibraryCreateFlow {
-    internal func processSelectedPhotos() async {
-        await PhotoProcessingHelper.processSelectedPhotosForUpload(viewModel: viewModel)
+    internal func clearAllSelections() {
+        viewModel.selectedAssets.removeAll()
+        viewModel.selectedImages.removeAll()
+        viewModel.selectedImagesDates.removeAll()
+        viewModel.processedAssets.removeAll()
+        viewModel.processedImageData.removeAll()
     }
 }
