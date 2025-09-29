@@ -142,174 +142,129 @@ struct ImageCacheConfig {
 ///
 /// Provides instant cache hit detection to eliminate placeholder flash.
 /// Uses TTL-based caching with automatic cleanup and race condition prevention.
-/// Thread-safe using concurrent queue with barrier for writes.
-final class GenericAsyncImageCacheManager: ObservableObject {
+/// Thread-safe using Swift actor isolation (iOS 17+).
+actor GenericAsyncImageCacheManager {
     static let shared = GenericAsyncImageCacheManager()
 
-    // Thread-safe access using concurrent queue
-    private let cacheQueue = DispatchQueue(label: "com.clique.imagecache.queue", attributes: .concurrent)
-    private var _cacheCheckResults: [String: (Bool, Date)] = [:]
-    private var _pendingChecks: [String: Task<Bool, Never>] = [:]
-    private var _lastCleanupTime: Date = Date()
-    private var cleanupTimer: Timer? // Store timer reference for proper cleanup
-    private var cleanupTask: Task<Void, Never>? // Single cleanup task to prevent races
+    // Actor-isolated state - automatically thread-safe
+    private var cacheCheckResults: [String: (Bool, Date)] = [:]
+    private var pendingChecks: [String: Task<Bool, Never>] = [:]
+    private var lastCleanupTime: Date = Date()
+    private var isCleaningUp: Bool = false
 
     private init() {
-        setupCleanupTimer()
-        setupMemoryWarningObserver()
-    }
-
-    deinit {
-        cleanupTimer?.invalidate()
-        cleanupTask?.cancel()
+        // Setup notifications on main actor
+        Task { @MainActor in
+            setupNotificationObservers()
+        }
     }
 
     func getCachedResult(for url: String) -> Bool? {
         // Lazy cleanup - only when needed and not too frequently
         cleanupIfNeeded()
 
-        return cacheQueue.sync {
-            if let (cachedResult, timestamp) = _cacheCheckResults[url],
-               Date().timeIntervalSince(timestamp) < ImageCacheConfig.cacheResultTTL {
-                return cachedResult
-            }
-            return nil
+        if let (cachedResult, timestamp) = cacheCheckResults[url],
+           Date().timeIntervalSince(timestamp) < ImageCacheConfig.cacheResultTTL {
+            return cachedResult
         }
+        return nil
     }
 
     func setCachedResult(for url: String, result: Bool) {
-        // Capture strong self before barrier to ensure it exists during operation
-        cacheQueue.async(flags: .barrier) { [weak self] in
-            guard let self = self else { return }
-            // Access properties synchronously within the barrier block
-            // Prevent unbounded growth
-            if self._cacheCheckResults.count >= ImageCacheConfig.maxCacheSize {
-                // Direct cleanup without calling function
-                let now = Date()
-                self._cacheCheckResults = self._cacheCheckResults.filter {
-                    now.timeIntervalSince($0.value.1) < ImageCacheConfig.cacheResultTTL
-                }
+        // Prevent unbounded growth
+        if cacheCheckResults.count >= ImageCacheConfig.maxCacheSize {
+            let now = Date()
+            cacheCheckResults = cacheCheckResults.filter {
+                now.timeIntervalSince($0.value.1) < ImageCacheConfig.cacheResultTTL
             }
-
-            self._cacheCheckResults[url] = (result, Date())
-            self._pendingChecks[url] = nil // Remove from pending after completion
         }
+
+        cacheCheckResults[url] = (result, Date())
+        pendingChecks[url] = nil
     }
 
     // Get or create a cache check task to prevent race conditions
     func getCacheCheckTask(for url: String) -> Task<Bool, Never>? {
-        return cacheQueue.sync { _pendingChecks[url] }
+        return pendingChecks[url]
     }
 
     func setPendingCacheCheck(for url: String, task: Task<Bool, Never>) {
-        cacheQueue.async(flags: .barrier) { [weak self] in
-            guard let self = self else { return }
-            self._pendingChecks[url] = task
-        }
+        pendingChecks[url] = task
     }
 
     func removePendingCheck(for url: String) {
-        cacheQueue.async(flags: .barrier) { [weak self] in
-            guard let self = self else { return }
-            self._pendingChecks[url] = nil
-        }
+        pendingChecks[url] = nil
     }
 
     private func cleanupIfNeeded() {
-        Task { [weak self] in
-            guard let self = self else { return }
+        guard !isCleaningUp else { return }
 
-            // Cancel and await previous task to prevent races
-            if let existingTask = self.cleanupTask {
-                existingTask.cancel()
-                _ = await existingTask.value // Wait for cancellation
-            }
+        let now = Date()
+        guard now.timeIntervalSince(lastCleanupTime) > ImageCacheConfig.cleanupInterval else { return }
 
-            // Create new coordinated cleanup task
-            let newTask = Task { [weak self] in
-                guard let self = self else { return }
+        isCleaningUp = true
 
-                let shouldCleanup = self.cacheQueue.sync {
-                    let now = Date()
-                    if now.timeIntervalSince(self._lastCleanupTime) > ImageCacheConfig.cleanupInterval {
-                        return true
-                    }
-                    return false
-                }
-
-                if shouldCleanup && !Task.isCancelled {
-                    self.cleanupExpiredEntries()
-                }
-            }
-
-            self.cleanupTask = newTask
+        // Perform cleanup inline - actor ensures thread safety
+        cacheCheckResults = cacheCheckResults.filter {
+            now.timeIntervalSince($0.value.1) < ImageCacheConfig.cacheResultTTL
         }
+        lastCleanupTime = now
+        isCleaningUp = false
     }
 
-    private func cleanupExpiredEntries() {
-        cacheQueue.async(flags: .barrier) { [weak self] in
-            guard let self = self else { return }
-            let now = Date()
-            self._cacheCheckResults = self._cacheCheckResults.filter {
-                now.timeIntervalSince($0.value.1) < ImageCacheConfig.cacheResultTTL
-            }
-            self._lastCleanupTime = Date()
-        }
-    }
-
-    private func setupCleanupTimer() {
-        // Store timer reference for proper lifecycle management
-        cleanupTimer = Timer.scheduledTimer(withTimeInterval: ImageCacheConfig.cleanupInterval, repeats: true) { [weak self] _ in
-            // Direct call without nested Task to avoid retain cycle
-            guard let self = self else { return }
-            self.cleanupIfNeeded()
-        }
-
-        // Clear cache when app backgrounds to free memory
-        NotificationCenter.default.addObserver(
-            forName: UIApplication.didEnterBackgroundNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            self?.clearCache()
-        }
-    }
-
-    private func setupMemoryWarningObserver() {
-        NotificationCenter.default.addObserver(
-            forName: UIApplication.didReceiveMemoryWarningNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            self?.handleMemoryPressure()
-        }
-    }
-
-    private func handleMemoryPressure() {
+    func handleMemoryPressure() {
         // Reduce cache size by 50% on memory warning
-        cacheQueue.async(flags: .barrier) { [weak self] in
-            guard let self = self else { return }
-            let entriesToKeep = self._cacheCheckResults.count / 2
-            let sortedEntries = self._cacheCheckResults.sorted { $0.value.1 > $1.value.1 }
-            self._cacheCheckResults = Dictionary(uniqueKeysWithValues: Array(sortedEntries.prefix(entriesToKeep)))
-        }
+        let entriesToKeep = cacheCheckResults.count / 2
+        let sortedEntries = cacheCheckResults.sorted { $0.value.1 > $1.value.1 }
+        cacheCheckResults = Dictionary(uniqueKeysWithValues: Array(sortedEntries.prefix(entriesToKeep)))
     }
 
-    // Clear cache when app backgrounds to free memory
     func clearCache() {
-        cacheQueue.async(flags: .barrier) { [weak self] in
-            guard let self = self else { return }
-            self._cacheCheckResults.removeAll()
-            self._pendingChecks.removeAll() // Clear pending operations too
-        }
+        cacheCheckResults.removeAll()
+        pendingChecks.removeAll()
     }
 
     // Synchronous cache check for immediate display
-    func checkCacheSync(for urlString: String) -> Bool {
+    nonisolated func checkCacheSync(for urlString: String) -> Bool {
         guard let url = URL(string: urlString) else { return false }
         let resource = KF.ImageResource(downloadURL: url)
         return KingfisherManager.shared.cache.isCached(forKey: resource.cacheKey) ||
                KingfisherManager.shared.cache.isCached(forKey: urlString)
+    }
+}
+
+// MARK: - MainActor Setup
+@MainActor
+private func setupNotificationObservers() {
+    let manager = GenericAsyncImageCacheManager.shared
+
+    // Periodic cleanup timer
+    Timer.scheduledTimer(withTimeInterval: ImageCacheConfig.cleanupInterval, repeats: true) { _ in
+        Task {
+            _ = await manager.getCachedResult(for: "") // Triggers cleanupIfNeeded
+        }
+    }
+
+    // Clear cache when app backgrounds
+    NotificationCenter.default.addObserver(
+        forName: UIApplication.didEnterBackgroundNotification,
+        object: nil,
+        queue: .main
+    ) { _ in
+        Task {
+            await manager.clearCache()
+        }
+    }
+
+    // Handle memory warnings
+    NotificationCenter.default.addObserver(
+        forName: UIApplication.didReceiveMemoryWarningNotification,
+        object: nil,
+        queue: .main
+    ) { _ in
+        Task {
+            await manager.handleMemoryPressure()
+        }
     }
 }
 
@@ -361,7 +316,6 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
 
     @State private var loadingState: ImageLoadingState = .idle
     @State private var cacheCheckCompleted = false
-    @State private var cacheTasks: [String: Task<Bool, Never>] = [:]
     @State private var imageLoadTasks: Set<AnyCancellable> = []
     @State private var retryCount: [String: Int] = [:]
 
@@ -450,8 +404,6 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
 
             // Reset when URLs change
             cacheCheckCompleted = false
-            cacheTasks.values.forEach { $0.cancel() }
-            cacheTasks.removeAll()
             retryCount.removeAll()
             loadingState = .idle
 
@@ -464,11 +416,6 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
                     }
                 }
             }
-        }
-        .onDisappear {
-            // Cancel pending cache tasks
-            cacheTasks.values.forEach { $0.cancel() }
-            cacheTasks.removeAll()
         }
     }
 
@@ -708,7 +655,7 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
 
     private func checkCacheAsync(for urlString: String) async -> Bool {
         // Check cached result first
-        if let cachedResult = cacheManager.getCachedResult(for: urlString) {
+        if let cachedResult = await cacheManager.getCachedResult(for: urlString) {
             // Record metrics for cached result
             Task {
                 if cachedResult {
@@ -721,8 +668,7 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
         }
 
         // Check for existing pending operation to prevent race conditions
-        if let existingTask = cacheTasks[urlString] {
-            // Task.value doesn't throw, so no need for do-catch
+        if let existingTask = await cacheManager.getCacheCheckTask(for: urlString) {
             return await existingTask.value
         }
 
@@ -738,7 +684,7 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
             }.value
         }
 
-        cacheTasks[urlString] = task
+        await cacheManager.setPendingCacheCheck(for: urlString, task: task)
 
         let result = await task.value
         // Record metrics
@@ -750,8 +696,7 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
             }
         }
         // Cache the result
-        cacheManager.setCachedResult(for: urlString, result: result)
-        cacheTasks[urlString] = nil
+        await cacheManager.setCachedResult(for: urlString, result: result)
         return result
     }
 

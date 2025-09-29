@@ -588,7 +588,8 @@ struct FlicksFeedView: View {
                         showCommentSheet = true
                         hasSwipedUpToOpenComments = true
                     }
-                }
+                },
+                onEnded: { _, _ in }  // Need onEnded for signature compatibility
             )
     }
     

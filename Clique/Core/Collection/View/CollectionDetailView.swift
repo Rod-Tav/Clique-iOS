@@ -132,6 +132,10 @@ struct CollectionDetailView: View {
             }
             .onDisappear {
                 tabCoordinator.pan = .pan
+                // Ensure dismissing flag is reset to prevent stale state
+                dismissing = false
+                // Reset pagination view model state
+                imagesPgVM.isDetailView = false
             }
             .background {
                 if let selectedImage {
@@ -366,12 +370,14 @@ extension CollectionDetailView {
                     let heightProgress = max(min(translation.height / 200, 1), 0)
                     heroCoordinator.dragProgress = heightProgress
                 },
-                onEnded: { translation in
+                onEnded: { translation, velocity in
                     guard dismissing else { return }
 
-                    /// Close the View based on the Drag Amount
-                    if translation.height > 250 {
-                        heroCoordinator.toggleView(show: false)
+                    /// Close the View based on drag distance OR velocity (for flick gestures)
+                    let height = translation.height + (velocity.height / 5)
+
+                    if height > 100 {  // Lower threshold when considering velocity
+                        closeImage()
                     } else {
                         /// Reset to its Initial Position
                         heroCoordinator.offset = .zero
@@ -390,7 +396,8 @@ extension CollectionDetailView {
                         showCommentSheet = true
                         hasSwipedUpToOpenComments = true
                     }
-                }
+                },
+                onEnded: { _, _ in }  // Need onEnded for signature compatibility
             )
         }
     }
@@ -755,11 +762,13 @@ extension CollectionDetailView {
             heroCoordinator.toggleView(show: false) {
                 clCoordinator.resetAnimationProperties()
                 heroCoordinator.resetAnimationProperties()
+                dismissing = false
             }
         } else {
             // Reset coordinator state to prevent stale state on rapid open/close
             heroCoordinator.resetAnimationProperties()
             clCoordinator.resetAnimationProperties()
+            dismissing = false
             dismiss()
         }
     }

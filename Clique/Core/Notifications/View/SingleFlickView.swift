@@ -136,7 +136,8 @@ struct SingleFlickView: View {
                             showCommentSheet = true
                             hasSwipedUpToOpenComments = true
                         }
-                    }
+                    },
+                    onEnded: { _, _ in }  // Need onEnded for signature compatibility
                 )
                 .offset(dismissOffset)
                 .compatibleDragGesture(
@@ -147,12 +148,12 @@ struct SingleFlickView: View {
                         dismissing = true
                         dismissOffset = CGSize(width: 0, height: translation.height)
                     },
-                    onEnded: { translation in
+                    onEnded: { translation, velocity in
                         guard dismissing else { return }
-                        // Simplified without velocity
-                        let height = translation.height
+                        // Include velocity for flick detection
+                        let height = translation.height + (velocity.height / 5)
 
-                        if height > 10 {
+                        if height > 100 {  // Lower threshold when considering velocity
                             dismiss()
                         } else {
                             withAnimation(.easeInOut(duration: 0.2)) {
