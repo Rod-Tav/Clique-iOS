@@ -374,9 +374,9 @@ extension CollectionDetailView {
                     guard dismissing else { return }
 
                     /// Close the View based on drag distance OR velocity (for flick gestures)
-                    let height = translation.height + (velocity.height / 5)
+                    let height = translation.height + (velocity.height / GestureConstants.velocityDampening)
 
-                    if height > 100 {  // Lower threshold when considering velocity
+                    if height > GestureConstants.dismissThresholdWithVelocity {
                         closeImage()
                     } else {
                         /// Reset to its Initial Position
@@ -738,10 +738,10 @@ extension CollectionDetailView {
                 guard dismissing else { return }
                 let translation = value.translation
                 let velocity = value.velocity
-                //let width = translation.width + (velocity.width / 5)
-                let height = translation.height + (velocity.height / 5)
-                
-                if height > 10 {
+                //let width = translation.width + (velocity.width / GestureConstants.velocityDampening)
+                let height = translation.height + (velocity.height / GestureConstants.velocityDampening)
+
+                if height > GestureConstants.dismissThresholdBasic {
                     /// Close View
                     closeImage()
                 } else {

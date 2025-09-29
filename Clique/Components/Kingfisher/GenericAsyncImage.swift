@@ -153,8 +153,9 @@ actor GenericAsyncImageCacheManager {
     private var isCleaningUp: Bool = false
 
     private init() {
-        // Setup notifications on main actor
-        Task { @MainActor in
+        // Setup notifications synchronously on main queue to ensure observers are registered
+        // before any lifecycle events occur (background, memory warnings)
+        DispatchQueue.main.async {
             setupNotificationObservers()
         }
     }
@@ -212,6 +213,12 @@ actor GenericAsyncImageCacheManager {
         isCleaningUp = false
     }
 
+    /// Performs periodic cleanup of expired cache entries.
+    /// Intended to be called from timer or other periodic mechanisms.
+    func performCleanup() {
+        cleanupIfNeeded()
+    }
+
     func handleMemoryPressure() {
         // Reduce cache size by 50% on memory warning
         let entriesToKeep = cacheCheckResults.count / 2
@@ -234,14 +241,22 @@ actor GenericAsyncImageCacheManager {
 }
 
 // MARK: - MainActor Setup
+
+// Timer reference for cleanup lifecycle management
+@MainActor
+private var cleanupTimer: Timer?
+
 @MainActor
 private func setupNotificationObservers() {
     let manager = GenericAsyncImageCacheManager.shared
 
+    // Invalidate existing timer before creating new one
+    cleanupTimer?.invalidate()
+
     // Periodic cleanup timer
-    Timer.scheduledTimer(withTimeInterval: ImageCacheConfig.cleanupInterval, repeats: true) { _ in
+    cleanupTimer = Timer.scheduledTimer(withTimeInterval: ImageCacheConfig.cleanupInterval, repeats: true) { _ in
         Task {
-            _ = await manager.getCachedResult(for: "") // Triggers cleanupIfNeeded
+            await manager.performCleanup()
         }
     }
 

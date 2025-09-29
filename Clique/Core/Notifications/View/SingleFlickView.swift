@@ -151,9 +151,9 @@ struct SingleFlickView: View {
                     onEnded: { translation, velocity in
                         guard dismissing else { return }
                         // Include velocity for flick detection
-                        let height = translation.height + (velocity.height / 5)
+                        let height = translation.height + (velocity.height / GestureConstants.velocityDampening)
 
-                        if height > 100 {  // Lower threshold when considering velocity
+                        if height > GestureConstants.dismissThresholdWithVelocity {
                             dismiss()
                         } else {
                             withAnimation(.easeInOut(duration: 0.2)) {
@@ -266,9 +266,9 @@ private extension SingleFlickView {
             }
             .onEnded { value in
                 guard dismissing else { return }
-                let height = value.translation.height + (value.velocity.height / 5)
-                
-                if height > 10 {
+                let height = value.translation.height + (value.velocity.height / GestureConstants.velocityDampening)
+
+                if height > GestureConstants.dismissThresholdBasic {
                     dismiss()
                 } else {
                     withAnimation(.easeInOut(duration: 0.2)) {
