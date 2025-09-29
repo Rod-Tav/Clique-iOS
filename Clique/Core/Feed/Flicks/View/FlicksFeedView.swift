@@ -206,12 +206,14 @@ struct FlicksFeedView: View {
             }
             .primaryBackground()
         }
-        .task {
-            guard listState == .loading else { return }
-            await updateFlicks(.loadFirstPage)
-            if let first = viewModel.items.first {
-                currentFlickId = first.id
-                gridScrollPosition = first.id
+        .onAppear {
+            Task {
+                guard listState == .loading else { return }
+                await updateFlicks(.loadFirstPage)
+                if let first = viewModel.items.first {
+                    currentFlickId = first.id
+                    gridScrollPosition = first.id
+                }
             }
         }
         .onChange(of: showGrid) { oldValue, newValue in
