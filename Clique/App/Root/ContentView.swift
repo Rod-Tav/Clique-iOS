@@ -59,6 +59,8 @@ struct ContentView: View {
     /// Authentication service managing app state and user session
     @State private var authService: AuthService
     
+    @State private var isAppBricked: Bool = false
+    
     /// Initializes ContentView with required user store dependency.
     ///
     /// The user store is passed explicitly to ensure the AuthService
@@ -100,50 +102,55 @@ struct ContentView: View {
     /// - Logout functionality
     var body: some View {
         Group {
-            switch authService.appViewType {
-            case .splash:
-                // Minimal loading screen during app initialization
-                VStack(spacing: 8) {
-                    Image("splash")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(160)
+            if isAppBricked {
+                Text("Servers are currently under maintenance. Try again later.")
+            } else {
+                switch authService.appViewType {
+                case .splash:
+                    // Minimal loading screen during app initialization
+                    VStack(spacing: 8) {
+                        Image("splash")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(160)
+                        
+                        // Future: Custom loading animation
+                        // CliqueProgressView(speed: 0.25, color: .theme.white, size: 88)
+                        
+                        // Future: Custom app title
+                        // Text("Clique")
+                        //     .font(Font.custom("NewakeDemo", size: 24))
+                        //     .kerning(0.0864)
+                        //     .foregroundStyle(Color.theme.white)
+                    }
+                    .ignoresSafeArea()
+                    .padding(.bottom, safeAreaInsets.bottom - 8)
+                    .infiniteFrame()
+                    .background(Color.theme.white)
                     
-                    // Future: Custom loading animation
-                    // CliqueProgressView(speed: 0.25, color: .theme.white, size: 88)
-                    
-                    // Future: Custom app title
-                    // Text("Clique")
-                    //     .font(Font.custom("NewakeDemo", size: 24))
-                    //     .kerning(0.0864)
-                    //     .foregroundStyle(Color.theme.white)
-                }
-                .ignoresSafeArea()
-                .padding(.bottom, safeAreaInsets.bottom - 8)
-                .infiniteFrame()
-                .background(Color.theme.white)
-                
-            case .auth:
-                // Complete authentication experience
-                AuthSplashView()
-                    .environment(authService)
+                case .auth:
+                    // Complete authentication experience
+                    AuthSplashView()
+                        .environment(authService)
                     // Future: Push notification registration
                     // .onAppear {
                     //     AppService.checkAndRegisterPushNotificationsIfNeeded(userStore: userStore)
                     // }
                     
-            case .main:
-                // Full authenticated app experience
-                 MainTabView()
-                     .environment(authService)
-                     .onReceive(of: .toast404) { _ in 
-                         presentToast(Toasts.somethingWentWrong)
-                     }
+                case .main:
+                    // Full authenticated app experience
+                    MainTabView()
+                        .environment(authService)
+                        .onReceive(of: .toast404) { _ in
+                            presentToast(Toasts.somethingWentWrong)
+                        }
+                }
             }
         }
         .onAppear {
             // Begin authentication state evaluation
             Task {
+                isAppBricked = await AppService.isAppBricked()
                 await authService.loadUserData()
             }
         }

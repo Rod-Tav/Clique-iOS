@@ -293,9 +293,9 @@ struct MainTabView: View {
             // Also trigger inbox notification check for clique invites and follow requests
             trigger(.checkInboxNotifications)
             
-            if userStore.currentUserId != "cad46bda-7c82-4684-a95d-bed84f88dcc1" {
-                AppService.isUpdateAvailable { result in
-                    showUpdateAlert = result
+            if userStore.currentUserId != "cad46bda-7c82-4684-a95d-bed84f88dcc1" { // test 1 (apple reviewer login)
+                Task {
+                    showUpdateAlert = await AppService.isUpdateAvailable()
                 }
             }
             
