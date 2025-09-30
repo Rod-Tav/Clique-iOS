@@ -78,7 +78,7 @@ struct LivePhotoPreviewView: View {
             await loadLivePhoto()
         }
     }
-
+    
     /// Load Live Photo from PHAsset
     private func loadLivePhoto() async {
         isLoading = true

@@ -50,12 +50,25 @@ struct SelectedPhotosView: View {
     var selectedAssetsArray: [PHAsset] {
         Array(viewModel.selectedAssets)
     }
-    
+
     // Check if current image is zoomed
     var isCurrentImageZoomed: Bool {
         guard currentIndex < selectedAssetsArray.count else { return false }
         let currentAsset = selectedAssetsArray[currentIndex]
         return (zoomScales[currentAsset] ?? 1.0) > 1.0
+    }
+
+    // Get current asset's media type
+    var currentAssetMediaType: String? {
+        guard currentIndex < selectedAssetsArray.count else { return nil }
+        let asset = selectedAssetsArray[currentIndex]
+
+        if asset.mediaSubtypes.contains(.photoLive) {
+            return "LIVE"
+        } else if asset.mediaType == .video {
+            return "VIDEO"
+        }
+        return nil
     }
     
     var body: some View {
@@ -155,9 +168,27 @@ struct SelectedPhotosView: View {
                     Text("Selected Photos")
                         .font(.callout.weight(.semibold))
                         .textPrimary()
-                    Text("\(currentIndex + 1) of \(selectedAssetsArray.count)")
-                        .font(.caption)
-                        .foregroundStyle(Color.theme.textSecondary)
+
+                    HStack(spacing: 6) {
+                        // Media type badge (LIVE or VIDEO)
+                        if let mediaType = currentAssetMediaType {
+                            HStack(spacing: 3) {
+                                Image(systemName: mediaType == "LIVE" ? "livephoto" : "play.fill")
+                                    .font(.system(size: 8, weight: .semibold))
+                                Text(mediaType)
+                                    .font(.system(size: 10, weight: .semibold))
+                            }
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(mediaType == "LIVE" ? Color(red: 1.0, green: 0.8, blue: 0.0) : Color.red)
+                            .clipShape(Capsule())
+                        }
+
+                        Text("\(currentIndex + 1) of \(selectedAssetsArray.count)")
+                            .font(.caption)
+                            .foregroundStyle(Color.theme.textSecondary)
+                    }
                 }
             },
             trailingIcon: {
@@ -473,40 +504,18 @@ struct PhotoGalleryItem: View {
                         .padding(16)
                 }
             }
-            .overlay(alignment: .topTrailing) {
-                // Live Photo badge for full-size preview
-                if isLivePhoto {
-                    HStack(spacing: 4) {
-                        Image(systemName: "livephoto")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(.white)
-
-                        Text("LIVE")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(.white)
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 6)
-                    .background(Color.black.opacity(0.6))
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-                    .padding(.trailing, 16)
-                    .padding(.top, 16)
-                }
-            }
             .overlay(alignment: .bottomLeading) {
                 if let collectionId = viewModel.selectedCollectionId {
-                    Button {
-                        onCollectionTap()
-                    } label: {
+                    Button(action: onCollectionTap) {
                         HStack(spacing: 6) {
                             IconImage("collections", color: .theme.iconPrimary, size: 12)
-
+                            
                             if let name = collectionStore.collections[collectionId]?.name {
                                 Text(name)
                                     .font(.caption.bold())
                                     .textPrimary()
                             }
-
+                            
                             if viewModel.newCollectionVisibility == .priv {
                                 IconImage("lock", color: .theme.iconPrimary, size: 12)
                             }
