@@ -294,6 +294,25 @@ struct CarouselThumbnail: View {
     @Environment(PhotoPickerContext.self) var context
     @State private var carouselImage: UIImage?
 
+    /// Whether this asset is a video
+    private var isVideo: Bool {
+        asset.mediaType == .video
+    }
+
+    /// Whether this asset is a Live Photo
+    private var isLivePhoto: Bool {
+        asset.mediaSubtypes.contains(.photoLive)
+    }
+
+    /// Video duration formatted as string (e.g., "1:23")
+    private var videoDuration: String? {
+        guard isVideo else { return nil }
+        let duration = Int(asset.duration)
+        let minutes = duration / 60
+        let seconds = duration % 60
+        return String(format: "%d:%02d", minutes, seconds)
+    }
+
     var body: some View {
         Button(action: onTap) {
             ZStack {
@@ -307,6 +326,13 @@ struct CarouselThumbnail: View {
                     RoundedRectangle(cornerRadius: 8)
                         .fill(Color.theme.surfacesElevatedBlur)
                         .frame(width: 60, height: 60)
+                }
+
+                // Media type badges
+                if isVideo {
+                    videoBadge
+                } else if isLivePhoto {
+                    livePhotoBadge
                 }
 
                 if isSelected {
@@ -328,6 +354,50 @@ struct CarouselThumbnail: View {
         }
         .buttonStyle(.plain)
     }
+
+    /// Video badge indicator (bottom-right corner with duration)
+    private var videoBadge: some View {
+        VStack {
+            Spacer()
+
+            HStack {
+                Spacer()
+
+                HStack(spacing: 2) {
+                    Image(systemName: "play.fill")
+                        .font(.system(size: 6, weight: .semibold))
+                        .foregroundStyle(.white)
+
+                    if let duration = videoDuration {
+                        Text(duration)
+                            .font(.system(size: 8, weight: .semibold))
+                            .foregroundStyle(.white)
+                    }
+                }
+                .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
+                .padding(3)
+            }
+        }
+        .frame(width: 60, height: 60)
+    }
+
+    /// Live Photo badge indicator (bottom-left corner)
+    private var livePhotoBadge: some View {
+        VStack {
+            Spacer()
+
+            HStack {
+                Image(systemName: "livephoto")
+                    .font(.system(size: 8, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
+                    .padding(3)
+
+                Spacer()
+            }
+        }
+        .frame(width: 60, height: 60)
+    }
 }
 
 struct PhotoGalleryItem: View {
@@ -346,16 +416,40 @@ struct PhotoGalleryItem: View {
         asset.mediaSubtypes.contains(.photoLive)
     }
 
+    /// Whether this asset is a video
+    private var isVideo: Bool {
+        asset.mediaType == .video
+    }
+
+    /// Video duration formatted as string (e.g., "1:23")
+    private var videoDuration: String? {
+        guard isVideo else { return nil }
+        let duration = Int(asset.duration)
+        let minutes = duration / 60
+        let seconds = duration % 60
+        return String(format: "%d:%02d", minutes, seconds)
+    }
+
     var body: some View {
         ZStack {
             PhotoZoomContainer(
                 maxScale: 5.0,
+                isInteractive: !isLivePhoto && !isVideo,
                 scale: $zoomScale,
                 dragOffset: $dragOffset
             ) {
                 if isLivePhoto {
                     // Use Live Photo preview for tap-and-hold playback
                     LivePhotoPreviewView(
+                        asset: asset,
+                        thumbnail: context.thumbnailCache[asset],
+                        contentMode: .fit
+                    )
+                    .frame(maxWidth: geometry.size.width)
+                    .frame(maxHeight: geometry.size.height)
+                } else if isVideo {
+                    // Use VideoPreviewView for videos
+                    VideoPreviewView(
                         asset: asset,
                         thumbnail: context.thumbnailCache[asset],
                         contentMode: .fit
@@ -377,6 +471,25 @@ struct PhotoGalleryItem: View {
                 if let cid = viewModel.selectedCollectionClique?.id {
                     CliquePill(cid, type: .newCollection)
                         .padding(16)
+                }
+            }
+            .overlay(alignment: .topTrailing) {
+                // Video badge for full-size preview
+                if isVideo, let duration = videoDuration {
+                    HStack(spacing: 4) {
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(.white)
+
+                        Text(duration)
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(.white)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 6)
+                    .background(Color.black.opacity(0.6))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .padding(16)
                 }
             }
             .overlay(alignment: .bottomLeading) {

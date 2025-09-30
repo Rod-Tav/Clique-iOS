@@ -9,23 +9,26 @@ import SwiftUI
 
 struct PhotoZoomContainer<Content: View>: View {
     let maxScale: CGFloat
+    let isInteractive: Bool
     @Binding var scale: CGFloat
     @Binding var dragOffset: CGSize
     let content: Content
-    
+
     @GestureState private var isDragging = false
     @State private var initialDragOffset: CGSize = .zero
     @State private var containerSize: CGSize = .zero
     @State private var zoomAnchor: UnitPoint = .center
     @State private var isZooming: Bool = false
-    
+
     init(
         maxScale: CGFloat = 5.0,
+        isInteractive: Bool = true,
         scale: Binding<CGFloat>,
         dragOffset: Binding<CGSize>,
         @ViewBuilder content: () -> Content
     ) {
         self.maxScale = maxScale
+        self.isInteractive = isInteractive
         self._scale = scale
         self._dragOffset = dragOffset
         self.content = content()
@@ -153,6 +156,7 @@ struct PhotoZoomContainer<Content: View>: View {
                     isZooming: $isZooming,
                     maxScale: maxScale,
                     minScale: 1.0,
+                    isInteractive: isInteractive,
                     constrainOffset: constrainedOffset,
                     snapBackIfNeeded: snapBackIfNeeded
                 )
