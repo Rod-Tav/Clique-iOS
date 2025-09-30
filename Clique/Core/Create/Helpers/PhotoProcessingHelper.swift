@@ -64,10 +64,12 @@ struct PhotoProcessingHelper {
                         // Prepare video data if available (Live Photos only)
                         var videoDataNoPath: Components.Schemas.VideoDataNoPath?
                         if let videoData = videoData {
-                            // Backend expects video data in specific format
-                            // For now, we'll just pass the raw data (backend handles encoding)
+                            // Backend expects video metadata (not data - that's uploaded separately)
                             videoDataNoPath = Components.Schemas.VideoDataNoPath(
-                                data: videoData.base64EncodedString()
+                                baseVideo: Components.Schemas.UploadVideoParams(
+                                    contentType: "video/quicktime",
+                                    contentLength: Int64(videoData.count)
+                                )
                             )
                         }
 

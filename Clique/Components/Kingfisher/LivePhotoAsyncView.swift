@@ -35,7 +35,7 @@ struct LivePhotoAsyncView: View {
     /// Image quality to load
     let quality: ImageQuality
     /// Optional content mode
-    var contentMode: ContentMode = .fill
+    var contentMode: SwiftUI.ContentMode = .fill
     /// Optional frame size
     var frameSize: CGSize? = nil
     /// Whether to use performance mode (no progressive loading)
@@ -63,8 +63,13 @@ struct LivePhotoAsyncView: View {
                 urls: imageUrl,
                 quality: quality,
                 performanceMode: performanceMode
-            )
-            .aspectRatio(contentMode: contentMode)
+            ) { kfImage in
+                kfImage
+                    .resizable()
+                    .aspectRatio(contentMode: contentMode)
+            } placeholder: {
+                Color.theme.iconTertiary
+            }
             .if(frameSize != nil) { view in
                 view.frame(width: frameSize!.width, height: frameSize!.height)
             }
@@ -126,8 +131,13 @@ struct LivePhotoGridView: View {
                     urls: imageUrl,
                     quality: quality,
                     performanceMode: true // Always use performance mode in grids
-                )
-                .aspectRatio(contentMode: .fill)
+                ) { kfImage in
+                    kfImage
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    Color.theme.iconTertiary
+                }
             }
 
             // Live Photo badge (bottom-left)
