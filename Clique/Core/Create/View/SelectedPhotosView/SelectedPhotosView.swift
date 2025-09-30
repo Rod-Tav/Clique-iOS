@@ -489,7 +489,8 @@ struct PhotoGalleryItem: View {
                     .padding(.vertical, 6)
                     .background(Color.black.opacity(0.6))
                     .clipShape(RoundedRectangle(cornerRadius: 6))
-                    .padding(16)
+                    .padding(.trailing, 16)
+                    .padding(.top, 16)
                 }
             }
             .overlay(alignment: .bottomLeading) {

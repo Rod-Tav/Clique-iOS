@@ -46,6 +46,10 @@ struct VideoPreviewView: View {
             if let player = player {
                 // Video loaded successfully - use AVPlayerViewController with visible controls
                 VideoPlayerWithControls(player: player)
+                    .onAppear {
+                        // Auto-play video when view appears
+                        player.play()
+                    }
                     .onDisappear {
                         // Pause and reset when view disappears
                         player.pause()
