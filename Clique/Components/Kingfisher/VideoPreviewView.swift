@@ -40,7 +40,6 @@ struct VideoPreviewView: View {
     @State private var player: AVPlayer?
     @State private var isLoading: Bool = true
     @State private var loadingError: Error?
-    @State private var videoDidComplete: Bool = false
 
     var body: some View {
         Group {
@@ -48,20 +47,12 @@ struct VideoPreviewView: View {
                 // Video loaded successfully - use AVPlayerViewController with visible controls
                 VideoPlayerWithControls(player: player)
                     .onAppear {
-                        // Reset completion flag when reappearing
-                        videoDidComplete = false
                         // Auto-play video when view appears
                         player.play()
                     }
                     .onDisappear {
-                        // Pause video
+                        // Pause video when view disappears
                         player.pause()
-                        // Only reset to beginning if video completed naturally
-                        if videoDidComplete {
-                            player.seek(to: .zero)
-                            videoDidComplete = false
-                        }
-                        // Otherwise preserve position for resuming later
                     }
             } else if let thumbnail = thumbnail {
                 // Show thumbnail while loading
@@ -101,16 +92,6 @@ struct VideoPreviewView: View {
 
             await MainActor.run {
                 let avPlayer = AVPlayer(playerItem: playerItem)
-
-                // Observe when video finishes playing naturally
-                NotificationCenter.default.addObserver(
-                    forName: .AVPlayerItemDidPlayToEndTime,
-                    object: playerItem,
-                    queue: .main
-                ) { [self] _ in
-                    self.videoDidComplete = true
-                }
-
                 self.player = avPlayer
                 self.isLoading = false
             }

@@ -181,7 +181,7 @@ struct SelectedPhotosView: View {
                             .foregroundStyle(.white)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 3)
-                            .background(mediaType == "LIVE" ? Color(red: 1.0, green: 0.8, blue: 0.0) : Color.red)
+                            .background(mediaType == "LIVE" ? Color(red: 0.95, green: 0.7, blue: 0.0) : Color.red)
                             .clipShape(Capsule())
                         }
 
@@ -201,8 +201,8 @@ struct SelectedPhotosView: View {
                 }
             }
         )
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.horizontal, 24)
+        .padding(.vertical, 8)
     }
     
     // MARK: - Center Image Preview
@@ -289,7 +289,6 @@ struct SelectedPhotosView: View {
                 .padding(.vertical, 12)
             }
             .frame(height: 80)
-            .background(Color.theme.surfacesElevatedPrimary)
             .onChange(of: currentIndex) { _, newValue in
                 withAnimation {
                     proxy.scrollTo(newValue, anchor: .center)
