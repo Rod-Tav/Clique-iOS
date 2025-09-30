@@ -341,6 +341,11 @@ struct PhotoGalleryItem: View {
 
     @Environment(PhotoPickerContext.self) var context
 
+    /// Whether this asset is a Live Photo
+    private var isLivePhoto: Bool {
+        asset.mediaSubtypes.contains(.photoLive)
+    }
+
     var body: some View {
         ZStack {
             PhotoZoomContainer(
@@ -348,14 +353,25 @@ struct PhotoGalleryItem: View {
                 scale: $zoomScale,
                 dragOffset: $dragOffset
             ) {
-                // Use TwoStageImageLoader for progressive quality enhancement
-                TwoStageImageLoader(
-                    asset: asset,
-                    thumbnail: context.thumbnailCache[asset],
-                    contentMode: .fit
-                )
-                .frame(maxWidth: geometry.size.width)
-                .frame(maxHeight: geometry.size.height)
+                if isLivePhoto {
+                    // Use Live Photo preview for tap-and-hold playback
+                    LivePhotoPreviewView(
+                        asset: asset,
+                        thumbnail: context.thumbnailCache[asset],
+                        contentMode: .fit
+                    )
+                    .frame(maxWidth: geometry.size.width)
+                    .frame(maxHeight: geometry.size.height)
+                } else {
+                    // Use TwoStageImageLoader for regular photos
+                    TwoStageImageLoader(
+                        asset: asset,
+                        thumbnail: context.thumbnailCache[asset],
+                        contentMode: .fit
+                    )
+                    .frame(maxWidth: geometry.size.width)
+                    .frame(maxHeight: geometry.size.height)
+                }
             }
             .overlay(alignment: .topLeading) {
                 if let cid = viewModel.selectedCollectionClique?.id {

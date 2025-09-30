@@ -192,6 +192,58 @@ struct LivePhotoHelper {
         ]
         return String(bytes: bytes, encoding: .ascii) ?? "unknown"
     }
+
+    // MARK: - Preview Loading
+
+    /// Loads PHLivePhoto for preview/playback in the UI
+    /// - Parameter asset: The PHAsset representing the Live Photo
+    /// - Returns: Tuple of (PHLivePhoto, fallback UIImage)
+    /// - Throws: Error if loading fails
+    static func loadLivePhotoForPreview(from asset: PHAsset) async throws -> (livePhoto: PHLivePhoto?, fullImage: UIImage) {
+        guard isLivePhoto(asset) else {
+            throw LivePhotoError.notALivePhoto
+        }
+
+        return try await withCheckedThrowingContinuation { continuation in
+            let options = PHLivePhotoRequestOptions()
+            options.deliveryMode = .highQualityFormat
+            options.isNetworkAccessAllowed = true // Important for iCloud photos
+
+            PHImageManager.default().requestLivePhoto(
+                for: asset,
+                targetSize: PHImageManagerMaximumSize,
+                contentMode: .aspectFit,
+                options: options
+            ) { livePhoto, info in
+                // Check if this is the final result
+                let isDegraded = (info?[PHImageResultIsDegradedKey] as? Bool) ?? false
+                guard !isDegraded else { return }
+
+                // Also load a high-quality still image as fallback
+                let imageOptions = PHImageRequestOptions()
+                imageOptions.deliveryMode = .highQualityFormat
+                imageOptions.isNetworkAccessAllowed = true
+                imageOptions.isSynchronous = false
+
+                PHImageManager.default().requestImage(
+                    for: asset,
+                    targetSize: PHImageManagerMaximumSize,
+                    contentMode: .aspectFit,
+                    options: imageOptions
+                ) { image, imageInfo in
+                    let isImageDegraded = (imageInfo?[PHImageResultIsDegradedKey] as? Bool) ?? false
+                    guard !isImageDegraded else { return }
+
+                    if let image = image {
+                        continuation.resume(returning: (livePhoto, image))
+                    } else {
+                        // If no image loaded, fail
+                        continuation.resume(throwing: LivePhotoError.failedToExtractStillImage)
+                    }
+                }
+            }
+        }
+    }
 }
 
 // MARK: - Error Types
