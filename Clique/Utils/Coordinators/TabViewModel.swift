@@ -17,6 +17,7 @@ import SwiftUI
     
     var uploadFailed: Bool = false
     var retryImages: [(high: PreparedImageVariant, med: PreparedImageVariant, low: PreparedImageVariant)]? = nil
+    var retryVideoData: [Data?]? = nil
     var retryUrlItems: [Components.Schemas.UrlCollectionItem]? = nil
     var retryCollectionId: String? = nil
     
@@ -28,6 +29,7 @@ import SwiftUI
     func resetRetry() {
         uploadFailed = false
         retryImages = nil
+        retryVideoData = nil
         retryUrlItems = nil
         retryCollectionId = nil
     }
@@ -36,6 +38,7 @@ import SwiftUI
         makingNew: Bool,
         photoDatePairs: [Components.Schemas.PhotoVideoDate],
         preparedImages: [(high: PreparedImageVariant, med: PreparedImageVariant, low: PreparedImageVariant)],
+        videoData: [Data?],
         collection: ClCollection,
         _ collectionStore: CollectionStore,
         _ collectionImageStore: CollectionImageStore
@@ -60,26 +63,34 @@ import SwiftUI
         )
         
         let urlItems = collectionWithPutLinks.collection!.collectionItems!
-        
+
         let urls: [(high: String?, med: String?, low: String?)] = urlItems.compactMap {
             guard let urls = $0.urls else { return nil }
             return (urls.url, urls.medQualityUrl, urls.lowQualityUrl)
         }
-        
+
+        // Extract video URLs for Live Photos
+        let videoUrls: [String?] = urlItems.map { item in
+            return item.videoUrls?.url // Only need the full resolution video URL
+        }
+
         print("🚀 Preparing Upload")
         print("📸 Total Images: \(preparedImages.count)")
         print("🔗 Total URL Sets: \(urls.count)")
-        
+        print("🎥 Video URLs: \(videoUrls.compactMap { $0 }.count)")
+
         guard preparedImages.count == urls.count else {
             print("❌ Error: Mismatch between images and URL sets")
             return
         }
-        
+
         var failedUploadIndices: [Int] = []
-        
+
         await PhotoHelper.uploadImages(
             preparedImages: preparedImages,
             urls: urls,
+            videoData: videoData,
+            videoUrls: videoUrls,
             onProgress: { completed, total in
                 self.successfulImages = completed
                 self.totalImages = total
@@ -111,9 +122,11 @@ import SwiftUI
                     // failure
                     self.uploadFailed = true
                     let retryImages = failedUploadIndices.map { preparedImages[$0] }
+                    let retryVideoData = failedUploadIndices.map { videoData[$0] }
                     let retryUrlItems = failedUploadIndices.map { urlItems[$0] }
-                    
+
                     self.retryImages = retryImages
+                    self.retryVideoData = retryVideoData
                     self.retryUrlItems = retryUrlItems
                     self.retryCollectionId = collectionId
                     self.reset()
@@ -125,20 +138,26 @@ import SwiftUI
     }
     
     func retryUploadImages() async throws {
-        guard let retryImages, let retryUrlItems, let retryCollectionId else { return }
-        
+        guard let retryImages, let retryVideoData, let retryUrlItems, let retryCollectionId else { return }
+
         var failedUploadIndices: [Int] = []
-        
+
         let urls: [(high: String?, med: String?, low: String?)] = retryUrlItems.compactMap {
             guard let urls = $0.urls else { return nil }
             return (urls.url, urls.medQualityUrl, urls.lowQualityUrl)
         }
-        
+
+        let videoUrls: [String?] = retryUrlItems.map { item in
+            return item.videoUrls?.url
+        }
+
         self.uploadFailed = false
-        
+
         await PhotoHelper.uploadImages(
             preparedImages: retryImages,
             urls: urls,
+            videoData: retryVideoData,
+            videoUrls: videoUrls,
             onProgress: { completed, total in
                 self.successfulImages = completed
                 self.totalImages = total
@@ -170,9 +189,11 @@ import SwiftUI
                     }
                 } else {
                     let retryImages = failedUploadIndices.map { retryImages[$0] }
+                    let retryVideoData = failedUploadIndices.map { retryVideoData[$0] }
                     let retryUrlItems = failedUploadIndices.map { retryUrlItems[$0] }
-                    
+
                     self.retryImages = retryImages
+                    self.retryVideoData = retryVideoData
                     self.retryUrlItems = retryUrlItems
                     self.uploadFailed = true
                 }

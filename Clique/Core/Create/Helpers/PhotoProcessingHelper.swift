@@ -98,6 +98,7 @@ struct PhotoProcessingHelper {
                 if let photoData = result.photoData, let variants = result.variants {
                     viewModel.photoDatePairs.append(photoData)
                     viewModel.preparedImageVariants.append(variants)
+                    viewModel.preparedVideoData.append(result.videoData) // Store video data separately
                 }
             }
         }

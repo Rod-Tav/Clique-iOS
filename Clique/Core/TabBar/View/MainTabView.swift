@@ -226,18 +226,20 @@ struct MainTabView: View {
             guard let collection = notification.userInfo?["collection"] as? ClCollection,
                   let makingNew = notification.userInfo?["makingNew"] as? Bool,
                   let photoDatePairs = notification.userInfo?["photoDatePairs"] as? [Components.Schemas.PhotoVideoDate],
-                  let variants  = notification.userInfo?["variants"] as? [(PreparedImageVariant, PreparedImageVariant, PreparedImageVariant)]
+                  let variants  = notification.userInfo?["variants"] as? [(PreparedImageVariant, PreparedImageVariant, PreparedImageVariant)],
+                  let videoData = notification.userInfo?["videoData"] as? [Data?]
             else { return }
-            
+
             isUploading = true
             showUploading = true
-            
+
             Task {
                 do {
                     try await viewModel.uploadToCollection(
                         makingNew: makingNew,
                         photoDatePairs: photoDatePairs,
                         preparedImages: variants,
+                        videoData: videoData,
                         collection: collection,
                         collectionStore,
                         collectionImageStore

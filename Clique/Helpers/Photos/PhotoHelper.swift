@@ -292,26 +292,42 @@ struct PhotoHelper {
         throw lastError ?? URLError(.timedOut)
     }
     
+    /// Upload images with optional video components (for Live Photos)
+    /// - Parameters:
+    ///   - preparedImages: Array of prepared image variants (high, med, low)
+    ///   - urls: Array of photo URLs (high, med, low)
+    ///   - videoData: Optional array of video data for Live Photos (parallel to preparedImages)
+    ///   - videoUrls: Optional array of video URLs for uploading video components
+    ///   - onProgress: Progress callback (completed uploads, total uploads)
+    ///   - failedUpload: Failure callback (index, quality)
+    ///   - onCompletion: Completion callback (success)
     static func uploadImages(
         preparedImages: [(high: PreparedImageVariant, med: PreparedImageVariant, low: PreparedImageVariant)],
         urls: [(high: String?, med: String?, low: String?)],
+        videoData: [Data?]? = nil,
+        videoUrls: [String?]? = nil,
         onProgress: @escaping (Int, Int) -> Void,
         failedUpload: @escaping (Int, ImageQuality) -> Void,
         onCompletion: @escaping (Bool) -> Void
     ) async {
-        let totalUploads = urls.flatMap { [$0.high, $0.med, $0.low] }.compactMap { $0 }.count
+        // Calculate total uploads (3 photo variants per image + optional video)
+        var totalUploads = urls.flatMap { [$0.high, $0.med, $0.low] }.compactMap { $0 }.count
+
+        // Add video uploads to total count
+        if let videoUrls = videoUrls {
+            totalUploads += videoUrls.compactMap { $0 }.count
+        }
+
         let counter = UploadCounter()
-        
         let semaphore = AsyncSemaphore(value: 6)
-        
         let failedTracker = FailedVariantTracker()
-        
+
         await withTaskGroup(of: Void.self) { taskGroup in
-            
+
             func addUploadTask(data: Data, url: String, index: Int, quality: ImageQuality) {
                 taskGroup.addTask {
                     await semaphore.wait()
-                    
+
                     do {
                         try await uploadImageDataWithRetry(data, to: url)
                         let newCount = await counter.increment()
@@ -323,15 +339,37 @@ struct PhotoHelper {
                         failedUpload(index, quality)
                         print("❌ Upload failed for \(quality.rawValue.uppercased()) quality at index \(index): \(error.localizedDescription)")
                     }
-                    
+
                     await semaphore.signal()
                 }
             }
-            
+
+            func addVideoUploadTask(data: Data, url: String, index: Int) {
+                taskGroup.addTask {
+                    await semaphore.wait()
+
+                    do {
+                        try await uploadVideoDataWithRetry(data, to: url)
+                        let newCount = await counter.increment()
+                        await MainActor.run {
+                            onProgress(newCount, totalUploads)
+                        }
+                        print("✅ Video uploaded for index \(index) (\(data.count) bytes)")
+                    } catch {
+                        await failedTracker.insert(index, quality: .high) // Mark as failed
+                        failedUpload(index, .high) // Use .high to indicate video failure
+                        print("❌ Video upload failed at index \(index): \(error.localizedDescription)")
+                    }
+
+                    await semaphore.signal()
+                }
+            }
+
+            // Upload photo variants
             for (index, imageVariants) in preparedImages.enumerated() {
                 let (highData, medData, lowData) = (imageVariants.high, imageVariants.med, imageVariants.low)
                 let (highUrl, medUrl, lowUrl) = urls[index]
-                
+
                 if let highUrl {
                     addUploadTask(data: highData.data, url: highUrl, index: index, quality: .high)
                 }
@@ -342,11 +380,94 @@ struct PhotoHelper {
                     addUploadTask(data: lowData.data, url: lowUrl, index: index, quality: .low)
                 }
             }
+
+            // Upload video components (for Live Photos)
+            if let videoData = videoData, let videoUrls = videoUrls {
+                for (index, data) in videoData.enumerated() {
+                    guard let data = data,
+                          index < videoUrls.count,
+                          let videoUrl = videoUrls[index] else { continue }
+
+                    addVideoUploadTask(data: data, url: videoUrl, index: index)
+                }
+            }
         }
-        
+
         let allSucceeded = await failedTracker.isEmpty()
         await MainActor.run {
             onCompletion(allSucceeded)
+        }
+    }
+
+    /// Upload video data with retry logic (similar to image upload)
+    private static func uploadVideoDataWithRetry(
+        _ data: Data,
+        to url: String,
+        attempts: Int = 3
+    ) async throws {
+        var delay = currentNetworkBaseDelay()
+        var attempt = 1
+        var lastError: Error?
+
+        while attempt <= attempts {
+            do {
+                let timeout = dynamicTimeout(for: data)
+                try await withTimeout(seconds: timeout) {
+                    try await uploadVideoData(data, to: url)
+                }
+                return
+            } catch {
+                print("⚠️ Video upload attempt \(attempt) failed: \(error.localizedDescription)")
+                lastError = error
+                attempt += 1
+                if attempt > attempts { break }
+
+                let jitter = Double.random(in: 0.75...1.25)
+                try await Task.sleep(nanoseconds: UInt64(delay * jitter * 1_000_000_000))
+                print("⏳ Retrying video upload in \(String(format: "%.2f", delay * jitter)) seconds")
+                delay *= 2
+            }
+        }
+        throw lastError ?? URLError(.timedOut)
+    }
+
+    /// Upload video data to S3 with proper content type
+    private static func uploadVideoData(_ data: Data, to url: String) async throws {
+        guard let uploadUrl = URL(string: url) else {
+            throw PhotoUploadError.invalidUrl
+        }
+
+        let hash = Insecure.MD5.hash(data: data)
+        let hashData = Data(hash)
+        let base64String = hashData.base64EncodedString()
+        let numBytes = data.count
+
+        var request = URLRequest(url: uploadUrl)
+        request.httpMethod = "PUT"
+        request.setValue("video/quicktime", forHTTPHeaderField: "Content-Type") // Live Photos use .mov format
+        request.setValue("\(numBytes)", forHTTPHeaderField: "Content-Length")
+        request.setValue(base64String, forHTTPHeaderField: "Content-MD5")
+
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            var resumed = false
+
+            PhotoUploader.shared.uploadImage(
+                request: request,
+                data: data,
+                progressHandler: { _ in }, // No per-video progress tracking
+                completion: { result in
+                    guard !resumed else { return }
+                    resumed = true
+                    continuation.resume(with: result)
+                }
+            )
+
+            // Failsafe timeout
+            DispatchQueue.global().asyncAfter(deadline: .now() + 60) {
+                guard !resumed else { return }
+                resumed = true
+                continuation.resume(throwing: URLError(.timedOut))
+            }
         }
     }
 }

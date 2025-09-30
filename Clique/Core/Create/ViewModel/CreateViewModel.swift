@@ -38,6 +38,8 @@ enum CreateFlowDestination: Hashable {
     var photoDatePairs: [Components.Schemas.PhotoVideoDate] = []
     /// Prepared image variants for upload
     var preparedImageVariants: [(high: PreparedImageVariant, med: PreparedImageVariant, low: PreparedImageVariant)] = []
+    /// Video data for Live Photos (parallel to preparedImageVariants, nil for regular photos)
+    var preparedVideoData: [Data?] = []
     
     var collectionToGoTo: ClCollection?
 
@@ -95,7 +97,8 @@ enum CreateFlowDestination: Hashable {
                     "makingNew": makingNew,
                     "collection": collection,
                     "photoDatePairs": photoDatePairs,
-                    "variants": preparedImageVariants
+                    "variants": preparedImageVariants,
+                    "videoData": preparedVideoData
                 ]
             )
            
@@ -181,6 +184,7 @@ enum CreateFlowDestination: Hashable {
         livePhotoAssets = []
         photoDatePairs = []
         preparedImageVariants = []
+        preparedVideoData = []
 
         collectionToGoTo = nil
         shouldProcessAndUploadForNewCollection = false
