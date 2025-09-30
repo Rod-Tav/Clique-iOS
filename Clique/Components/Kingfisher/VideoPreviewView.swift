@@ -44,8 +44,8 @@ struct VideoPreviewView: View {
     var body: some View {
         Group {
             if let player = player {
-                // Video loaded successfully - use VideoPlayer
-                VideoPlayer(player: player)
+                // Video loaded successfully - use AVPlayerViewController with visible controls
+                VideoPlayerWithControls(player: player)
                     .onDisappear {
                         // Pause and reset when view disappears
                         player.pause()
@@ -125,6 +125,22 @@ struct VideoPreviewView: View {
                 continuation.resume(returning: playerItem)
             }
         }
+    }
+}
+
+/// UIViewControllerRepresentable wrapper for AVPlayerViewController with always-visible controls
+struct VideoPlayerWithControls: UIViewControllerRepresentable {
+    let player: AVPlayer
+
+    func makeUIViewController(context: Context) -> AVPlayerViewController {
+        let controller = AVPlayerViewController()
+        controller.player = player
+        controller.showsPlaybackControls = true
+        return controller
+    }
+
+    func updateUIViewController(_ controller: AVPlayerViewController, context: Context) {
+        controller.player = player
     }
 }
 

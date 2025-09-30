@@ -474,15 +474,15 @@ struct PhotoGalleryItem: View {
                 }
             }
             .overlay(alignment: .topTrailing) {
-                // Video badge for full-size preview
-                if isVideo, let duration = videoDuration {
+                // Live Photo badge for full-size preview
+                if isLivePhoto {
                     HStack(spacing: 4) {
-                        Image(systemName: "play.fill")
+                        Image(systemName: "livephoto")
                             .font(.system(size: 12, weight: .semibold))
                             .foregroundStyle(.white)
 
-                        Text(duration)
-                            .font(.system(size: 14, weight: .semibold))
+                        Text("LIVE")
+                            .font(.system(size: 12, weight: .semibold))
                             .foregroundStyle(.white)
                     }
                     .padding(.horizontal, 8)
