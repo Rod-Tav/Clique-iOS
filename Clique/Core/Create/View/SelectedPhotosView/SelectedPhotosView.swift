@@ -178,11 +178,12 @@ struct SelectedPhotosView: View {
                                 Text(mediaType)
                                     .font(.system(size: 10, weight: .semibold))
                             }
-                            .foregroundStyle(.white)
+                            .foregroundStyle(mediaType == "LIVE" ? .yellow : .red)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 3)
-                            .background(mediaType == "LIVE" ? Color(red: 0.95, green: 0.7, blue: 0.0) : Color.red)
-                            .clipShape(Capsule())
+//                            .background(mediaType == "LIVE" ? Color(red: 0.95, green: 0.7, blue: 0.0) : Color.red)
+                            .background(Color(.systemGray5))
+                            .clipShape(.capsule)
                         }
 
                         Text("\(currentIndex + 1) of \(selectedAssetsArray.count)")

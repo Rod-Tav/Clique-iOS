@@ -136,7 +136,7 @@ struct LibraryCreateFlow: View {
             }
         )
         .padding(.horizontal, 24)
-        .padding(.vertical, 12)
+        .padding(.vertical, 8)
     }
     
     @ViewBuilder private func TrailingIcon() -> some View {
