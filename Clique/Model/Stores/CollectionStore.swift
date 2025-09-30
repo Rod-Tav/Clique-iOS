@@ -7,6 +7,35 @@
 
 import Foundation
 
+/// Observable store managing collection metadata throughout the app lifecycle.
+///
+/// This store provides centralized collection data management with intelligent URL refresh,
+/// partial updates, and coordination with ``CollectionImageStore`` for image data.
+///
+/// ## Key Features
+/// - **Smart URL Management**: Automatic detection of expired S3 URLs for cover photos
+/// - **Partial Updates**: Only updates changed fields to prevent unnecessary UI refreshes
+/// - **Image Coordination**: Automatically updates ``CollectionImageStore`` with collection images
+/// - **Force Update Support**: Can bypass smart checking when needed (e.g., manual refresh)
+///
+/// ## URL Management
+/// Collections have cover photos (static images) that use S3 presigned URLs with expiration.
+/// The store uses `shouldUpdatePhotoUrls()` to check if cover photo URLs need refreshing.
+///
+/// For Live Photos and Videos within collections, URL management is handled by
+/// ``CollectionImageStore`` which checks both photo and video URL expiration independently.
+///
+/// ## Usage
+/// ```swift
+/// @Environment(CollectionStore.self) private var collectionStore
+/// @Environment(CollectionImageStore.self) private var collectionImageStore
+///
+/// // Update collection (smart URL checking)
+/// collectionStore.updateCollection(collection, collectionImageStore)
+///
+/// // Force URL refresh (bypass expiration checking)
+/// collectionStore.updateCollection(collection, forceUpdateURL: true, collectionImageStore)
+/// ```
 @Observable @MainActor final class CollectionStore {
     var collections = [String: ClCollection]() // id to collection
     
