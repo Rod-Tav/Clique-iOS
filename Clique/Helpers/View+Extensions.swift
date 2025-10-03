@@ -235,16 +235,40 @@ fileprivate struct ViewExtractHelper: UIViewRepresentable {
         let view = UIView(frame: .zero)
         view.backgroundColor = .clear
         view.isUserInteractionEnabled = false
-        
+
         DispatchQueue.main.async {
             if let uiKitView = view.superview?.superview?.subviews.last?.subviews.first {
                 result(uiKitView)
             }
         }
-        
+
         return view
     }
-    
+
     func updateUIView(_ uiView: UIView, context: Context) {}
+}
+
+// MARK: - Glass Button Modifier
+struct GlassButtonModifier: ViewModifier {
+    let backgroundColor: Color
+
+    func body(content: Content) -> some View {
+        if #available(iOS 26, *) {
+            content
+                .background(backgroundColor)
+                .clipShape(.capsule)
+                .glassEffect(.regular.interactive(), in: .capsule)
+        } else {
+            content
+                .background(backgroundColor)
+                .clipShape(.capsule)
+        }
+    }
+}
+
+extension View {
+    func glassButton(backgroundColor: Color) -> some View {
+        modifier(GlassButtonModifier(backgroundColor: backgroundColor))
+    }
 }
 

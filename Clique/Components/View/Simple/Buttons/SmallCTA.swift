@@ -64,8 +64,7 @@ struct SmallCTA: View {
             .padding(.horizontal, 8)
             .padding(.top, 5)
             .padding(.bottom, 4)
-            .background(buttonColor ?? type.buttonColor)
-            .clipShape(.capsule)
+            .glassButton(backgroundColor: buttonColor ?? type.buttonColor)
         }
     }
 }
