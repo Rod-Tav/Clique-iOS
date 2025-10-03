@@ -1,8 +1,113 @@
 # Live Photos and Videos Implementation Plan
 
 **Date**: January 2025
-**Status**: Planning Phase
+**Last Updated**: January 31, 2025
+**Status**: Phase 3 Complete - Backend Integration In Progress
 **Scope**: iOS Frontend Refactor for Live Photos, Videos, and Backend-Managed Quality Variants
+
+---
+
+## 📊 Implementation Status
+
+### ✅ Completed Phases
+
+**Phase 1: Foundation & Data Models** - ✅ COMPLETE
+- Created `MediaType` enum (PHOTO, LIVE, VIDEO)
+- Renamed `PhotoUrls` → `MediaUrls` with enhanced API
+- Updated `CollectionImage` with video URLs and media type
+- Updated `ClCollection`, `User`, `Clique` models
+- Updated all DTOs (CollectionDTO, UserDTO, CliqueDTO, MediaUrlsDTO)
+- Global find & replace: 44 files updated from PhotoUrls to MediaUrls
+
+**Phase 2: Photo Picker & Live Photo Support** - ✅ COMPLETE
+- Created `LivePhotoHelper.swift` with extraction and detection
+- Updated `PhotoProcessingHelper` to detect Live Photos concurrently
+- Updated `CreateViewModel` with Live Photo component storage
+- Added Live Photo badges to photo picker grid
+
+**Phase 3: Upload Flow Enhancement** - ✅ COMPLETE
+- Created `VideoUploadHelper.swift` for video preparation
+- Updated `PhotoProcessingHelper` for Live Photo upload preparation
+- Updated `CreateViewModel` with video variant storage
+- Updated `TabViewModel` upload functions with video support
+- **CRITICAL**: Implemented streaming video uploads (memory optimization)
+  - LivePhotoHelper returns temp file URL instead of loading Data
+  - Added streaming MD5 calculation (1MB buffer)
+  - Created `uploadVideoFromFile()` using URLSession streaming
+  - Memory impact: 50-200MB per video → ~1MB buffer
+  - Matches Instagram/YouTube/Netflix performance standards
+
+**Backend Upload Status Integration** - 🔄 IN PROGRESS (New Requirement)
+- Backend now tracks upload status automatically (PENDING, FAILED, COMPLETED)
+- OpenAPI updated with `uploadStatus` field
+- Frontend needs to stop marking uploads and show status in UI
+
+### 🚧 Remaining Phases
+
+**Phase 4: Display & Playback Support** - ⏳ NOT STARTED
+- Live Photo view component with playback
+- Video player component
+- Collection detail view updates
+- Grid view media type badges
+
+**Phase 5: Store Updates & URL Management** - ⏳ NOT STARTED
+- CollectionImageStore video URL management
+- CollectionStore updates
+
+**Phase 6: Testing & Validation** - ⏳ NOT STARTED
+- Test plan execution
+- Mock data updates
+- Comprehensive testing
+
+**Phase 7: UI/UX Enhancements** - ⏳ NOT STARTED
+- Upload progress indicators
+- Media type filters
+
+**Phase 8: Documentation & Cleanup** - ⏳ NOT STARTED
+- CLAUDE.md updates
+- DocC documentation
+- Code cleanup
+
+---
+
+## 🎯 Current Priority: Backend Upload Status Integration
+
+### Context
+The backend has been updated to automatically track upload status. The frontend no longer needs to mark images as uploaded. Instead, the backend provides status via the `uploadStatus` field:
+- `PENDING`: Image uploaded, backend processing
+- `FAILED`: Processing or upload failed
+- `COMPLETED`: Fully processed and ready
+
+### Required Changes
+
+1. **Regenerate OpenAPI Types**
+   - Build Xcode project to generate Swift types from updated openapi.yaml
+   - Adds `uploadStatus: UploadStatus?` to `Components.Schemas.CollectionItem`
+
+2. **Update Domain Model** (`Model/ClCollection.swift`)
+   - Add `UploadStatus` enum
+   - Add `uploadStatus: UploadStatus?` to `CollectionImage`
+
+3. **Update DTO Mapping** (`Model/Data/CollectionDTO.swift`)
+   - Map `uploadStatus` field in `mapToCollectionImage()`
+   - Add `mapToUploadStatus()` helper
+
+4. **Remove Upload Marking** (`Utils/Coordinators/TabViewModel.swift`)
+   - Remove `CollectionService.markCollectionImagesAsUploaded()` calls
+   - Keep failure tracking for retry UI
+
+5. **Create Upload Status UI**
+   - New component: `UploadStatusOverlay.swift`
+   - View extension: `.overlayUploadStatus()`
+   - Apply to `CollectionMainView.swift` image cells
+
+### Files to Modify
+- `Frontend/iOS/Clique/Clique/Model/ClCollection.swift`
+- `Frontend/iOS/Clique/Clique/Model/Data/CollectionDTO.swift`
+- `Frontend/iOS/Clique/Clique/Utils/Coordinators/TabViewModel.swift`
+- `Frontend/iOS/Clique/Clique/Components/Advanced/UploadStatusOverlay.swift` (NEW)
+- `Frontend/iOS/Clique/Clique/Helpers/Extensions/ViewExtensions.swift`
+- `Frontend/iOS/Clique/Clique/Core/Collection/View/CollectionMainView.swift`
 
 ---
 
@@ -2042,33 +2147,635 @@ If critical issues arise:
 
 ---
 
+## 🚀 Comprehensive Plan for Remaining Work
+
+### Phase 0: Backend Upload Status Integration (IMMEDIATE PRIORITY)
+
+**Objective**: Stop marking uploads manually and display backend-tracked upload status in UI
+
+**Steps**:
+
+1. **Build Xcode Project to Regenerate OpenAPI Types**
+   - Open Xcode project
+   - Build project (⌘B) to trigger Swift OpenAPI Generator
+   - Verify `Components.Schemas.UploadStatus` enum is generated
+   - Verify `Components.Schemas.CollectionItem` has `uploadStatus` field
+
+2. **Add UploadStatus to Domain Model**
+   ```swift
+   // In ClCollection.swift
+   enum UploadStatus: String, Codable, Hashable, Sendable {
+       case PENDING
+       case FAILED
+       case COMPLETED
+   }
+
+   struct CollectionImage: Identifiable, Hashable, Codable {
+       // ... existing fields ...
+       var uploadStatus: UploadStatus? = nil
+   }
+   ```
+
+3. **Update DTO Mapping**
+   ```swift
+   // In CollectionDTO.swift
+   func mapToUploadStatus(_ status: Components.Schemas.UploadStatus) -> UploadStatus {
+       switch status {
+       case .PENDING: return .PENDING
+       case .FAILED: return .FAILED
+       case .COMPLETED: return .COMPLETED
+       }
+   }
+
+   func mapToCollectionImage(_ data: Components.Schemas.UrlCollectionItem) -> CollectionImage {
+       return CollectionImage(
+           // ... existing fields ...
+           uploadStatus: data.collectionItem?.uploadStatus != nil ? mapToUploadStatus(data.collectionItem!.uploadStatus!) : nil
+       )
+   }
+   ```
+
+4. **Remove Upload Marking Calls**
+   ```swift
+   // In TabViewModel.swift - DELETE these sections:
+
+   // Line ~114-116 in uploadToCollection:
+   try await CollectionService.markCollectionImagesAsUploaded(...)  // REMOVE
+
+   // Line ~181-183 in retryUploadImages:
+   try await CollectionService.markCollectionImagesAsUploaded(...)  // REMOVE
+   ```
+
+5. **Create Upload Status Overlay Component**
+   ```swift
+   // New file: Components/Advanced/UploadStatusOverlay.swift
+   struct UploadStatusOverlay: View {
+       let status: UploadStatus?
+       let onRetry: (() -> Void)?
+
+       var body: some View {
+           Group {
+               switch status {
+               case .PENDING:
+                   pendingOverlay
+               case .FAILED:
+                   failedOverlay
+               case .COMPLETED, .none:
+                   EmptyView()
+               }
+           }
+       }
+
+       private var pendingOverlay: some View {
+           ZStack {
+               Color.black.opacity(0.3)
+               ProgressView()
+                   .progressViewStyle(.circular)
+                   .tint(.white)
+           }
+       }
+
+       private var failedOverlay: some View {
+           ZStack {
+               Color.red.opacity(0.3)
+               VStack(spacing: 8) {
+                   Image(systemName: "exclamationmark.triangle.fill")
+                       .foregroundColor(.white)
+                   if let onRetry = onRetry {
+                       Button("Retry") {
+                           onRetry()
+                       }
+                       .buttonStyle(.bordered)
+                       .tint(.white)
+                   }
+               }
+           }
+       }
+   }
+   ```
+
+6. **Add View Extension**
+   ```swift
+   // In ViewExtensions.swift
+   extension View {
+       func overlayUploadStatus(_ status: UploadStatus?, onRetry: (() -> Void)? = nil) -> some View {
+           self.overlay {
+               UploadStatusOverlay(status: status, onRetry: onRetry)
+           }
+       }
+   }
+   ```
+
+7. **Apply to Collection Grid**
+   ```swift
+   // In CollectionMainView.swift, update ImageCell (line ~494):
+   @ViewBuilder private func ImageCell(_ image: CollectionImage) -> some View {
+       CollectionPreviewAsyncImage(urls: image.imageUrl, quality: .medium)
+           .overlayCollectionPreviewStats(likes: image.numLikes, comments: image.numComments, hasLiked: image.hasLiked)
+           .overlayUploadStatus(image.uploadStatus)  // ADD THIS
+           .id(image.id)
+           .heroSource(urls: image.imageUrl) {
+               tabCoordinator.showTabBar = false
+               clCoordinator.selectedImageId = image.id
+           }
+   }
+   ```
+
+**Testing Checklist**:
+- [ ] Build succeeds after regeneration
+- [ ] Upload new images → see PENDING status
+- [ ] Backend processes → status changes to COMPLETED
+- [ ] Failed uploads show FAILED overlay
+- [ ] No calls to markCollectionImagesAsUploaded in logs
+- [ ] Grids display all status states correctly
+
+---
+
+### Phase 4: Display & Playback Support (NEXT PRIORITY)
+
+**Objective**: Enable Live Photo playback and video viewing in the app
+
+#### 4.1 Create Live Photo View Component
+
+**File**: `Components/Media/LivePhotoView.swift`
+
+**Key Features**:
+- Still image layer (always visible)
+- Video player layer (shows on tap)
+- Live Photo badge (top-left corner)
+- Tap to play/stop
+- Auto-stop after 3 seconds
+- Proper cleanup on disappear
+
+**Implementation Strategy**:
+1. Use `AVQueuePlayer` with `AVPlayerLooper` for seamless looping
+2. Animate transition between still and video (opacity)
+3. Load video from `MediaUrls` (use high quality URL)
+4. Handle missing video URLs gracefully
+
+#### 4.2 Create Video Player Component
+
+**File**: `Components/Media/VideoPlayerView.swift`
+
+**Key Features**:
+- Full video controls via VideoPlayer
+- Thumbnail preview before playback
+- Video badge indicator
+- Auto-seek to beginning on end
+- Memory cleanup
+
+#### 4.3 Update Collection Detail View
+
+**File**: `Components/Kingfisher/Images/Collection/CollectionDetailImageAsyncView.swift`
+
+**Changes**:
+```swift
+var body: some View {
+    Group {
+        switch collectionImage.mediaType {
+        case .PHOTO:
+            photoView
+        case .LIVE:
+            if let stillUrls = collectionImage.imageUrl,
+               let videoUrls = collectionImage.videoUrls {
+                LivePhotoView(stillImageUrls: stillUrls, videoUrls: videoUrls, quality: quality)
+            } else {
+                photoView  // Fallback
+            }
+        case .VIDEO:
+            if let videoUrls = collectionImage.videoUrls {
+                VideoPlayerView(videoUrls: videoUrls, thumbnailUrls: collectionImage.imageUrl)
+            } else {
+                photoView  // Fallback
+            }
+        }
+    }
+}
+```
+
+#### 4.4 Add Media Type Badges to Grid
+
+**File**: `Components/Kingfisher/GridAsyncImage.swift`
+
+**Add**:
+```swift
+struct MediaTypeBadge: View {
+    let mediaType: MediaType
+
+    var body: some View {
+        Image(systemName: iconName)
+            .font(.caption2)
+            .foregroundColor(.white)
+            .padding(3)
+            .background(Color.black.opacity(0.7))
+            .clipShape(Circle())
+    }
+
+    private var iconName: String {
+        switch mediaType {
+        case .PHOTO: return "photo"
+        case .LIVE: return "livephoto"
+        case .VIDEO: return "video.fill"
+        }
+    }
+}
+```
+
+**Update GridCollectionPreviewImage**:
+```swift
+var body: some View {
+    ZStack(alignment: .topLeading) {
+        // ... existing image ...
+
+        if collectionImage.mediaType != .PHOTO {
+            MediaTypeBadge(mediaType: collectionImage.mediaType)
+                .padding(4)
+        }
+    }
+}
+```
+
+**Files to Create**:
+- `Components/Media/LivePhotoView.swift`
+- `Components/Media/VideoPlayerView.swift`
+
+**Files to Modify**:
+- `Components/Kingfisher/Images/Collection/CollectionDetailImageAsyncView.swift`
+- `Components/Kingfisher/GridAsyncImage.swift`
+
+**Testing**:
+- [ ] Live Photos display with badge
+- [ ] Tap Live Photo to play video
+- [ ] Video stops after 3 seconds
+- [ ] Videos show controls
+- [ ] Grid shows media type badges
+- [ ] Detail view switches based on media type
+
+---
+
+### Phase 5: Store Updates & URL Management
+
+**Objective**: Properly manage video URLs alongside photo URLs with expiration handling
+
+#### 5.1 Update CollectionImageStore
+
+**File**: `Model/Stores/CollectionImageStore.swift`
+
+**Add Methods**:
+```swift
+/// Update both photo and video URLs for a collection item
+func updateUrls(for id: String, photoUrls: MediaUrls?, videoUrls: MediaUrls?) {
+    guard let index = images.firstIndex(where: { $0.id == id }) else { return }
+
+    var image = images[index]
+    var hasChanges = false
+
+    if let photoUrls = photoUrls, image.imageUrl != photoUrls {
+        image.imageUrl = photoUrls
+        hasChanges = true
+    }
+
+    if let videoUrls = videoUrls, image.videoUrls != videoUrls {
+        image.videoUrls = videoUrls
+        hasChanges = true
+    }
+
+    if hasChanges {
+        images[index] = image
+    }
+}
+
+/// Smart update - only refresh if URLs are expired
+func smartUpdateUrls(for id: String, photoUrls: MediaUrls?, videoUrls: MediaUrls?) {
+    guard let existing = images.first(where: { $0.id == id }) else { return }
+
+    let shouldUpdatePhoto = photoUrls != nil && (existing.imageUrl == nil || urlsAreExpired(existing.imageUrl))
+    let shouldUpdateVideo = videoUrls != nil && (existing.videoUrls == nil || urlsAreExpired(existing.videoUrls))
+
+    if shouldUpdatePhoto || shouldUpdateVideo {
+        updateUrls(for: id, photoUrls: shouldUpdatePhoto ? photoUrls : nil, videoUrls: shouldUpdateVideo ? videoUrls : nil)
+    }
+}
+
+private func urlsAreExpired(_ urls: MediaUrls?) -> Bool {
+    guard let urls = urls, let urlString = urls.url, let url = URL(string: urlString) else {
+        return true
+    }
+
+    // Check S3 expiration parameter
+    if let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+       let expiryParam = components.queryItems?.first(where: { $0.name == "X-Amz-Expires" }),
+       let expiryValue = expiryParam.value,
+       let expirySeconds = TimeInterval(expiryValue) {
+        return expirySeconds < 600  // Refresh if <10 mins remaining
+    }
+
+    return true
+}
+```
+
+#### 5.2 Update CollectionStore
+
+**File**: `Model/Stores/CollectionStore.swift`
+
+**Add Methods**:
+```swift
+func smartUpdateCoverPhoto(for collectionId: String, coverPhoto: MediaUrls?) {
+    guard let index = collections.firstIndex(where: { $0.id == collectionId }) else { return }
+
+    var collection = collections[index]
+
+    if coverPhoto != nil && (collection.coverPhoto == nil || urlsAreExpired(collection.coverPhoto)) {
+        collection.coverPhoto = coverPhoto
+        collections[index] = collection
+    }
+}
+
+private func urlsAreExpired(_ urls: MediaUrls?) -> Bool {
+    // Same logic as CollectionImageStore
+}
+```
+
+**Files to Modify**:
+- `Model/Stores/CollectionImageStore.swift`
+- `Model/Stores/CollectionStore.swift`
+
+**Testing**:
+- [ ] Video URLs update correctly
+- [ ] Expired URLs trigger refresh
+- [ ] Valid URLs don't refresh unnecessarily
+- [ ] Cover photos with videos work
+
+---
+
+### Phase 6: Testing & Validation
+
+**Objective**: Comprehensive testing across all scenarios
+
+#### Upload Tests
+- [ ] Upload 10 regular photos (30 variants total)
+- [ ] Upload 5 Live Photos (15 photo variants + 5 videos)
+- [ ] Upload mix: 5 photos + 3 Live Photos
+- [ ] Handle network failure mid-upload
+- [ ] Retry failed uploads
+- [ ] Verify S3 upload success for all variants
+
+#### Display Tests
+- [ ] Display regular photos with progressive loading
+- [ ] Display Live Photos with badge
+- [ ] Tap to play Live Photo video
+- [ ] Video stops after duration
+- [ ] Grid shows correct badges for all types
+- [ ] Detail view renders all media types
+
+#### Performance Tests
+- [ ] Upload 50 photos without memory issues
+- [ ] Upload 10 Live Photos (memory stays under 300MB)
+- [ ] Scroll collection with 100+ items smoothly
+- [ ] Video playback doesn't block UI
+- [ ] Image cache respects limits
+
+#### Edge Cases
+- [ ] Handle Live Photo with missing video
+- [ ] Handle expired S3 URLs
+- [ ] Handle backward compatibility (old data without uploadStatus)
+- [ ] Handle upload status transitions
+- [ ] Handle corrupted video data
+
+#### Mock Data
+Update `ClCollection.swift`:
+```swift
+extension CollectionImage {
+    static var MOCK_LIVE_PHOTO: CollectionImage {
+        CollectionImage(
+            id: UUID().uuidString,
+            imageUrl: MediaUrls(url: "...", medQualityUrl: "...", lowQualityUrl: "..."),
+            videoUrls: MediaUrls(url: "..."),
+            videoId: UUID().uuidString,
+            mediaType: .LIVE,
+            date: Date(),
+            uploadStatus: .COMPLETED
+        )
+    }
+
+    static var MOCK_PENDING_PHOTO: CollectionImage {
+        CollectionImage(
+            id: UUID().uuidString,
+            imageUrl: MediaUrls(url: "..."),
+            mediaType: .PHOTO,
+            date: Date(),
+            uploadStatus: .PENDING
+        )
+    }
+
+    static var MOCK_FAILED_PHOTO: CollectionImage {
+        CollectionImage(
+            id: UUID().uuidString,
+            imageUrl: MediaUrls(url: "..."),
+            mediaType: .PHOTO,
+            date: Date(),
+            uploadStatus: .FAILED
+        )
+    }
+}
+```
+
+---
+
+### Phase 7: UI/UX Enhancements
+
+**Objective**: Polish the user experience
+
+#### 7.1 Enhanced Upload Progress
+
+**File**: `Core/Create/View/UploadProgressView.swift`
+
+**Add**:
+- Separate progress bars for photos and videos
+- Estimated time remaining
+- Upload speed indicator
+- Cancel upload option
+
+```swift
+struct UploadProgressView: View {
+    // ... existing properties ...
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Text("Uploading Media")
+                .font(.headline)
+
+            // Photo progress
+            if totalImages > 0 {
+                HStack {
+                    Image(systemName: "photo.fill")
+                    ProgressView(value: Double(successfulImages), total: Double(totalImages))
+                    Text("\(successfulImages)/\(totalImages)")
+                        .font(.caption)
+                }
+            }
+
+            // Video progress (for Live Photos)
+            if totalVideos > 0 {
+                HStack {
+                    Image(systemName: "video.fill")
+                    ProgressView(value: Double(successfulVideos), total: Double(totalVideos))
+                    Text("\(successfulVideos)/\(totalVideos)")
+                        .font(.caption)
+                }
+            }
+        }
+    }
+}
+```
+
+#### 7.2 Media Type Filter
+
+**File**: `Components/Filters/MediaTypeFilter.swift` (NEW)
+
+**Purpose**: Allow users to filter collections by media type
+
+```swift
+struct MediaTypeFilter: View {
+    @Binding var selectedTypes: Set<MediaType>
+    let availableTypes: Set<MediaType>
+
+    var body: some View {
+        HStack(spacing: 12) {
+            ForEach(Array(availableTypes).sorted(by: { $0.rawValue < $1.rawValue }), id: \.self) { type in
+                MediaTypeChip(
+                    mediaType: type,
+                    isSelected: selectedTypes.contains(type)
+                ) {
+                    if selectedTypes.contains(type) {
+                        selectedTypes.remove(type)
+                    } else {
+                        selectedTypes.insert(type)
+                    }
+                }
+            }
+        }
+    }
+}
+
+struct MediaTypeChip: View {
+    let mediaType: MediaType
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                Image(systemName: mediaType.iconName)
+                Text(mediaType.displayName)
+                    .font(.caption.weight(.medium))
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(isSelected ? Color.accentColor : Color.gray.opacity(0.2))
+            .foregroundColor(isSelected ? .white : .primary)
+            .clipShape(Capsule())
+        }
+    }
+}
+```
+
+**Usage** in `CollectionMainView.swift`:
+```swift
+MediaTypeFilter(
+    selectedTypes: $selectedMediaTypes,
+    availableTypes: Set(collection.images.map { $0.mediaType })
+)
+.padding(.horizontal)
+```
+
+**Files to Create**:
+- `Components/Filters/MediaTypeFilter.swift`
+
+**Files to Modify**:
+- `Core/Create/View/UploadProgressView.swift`
+- `Core/Collection/View/CollectionMainView.swift` (add filter)
+
+---
+
+### Phase 8: Documentation & Cleanup
+
+**Objective**: Document the implementation and clean up deprecated code
+
+#### 8.1 Update CLAUDE.md
+
+Add sections:
+- **Media Type System**: Explain PHOTO, LIVE, VIDEO
+- **Live Photo Flow**: Detection → Extraction → Upload → Display
+- **Video Upload**: Streaming upload with memory optimization
+- **Upload Status**: Backend-managed status system
+- **Display Components**: LivePhotoView, VideoPlayerView usage
+- **MediaUrls**: Quality variant structure
+
+#### 8.2 DocC Documentation
+
+Add comprehensive docs:
+- `LivePhotoHelper.swift` - All public APIs
+- `VideoUploadHelper.swift` - Upload utilities
+- `LivePhotoView.swift` - Component usage
+- `MediaType` enum - Type system
+- `MediaUrls` struct - URL structure
+- `UploadStatus` enum - Status values
+
+#### 8.3 Code Cleanup
+
+**Remove**:
+- Any remaining `PhotoUrls` references (should be none)
+- Old `PhotoDatePair` mentions (replaced by `PhotoVideoDate`)
+- Deprecated upload marking logic
+- Unused import statements
+- Debug print statements
+
+**Verify**:
+- All compiler warnings resolved
+- No forced unwraps (use guard/if let)
+- Proper error handling throughout
+- Consistent code style
+
+---
+
 ## Appendix A: File Checklist
 
-### Files to Create
-- [ ] `Frontend/iOS/Clique/Clique/Model/MediaType.swift`
-- [ ] `Frontend/iOS/Clique/Clique/Model/Helpers/MediaUrls.swift`
-- [ ] `Frontend/iOS/Clique/Clique/Helpers/Photos/LivePhotoHelper.swift`
-- [ ] `Frontend/iOS/Clique/Clique/Helpers/Photos/VideoUploadHelper.swift`
-- [ ] `Frontend/iOS/Clique/Clique/Components/Media/LivePhotoView.swift`
-- [ ] `Frontend/iOS/Clique/Clique/Components/Media/VideoPlayerView.swift`
-- [ ] `Frontend/iOS/Clique/Clique/Components/Filters/MediaTypeFilter.swift`
+### Files Created ✅
+- [x] `Frontend/iOS/Clique/Clique/Model/MediaType.swift`
+- [x] `Frontend/iOS/Clique/Clique/Model/Helpers/MediaUrls.swift`
+- [x] `Frontend/iOS/Clique/Clique/Helpers/Photos/LivePhotoHelper.swift`
+- [x] `Frontend/iOS/Clique/Clique/Helpers/Photos/VideoUploadHelper.swift`
 
-### Files to Update
-- [ ] `Frontend/iOS/Clique/Clique/Model/ClCollection.swift`
-- [ ] `Frontend/iOS/Clique/Clique/Model/User.swift`
-- [ ] `Frontend/iOS/Clique/Clique/Model/Clique.swift`
-- [ ] `Frontend/iOS/Clique/Clique/Model/Data/CollectionDTO.swift`
-- [ ] `Frontend/iOS/Clique/Clique/Model/Data/UserDTO.swift`
-- [ ] `Frontend/iOS/Clique/Clique/Model/Data/CliqueDTO.swift`
-- [ ] `Frontend/iOS/Clique/Clique/Core/Create/ViewModel/CreateViewModel.swift`
-- [ ] `Frontend/iOS/Clique/Clique/Core/Create/Helpers/PhotoProcessingHelper.swift`
-- [ ] `Frontend/iOS/Clique/Clique/Utils/Coordinators/TabViewModel.swift`
-- [ ] `Frontend/iOS/Clique/Clique/Model/Stores/CollectionImageStore.swift`
-- [ ] `Frontend/iOS/Clique/Clique/Model/Stores/CollectionStore.swift`
-- [ ] `Frontend/iOS/Clique/Clique/Components/Kingfisher/Images/Collection/CollectionDetailImageAsyncView.swift`
-- [ ] `Frontend/iOS/Clique/Clique/Components/Kingfisher/GridAsyncImage.swift`
-- [ ] `Frontend/iOS/Clique/Clique/Core/Create/View/CollectionPhotosPicker/CollectionPhotosPickerFunctions.swift`
-- [ ] 40+ Kingfisher image component files (PhotoUrls → MediaUrls)
+### Files to Create 🚧
+- [ ] `Frontend/iOS/Clique/Clique/Components/Advanced/UploadStatusOverlay.swift` (Phase 0)
+- [ ] `Frontend/iOS/Clique/Clique/Components/Media/LivePhotoView.swift` (Phase 4)
+- [ ] `Frontend/iOS/Clique/Clique/Components/Media/VideoPlayerView.swift` (Phase 4)
+- [ ] `Frontend/iOS/Clique/Clique/Components/Filters/MediaTypeFilter.swift` (Phase 7)
+
+### Files Updated ✅
+- [x] `Frontend/iOS/Clique/Clique/Model/ClCollection.swift` (Phase 1 - needs uploadStatus for Phase 0)
+- [x] `Frontend/iOS/Clique/Clique/Model/User.swift` (Phase 1)
+- [x] `Frontend/iOS/Clique/Clique/Model/Clique.swift` (Phase 1)
+- [x] `Frontend/iOS/Clique/Clique/Model/Data/CollectionDTO.swift` (Phase 1 - needs uploadStatus mapping for Phase 0)
+- [x] `Frontend/iOS/Clique/Clique/Model/Data/UserDTO.swift` (Phase 1)
+- [x] `Frontend/iOS/Clique/Clique/Model/Data/CliqueDTO.swift` (Phase 1)
+- [x] `Frontend/iOS/Clique/Clique/Model/Data/MediaUrlsDTO.swift` (Phase 1)
+- [x] `Frontend/iOS/Clique/Clique/Core/Create/ViewModel/CreateViewModel.swift` (Phase 2 & 3)
+- [x] `Frontend/iOS/Clique/Clique/Core/Create/Helpers/PhotoProcessingHelper.swift` (Phase 2 & 3)
+- [x] `Frontend/iOS/Clique/Clique/Utils/Coordinators/TabViewModel.swift` (Phase 3 - needs upload marking removal for Phase 0)
+- [x] `Frontend/iOS/Clique/Clique/Helpers/Photos/PhotoHelper.swift` (Phase 3 - streaming uploads)
+- [x] 44 files updated from PhotoUrls → MediaUrls (Phase 1)
+
+### Files to Update 🚧
+- [ ] `Frontend/iOS/Clique/Clique/Helpers/Extensions/ViewExtensions.swift` (Phase 0)
+- [ ] `Frontend/iOS/Clique/Clique/Core/Collection/View/CollectionMainView.swift` (Phase 0 & 4)
+- [ ] `Frontend/iOS/Clique/Clique/Components/Kingfisher/Images/Collection/CollectionDetailImageAsyncView.swift` (Phase 4)
+- [ ] `Frontend/iOS/Clique/Clique/Components/Kingfisher/GridAsyncImage.swift` (Phase 4)
+- [ ] `Frontend/iOS/Clique/Clique/Model/Stores/CollectionImageStore.swift` (Phase 5)
+- [ ] `Frontend/iOS/Clique/Clique/Model/Stores/CollectionStore.swift` (Phase 5)
+- [ ] `Frontend/iOS/Clique/Clique/Core/Create/View/UploadProgressView.swift` (Phase 7)
+- [ ] `Frontend/iOS/Clique/CLAUDE.md` (Phase 8)
 
 ### Files to Delete
 - [ ] `Frontend/iOS/Clique/Clique/Model/Helpers/PhotoUrls.swift` (replaced by MediaUrls.swift)

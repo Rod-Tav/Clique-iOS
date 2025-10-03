@@ -2729,6 +2729,8 @@ components:
           type: integer
         mediaType:
           $ref: '#/components/schemas/MediaType'
+        uploadStatus:
+          $ref: '#/components/schemas/UploadStatus'
         dateCreated:
           type: string
     UploadCollectionItemsRequestBody:
@@ -3276,6 +3278,12 @@ components:
           $ref: '#/components/schemas/MediaType'
         timestamp:
           type: string
+    UploadStatus:
+      type: string
+      enum:
+        - PENDING
+        - FAILED
+        - COMPLETED
     ErrorResponse:
       type: object
       properties:
