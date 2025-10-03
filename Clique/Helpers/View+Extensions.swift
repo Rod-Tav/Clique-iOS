@@ -253,16 +253,19 @@ struct GlassButtonModifier: ViewModifier {
     let backgroundColor: Color
 
     func body(content: Content) -> some View {
-        if #available(iOS 26, *) {
-            content
-                .background(backgroundColor)
-                .clipShape(.capsule)
-                .glassEffect(.regular.interactive(), in: .capsule)
-        } else {
-            content
-                .background(backgroundColor)
-                .clipShape(.capsule)
+        Group {
+            if #available(iOS 26, *) {
+                content
+                    .background(backgroundColor)
+                    .clipShape(.capsule)
+                    .glassEffect(.regular.interactive(), in: .capsule)
+            } else {
+                content
+                    .background(backgroundColor)
+                    .clipShape(.capsule)
+            }
         }
+        .animation(.easeOut, value: backgroundColor)
     }
 }
 
