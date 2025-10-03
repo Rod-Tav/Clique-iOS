@@ -23,13 +23,24 @@ struct PhotoProcessingHelper {
         let datesToProcess = viewModel.selectedImagesDates
         let assetsToProcess = Array(viewModel.processedAssets)
         let livePhotoIdentifiers = viewModel.livePhotoAssets
+        let processedImageData = viewModel.processedImageData  // Capture to avoid concurrent access
+
+        // Build image-to-asset lookup map for O(1) performance (avoid O(n²) complexity)
+        let imageToAssetMap = Dictionary(uniqueKeysWithValues:
+            assetsToProcess.compactMap { asset -> (ObjectIdentifier, PHAsset)? in
+                guard let imageData = processedImageData[asset.localIdentifier] else { return nil }
+                return (ObjectIdentifier(imageData.image), asset)
+            }
+        )
 
         // Define result type for clarity
         typealias ProcessResult = (
             index: Int,
             photoData: Components.Schemas.PhotoVideoDate?,
             variants: (high: PreparedImageVariant, med: PreparedImageVariant, low: PreparedImageVariant)?,
-            videoData: Data?
+            assetReference: (assetId: String, asset: PHAsset)?,  // For just-in-time video extraction
+            assetIdentifier: String?,
+            extractionError: Error?
         )
 
         await withTaskGroup(of: ProcessResult.self) { group in
@@ -38,37 +49,34 @@ struct PhotoProcessingHelper {
                 group.addTask {
                     let date = index < datesToProcess.count ? datesToProcess[index] : Date()
 
-                    // Find the corresponding PHAsset for this image
-                    let matchingAsset = assetsToProcess.first { asset in
-                        guard let imageData = viewModel.processedImageData[asset.localIdentifier] else { return false }
-                        return imageData.image === image
-                    }
+                    // Find the corresponding PHAsset for this image using O(1) lookup
+                    let matchingAsset = imageToAssetMap[ObjectIdentifier(image)]
 
                     // Check if this is a Live Photo
                     let isLivePhoto = matchingAsset.map { livePhotoIdentifiers.contains($0.localIdentifier) } ?? false
 
-                    // Extract video component if this is a Live Photo
-                    var videoData: Data?
+                    // For Live Photos, get video file size without loading data (memory efficient)
+                    var videoFileSize: Int64?
                     if isLivePhoto, let asset = matchingAsset {
-                        do {
-                            let components = try await LivePhotoHelper.extractLivePhotoComponents(from: asset)
-                            videoData = components.videoData
-                            print("✅ Extracted Live Photo video component (\(components.videoMetadata.fileSize) bytes)")
-                        } catch {
-                            print("⚠️ Failed to extract Live Photo video: \(error.localizedDescription)")
-                            // Continue with still image only
+                        // Get video file size from PHAssetResource (lightweight, no data extraction)
+                        let resources = PHAssetResource.assetResources(for: asset)
+                        if let videoResource = resources.first(where: { $0.type == .pairedVideo }) {
+                            let unsignedSize = videoResource.value(forKey: "fileSize") as? Int ?? 0
+                            videoFileSize = Int64(unsignedSize)
+                            print("✅ Detected Live Photo video component (~\(videoFileSize ?? 0) bytes)")
                         }
+                        // Note: Video data will be extracted just-in-time during upload to save memory
                     }
 
                     if let (photoData, variants) = prepareUIImage(image) {
-                        // Prepare video data if available (Live Photos only)
+                        // Prepare video metadata if this is a Live Photo (data extracted later)
                         var videoDataNoPath: Components.Schemas.VideoDataNoPath?
-                        if let videoData = videoData {
-                            // Backend expects video metadata (not data - that's uploaded separately)
+                        if isLivePhoto, let fileSize = videoFileSize {
+                            // Backend expects video metadata (data will be uploaded separately)
                             videoDataNoPath = Components.Schemas.VideoDataNoPath(
                                 baseVideo: Components.Schemas.UploadVideoParams(
                                     contentType: "video/quicktime",
-                                    contentLength: Int64(videoData.count)
+                                    contentLength: fileSize
                                 )
                             )
                         }
@@ -79,9 +87,24 @@ struct PhotoProcessingHelper {
                             mediaType: isLivePhoto ? .LIVE : .PHOTO,
                             dateCreated: convertFromDate(date)
                         )
-                        return (index, photoPair, (high: variants.high, med: variants.medium, low: variants.low), videoData)
+                        // Return asset reference for Live Photos (for just-in-time video extraction)
+                        let assetRef: (assetId: String, asset: PHAsset)?
+                        if isLivePhoto, let asset = matchingAsset {
+                            assetRef = (asset.localIdentifier, asset)
+                        } else {
+                            assetRef = nil
+                        }
+
+                        return (
+                            index,
+                            photoPair,
+                            (high: variants.high, med: variants.medium, low: variants.low),
+                            assetRef,
+                            matchingAsset?.localIdentifier,
+                            nil  // No extraction error at this point (extraction happens during upload)
+                        )
                     }
-                    return (index, nil, nil, nil)
+                    return (index, nil, nil, nil, matchingAsset?.localIdentifier, nil)
                 }
             }
 
@@ -100,7 +123,13 @@ struct PhotoProcessingHelper {
                 if let photoData = result.photoData, let variants = result.variants {
                     viewModel.photoDatePairs.append(photoData)
                     viewModel.preparedImageVariants.append(variants)
-                    viewModel.preparedVideoData.append(result.videoData) // Store video data separately
+                    // Store asset reference for just-in-time video extraction (memory efficient)
+                    viewModel.livePhotoAssetReferences.append(result.assetReference)
+
+                    // Track extraction errors for user notification
+                    if let error = result.extractionError, let assetId = result.assetIdentifier {
+                        viewModel.livePhotoExtractionErrors[assetId] = error
+                    }
                 }
             }
         }

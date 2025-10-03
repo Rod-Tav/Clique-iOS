@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Toasts
+import Photos
 
 /// The main authenticated app experience with tab-based navigation.
 ///
@@ -227,7 +228,7 @@ struct MainTabView: View {
                   let makingNew = notification.userInfo?["makingNew"] as? Bool,
                   let photoDatePairs = notification.userInfo?["photoDatePairs"] as? [Components.Schemas.PhotoVideoDate],
                   let variants  = notification.userInfo?["variants"] as? [(PreparedImageVariant, PreparedImageVariant, PreparedImageVariant)],
-                  let videoData = notification.userInfo?["videoData"] as? [Data?]
+                  let livePhotoAssets = notification.userInfo?["livePhotoAssets"] as? [(assetId: String, asset: PHAsset)?]
             else { return }
 
             isUploading = true
@@ -239,7 +240,7 @@ struct MainTabView: View {
                         makingNew: makingNew,
                         photoDatePairs: photoDatePairs,
                         preparedImages: variants,
-                        videoData: videoData,
+                        livePhotoAssets: livePhotoAssets,
                         collection: collection,
                         collectionStore,
                         collectionImageStore

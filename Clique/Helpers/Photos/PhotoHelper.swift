@@ -9,6 +9,7 @@ import Foundation
 import UIKit
 import CryptoKit
 import Network
+import Photos  // For PHAsset in just-in-time video extraction
 
 /// Prepares image data and compression variants for upload
 func prepareUIImage(_ uiImage: UIImage?) -> (photoData: Components.Schemas.PhotoDataNoPath, imageVariants: (high: PreparedImageVariant, medium: PreparedImageVariant, low: PreparedImageVariant))? {
@@ -296,7 +297,7 @@ struct PhotoHelper {
     /// - Parameters:
     ///   - preparedImages: Array of prepared image variants (high, med, low)
     ///   - urls: Array of photo URLs (high, med, low)
-    ///   - videoData: Optional array of video data for Live Photos (parallel to preparedImages)
+    ///   - livePhotoAssets: Optional array of PHAsset references for Live Photos (video extracted just-in-time)
     ///   - videoUrls: Optional array of video URLs for uploading video components
     ///   - onProgress: Progress callback (completed uploads, total uploads)
     ///   - failedUpload: Failure callback (index, quality)
@@ -304,7 +305,7 @@ struct PhotoHelper {
     static func uploadImages(
         preparedImages: [(high: PreparedImageVariant, med: PreparedImageVariant, low: PreparedImageVariant)],
         urls: [(high: String?, med: String?, low: String?)],
-        videoData: [Data?]? = nil,
+        livePhotoAssets: [(assetId: String, asset: PHAsset)?]? = nil,
         videoUrls: [String?]? = nil,
         onProgress: @escaping (Int, Int) -> Void,
         failedUpload: @escaping (Int, ImageQuality) -> Void,
@@ -344,17 +345,24 @@ struct PhotoHelper {
                 }
             }
 
-            func addVideoUploadTask(data: Data, url: String, index: Int) {
+            func addVideoUploadTask(asset: PHAsset, url: String, index: Int) {
                 taskGroup.addTask {
                     await semaphore.wait()
 
                     do {
-                        try await uploadVideoDataWithRetry(data, to: url)
+                        // Extract video data just-in-time (memory efficient)
+                        print("⏳ Extracting video for Live Photo at index \(index)...")
+                        let components = try await LivePhotoHelper.extractLivePhotoComponents(from: asset)
+                        let videoData = components.videoData
+                        print("✅ Extracted video data (\(videoData.count) bytes)")
+
+                        // Upload immediately and discard
+                        try await uploadVideoDataWithRetry(videoData, to: url)
                         let newCount = await counter.increment()
                         await MainActor.run {
                             onProgress(newCount, totalUploads)
                         }
-                        print("✅ Video uploaded for index \(index) (\(data.count) bytes)")
+                        print("✅ Video uploaded for index \(index)")
                     } catch {
                         await failedTracker.insert(index, quality: .high) // Mark as failed
                         failedUpload(index, .high) // Use .high to indicate video failure
@@ -381,14 +389,14 @@ struct PhotoHelper {
                 }
             }
 
-            // Upload video components (for Live Photos)
-            if let videoData = videoData, let videoUrls = videoUrls {
-                for (index, data) in videoData.enumerated() {
-                    guard let data = data,
+            // Upload video components (for Live Photos) - extract just-in-time
+            if let livePhotoAssets = livePhotoAssets, let videoUrls = videoUrls {
+                for (index, assetRef) in livePhotoAssets.enumerated() {
+                    guard let assetRef = assetRef,
                           index < videoUrls.count,
                           let videoUrl = videoUrls[index] else { continue }
 
-                    addVideoUploadTask(data: data, url: videoUrl, index: index)
+                    addVideoUploadTask(asset: assetRef.asset, url: videoUrl, index: index)
                 }
             }
         }

@@ -34,12 +34,15 @@ enum CreateFlowDestination: Hashable {
     var processedImageData: [String: (image: UIImage, date: Date)] = [:]
     // Tracks which assets are Live Photos (by localIdentifier)
     var livePhotoAssets: Set<String> = []
+    // Tracks Live Photo extraction errors (by asset localIdentifier)
+    var livePhotoExtractionErrors: [String: Error] = [:]
     /// Prepared upload metadata
     var photoDatePairs: [Components.Schemas.PhotoVideoDate] = []
     /// Prepared image variants for upload
     var preparedImageVariants: [(high: PreparedImageVariant, med: PreparedImageVariant, low: PreparedImageVariant)] = []
-    /// Video data for Live Photos (parallel to preparedImageVariants, nil for regular photos)
-    var preparedVideoData: [Data?] = []
+    /// Asset references for Live Photos (parallel to preparedImageVariants, nil for regular photos)
+    /// Stores (assetId, asset) tuples to enable just-in-time video extraction during upload
+    var livePhotoAssetReferences: [(assetId: String, asset: PHAsset)?] = []
     
     var collectionToGoTo: ClCollection?
 
@@ -98,7 +101,7 @@ enum CreateFlowDestination: Hashable {
                     "collection": collection,
                     "photoDatePairs": photoDatePairs,
                     "variants": preparedImageVariants,
-                    "videoData": preparedVideoData
+                    "livePhotoAssets": livePhotoAssetReferences
                 ]
             )
            
@@ -161,6 +164,7 @@ enum CreateFlowDestination: Hashable {
         processedAssets.removeAll()
         processedImageData.removeAll()
         livePhotoAssets.removeAll()
+        livePhotoExtractionErrors.removeAll()
     }
 
     func reset() {
@@ -182,9 +186,10 @@ enum CreateFlowDestination: Hashable {
         processedAssets = []
         processedImageData = [:]
         livePhotoAssets = []
+        livePhotoExtractionErrors = [:]
         photoDatePairs = []
         preparedImageVariants = []
-        preparedVideoData = []
+        livePhotoAssetReferences = []
 
         collectionToGoTo = nil
         shouldProcessAndUploadForNewCollection = false

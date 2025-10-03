@@ -5,7 +5,7 @@
 //  Created by Rod Tavangar on 7/11/25.
 //
 
-import SwiftUI
+import Photos
 
 @Observable final class TabViewModel {
     var successfulImages: Int = 0
@@ -17,7 +17,7 @@ import SwiftUI
     
     var uploadFailed: Bool = false
     var retryImages: [(high: PreparedImageVariant, med: PreparedImageVariant, low: PreparedImageVariant)]? = nil
-    var retryVideoData: [Data?]? = nil
+    var retryLivePhotoAssets: [(assetId: String, asset: PHAsset)?]? = nil
     var retryUrlItems: [Components.Schemas.UrlCollectionItem]? = nil
     var retryCollectionId: String? = nil
     
@@ -29,7 +29,7 @@ import SwiftUI
     func resetRetry() {
         uploadFailed = false
         retryImages = nil
-        retryVideoData = nil
+        retryLivePhotoAssets = nil
         retryUrlItems = nil
         retryCollectionId = nil
     }
@@ -38,7 +38,7 @@ import SwiftUI
         makingNew: Bool,
         photoDatePairs: [Components.Schemas.PhotoVideoDate],
         preparedImages: [(high: PreparedImageVariant, med: PreparedImageVariant, low: PreparedImageVariant)],
-        videoData: [Data?],
+        livePhotoAssets: [(assetId: String, asset: PHAsset)?],
         collection: ClCollection,
         _ collectionStore: CollectionStore,
         _ collectionImageStore: CollectionImageStore
@@ -89,7 +89,7 @@ import SwiftUI
         await PhotoHelper.uploadImages(
             preparedImages: preparedImages,
             urls: urls,
-            videoData: videoData,
+            livePhotoAssets: livePhotoAssets,
             videoUrls: videoUrls,
             onProgress: { completed, total in
                 self.successfulImages = completed
@@ -122,11 +122,11 @@ import SwiftUI
                     // failure
                     self.uploadFailed = true
                     let retryImages = failedUploadIndices.map { preparedImages[$0] }
-                    let retryVideoData = failedUploadIndices.map { videoData[$0] }
+                    let retryAssets = failedUploadIndices.map { livePhotoAssets[$0] }
                     let retryUrlItems = failedUploadIndices.map { urlItems[$0] }
 
                     self.retryImages = retryImages
-                    self.retryVideoData = retryVideoData
+                    self.retryLivePhotoAssets = retryAssets
                     self.retryUrlItems = retryUrlItems
                     self.retryCollectionId = collectionId
                     self.reset()
@@ -138,7 +138,7 @@ import SwiftUI
     }
     
     func retryUploadImages() async throws {
-        guard let retryImages, let retryVideoData, let retryUrlItems, let retryCollectionId else { return }
+        guard let retryImages, let retryLivePhotoAssets, let retryUrlItems, let retryCollectionId else { return }
 
         var failedUploadIndices: [Int] = []
 
@@ -156,7 +156,7 @@ import SwiftUI
         await PhotoHelper.uploadImages(
             preparedImages: retryImages,
             urls: urls,
-            videoData: retryVideoData,
+            livePhotoAssets: retryLivePhotoAssets,
             videoUrls: videoUrls,
             onProgress: { completed, total in
                 self.successfulImages = completed
@@ -189,11 +189,11 @@ import SwiftUI
                     }
                 } else {
                     let retryImages = failedUploadIndices.map { retryImages[$0] }
-                    let retryVideoData = failedUploadIndices.map { retryVideoData[$0] }
+                    let retryAssets = failedUploadIndices.map { retryLivePhotoAssets[$0] }
                     let retryUrlItems = failedUploadIndices.map { retryUrlItems[$0] }
 
                     self.retryImages = retryImages
-                    self.retryVideoData = retryVideoData
+                    self.retryLivePhotoAssets = retryAssets
                     self.retryUrlItems = retryUrlItems
                     self.uploadFailed = true
                 }
