@@ -24,10 +24,15 @@ struct LivePhotoHelper {
     /// Result of Live Photo extraction
     struct LivePhotoComponents {
         let stillImageData: Data
-        let videoData: Data
+        let videoURL: URL  // Temp file URL for streaming upload (memory efficient)
         let stillImage: UIImage
         let creationDate: Date
         let videoMetadata: VideoMetadata
+
+        /// Clean up temporary video file
+        func cleanupVideoFile() {
+            try? FileManager.default.removeItem(at: videoURL)
+        }
     }
 
     // MARK: - Detection
@@ -43,8 +48,9 @@ struct LivePhotoHelper {
 
     /// Extracts both still image and video components from a Live Photo asset
     /// - Parameter asset: The PHAsset representing the Live Photo
-    /// - Returns: LivePhotoComponents containing both still image and video data
+    /// - Returns: LivePhotoComponents with video as temp file URL (memory efficient)
     /// - Throws: Error if extraction fails
+    /// - Important: Caller must clean up temp file using `cleanupVideoFile()` after upload
     static func extractLivePhotoComponents(from asset: PHAsset) async throws -> LivePhotoComponents {
         guard isLivePhoto(asset) else {
             throw LivePhotoError.notALivePhoto
@@ -53,14 +59,14 @@ struct LivePhotoHelper {
         // Extract still image
         let (stillImageData, stillImage) = try await extractStillImage(from: asset)
 
-        // Extract video
-        let (videoData, videoMetadata) = try await extractVideo(from: asset)
+        // Extract video to temp file (streaming-friendly)
+        let (videoURL, videoMetadata) = try await extractVideo(from: asset)
 
         let creationDate = asset.creationDate ?? Date()
 
         return LivePhotoComponents(
             stillImageData: stillImageData,
-            videoData: videoData,
+            videoURL: videoURL,
             stillImage: stillImage,
             creationDate: creationDate,
             videoMetadata: videoMetadata
@@ -97,8 +103,10 @@ struct LivePhotoHelper {
         }
     }
 
-    /// Extracts the video component from a Live Photo
-    private static func extractVideo(from asset: PHAsset) async throws -> (Data, VideoMetadata) {
+    /// Extracts the video component from a Live Photo to a temp file
+    /// - Returns: (tempFileURL, metadata) - Caller responsible for cleanup
+    /// - Important: Memory-efficient - does NOT load video into Data. Returns file URL for streaming.
+    private static func extractVideo(from asset: PHAsset) async throws -> (URL, VideoMetadata) {
         // Request video resources for the Live Photo
         let resources = PHAssetResource.assetResources(for: asset)
 
@@ -108,7 +116,7 @@ struct LivePhotoHelper {
         }
 
         return try await withCheckedThrowingContinuation { continuation in
-            // Create temporary file for video
+            // Create temporary file for video (will be streamed for upload, not loaded into memory)
             let tempURL = FileManager.default.temporaryDirectory
                 .appendingPathComponent(UUID().uuidString)
                 .appendingPathExtension("mov")
@@ -127,16 +135,11 @@ struct LivePhotoHelper {
                 }
 
                 do {
-                    // Read video data
-                    let videoData = try Data(contentsOf: tempURL)
-
-                    // Extract metadata
+                    // Extract metadata only (no data loading - streaming upload will read from file)
                     let metadata = try extractVideoMetadata(from: tempURL)
 
-                    // Clean up temp file
-                    try? FileManager.default.removeItem(at: tempURL)
-
-                    continuation.resume(returning: (videoData, metadata))
+                    // Return URL for streaming upload - DO NOT load into Data!
+                    continuation.resume(returning: (tempURL, metadata))
                 } catch {
                     // Clean up temp file on error
                     try? FileManager.default.removeItem(at: tempURL)

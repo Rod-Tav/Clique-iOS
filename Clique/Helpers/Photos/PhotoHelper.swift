@@ -350,14 +350,18 @@ struct PhotoHelper {
                     await semaphore.wait()
 
                     do {
-                        // Extract video data just-in-time (memory efficient)
+                        // Extract video to temp file (memory efficient - no data loading)
                         print("⏳ Extracting video for Live Photo at index \(index)...")
                         let components = try await LivePhotoHelper.extractLivePhotoComponents(from: asset)
-                        let videoData = components.videoData
-                        print("✅ Extracted video data (\(videoData.count) bytes)")
 
-                        // Upload immediately and discard
-                        try await uploadVideoDataWithRetry(videoData, to: url)
+                        // Ensure cleanup on completion or failure
+                        defer { components.cleanupVideoFile() }
+
+                        let fileSize = components.videoMetadata.fileSize
+                        print("✅ Extracted video file (\(fileSize) bytes) - streaming upload")
+
+                        // Stream upload directly from file (no memory spike)
+                        try await uploadVideoFromFile(components.videoURL, to: url)
                         let newCount = await counter.increment()
                         await MainActor.run {
                             onProgress(newCount, totalUploads)
@@ -407,73 +411,75 @@ struct PhotoHelper {
         }
     }
 
-    /// Upload video data with retry logic (similar to image upload)
-    private static func uploadVideoDataWithRetry(
-        _ data: Data,
-        to url: String,
-        attempts: Int = 3
-    ) async throws {
-        var delay = currentNetworkBaseDelay()
-        var attempt = 1
-        var lastError: Error?
+    /// Calculate MD5 hash of file by streaming (memory efficient)
+    private static func calculateMD5(of fileURL: URL) throws -> String {
+        let bufferSize = 1024 * 1024 // 1MB buffer
+        let file = try FileHandle(forReadingFrom: fileURL)
+        defer { try? file.close() }
 
-        while attempt <= attempts {
-            do {
-                let timeout = dynamicTimeout(for: data)
-                try await withTimeout(seconds: timeout) {
-                    try await uploadVideoData(data, to: url)
-                }
-                return
-            } catch {
-                print("⚠️ Video upload attempt \(attempt) failed: \(error.localizedDescription)")
-                lastError = error
-                attempt += 1
-                if attempt > attempts { break }
+        var hasher = Insecure.MD5()
 
-                let jitter = Double.random(in: 0.75...1.25)
-                try await Task.sleep(nanoseconds: UInt64(delay * jitter * 1_000_000_000))
-                print("⏳ Retrying video upload in \(String(format: "%.2f", delay * jitter)) seconds")
-                delay *= 2
-            }
-        }
-        throw lastError ?? URLError(.timedOut)
+        while autoreleasepool(invoking: {
+            let data = file.readData(ofLength: bufferSize)
+            if data.isEmpty { return false }
+            hasher.update(data: data)
+            return true
+        }) { }
+
+        let digest = hasher.finalize()
+        return Data(digest).base64EncodedString()
     }
 
-    /// Upload video data to S3 with proper content type
-    private static func uploadVideoData(_ data: Data, to url: String) async throws {
+    /// Upload video from file URL to S3 with streaming (memory efficient)
+    /// - Parameters:
+    ///   - fileURL: Local file URL containing video data
+    ///   - url: S3 presigned URL
+    /// - Important: Streams from disk - does NOT load entire file into memory
+    private static func uploadVideoFromFile(_ fileURL: URL, to url: String) async throws {
         guard let uploadUrl = URL(string: url) else {
             throw PhotoUploadError.invalidUrl
         }
 
-        let hash = Insecure.MD5.hash(data: data)
-        let hashData = Data(hash)
-        let base64String = hashData.base64EncodedString()
-        let numBytes = data.count
+        // Get file size and calculate MD5 hash (streaming, no full load)
+        let base64MD5 = try calculateMD5(of: fileURL)
+        let fileSize = try FileManager.default.attributesOfItem(atPath: fileURL.path)[.size] as? Int ?? 0
 
         var request = URLRequest(url: uploadUrl)
         request.httpMethod = "PUT"
-        request.setValue("video/quicktime", forHTTPHeaderField: "Content-Type") // Live Photos use .mov format
-        request.setValue("\(numBytes)", forHTTPHeaderField: "Content-Length")
-        request.setValue(base64String, forHTTPHeaderField: "Content-MD5")
+        request.setValue("video/quicktime", forHTTPHeaderField: "Content-Type")
+        request.setValue("\(fileSize)", forHTTPHeaderField: "Content-Length")
+        request.setValue(base64MD5, forHTTPHeaderField: "Content-MD5")
 
+        // Stream upload from file (memory efficient)
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             var resumed = false
 
-            PhotoUploader.shared.uploadImage(
-                request: request,
-                data: data,
-                progressHandler: { _ in }, // No per-video progress tracking
-                completion: { result in
-                    guard !resumed else { return }
-                    resumed = true
-                    continuation.resume(with: result)
-                }
-            )
-
-            // Failsafe timeout
-            DispatchQueue.global().asyncAfter(deadline: .now() + 60) {
+            let session = URLSession.shared
+            let uploadTask = session.uploadTask(with: request, fromFile: fileURL) { data, response, error in
                 guard !resumed else { return }
                 resumed = true
+
+                if let error = error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+
+                guard let httpResponse = response as? HTTPURLResponse,
+                      (200...299).contains(httpResponse.statusCode) else {
+                    continuation.resume(throwing: PhotoUploadError.uploadFailed)
+                    return
+                }
+
+                continuation.resume(returning: ())
+            }
+
+            uploadTask.resume()
+
+            // Failsafe timeout (longer for video uploads)
+            DispatchQueue.global().asyncAfter(deadline: .now() + 120) {
+                guard !resumed else { return }
+                resumed = true
+                uploadTask.cancel()
                 continuation.resume(throwing: URLError(.timedOut))
             }
         }
