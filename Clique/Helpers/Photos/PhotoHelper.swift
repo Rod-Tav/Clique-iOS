@@ -11,58 +11,45 @@ import CryptoKit
 import Network
 import Photos  // For PHAsset in just-in-time video extraction
 
-/// Prepares image data and compression variants for upload
-func prepareUIImage(_ uiImage: UIImage?) -> (photoData: Components.Schemas.PhotoDataNoPath, imageVariants: (high: PreparedImageVariant, medium: PreparedImageVariant, low: PreparedImageVariant))? {
+/// Prepares image data for upload (original quality only - backend handles quality variants)
+func prepareUIImage(_ uiImage: UIImage?) -> (photoData: Components.Schemas.PhotoDataNoPath, imageVariant: PreparedImageVariant)? {
     guard let uiImage else { return nil }
-    
+
     /// Helper function to generate UploadPhotoParams and keep Data
-    func createUploadPhotoParams(from image: UIImage, targetWidth: CGFloat?, quality: CGFloat) -> PreparedImageVariant? {
-        // If targetWidth is provided, resize; otherwise use original
-        let processedImage: UIImage
-        if let width = targetWidth {
-            guard let resized = image.resized(toWidth: width) else { return nil }
-            processedImage = resized
-        } else {
-            processedImage = image
-        }
-        
-        // Compress to JPEG
-        guard let imageData = processedImage.jpegData(compressionQuality: quality) else { return nil }
-        
+    func createUploadPhotoParams(from image: UIImage, quality: CGFloat) -> PreparedImageVariant? {
+        // Use original image (no resizing - backend handles quality variants)
+        guard let imageData = image.jpegData(compressionQuality: quality) else { return nil }
+
         // Create MD5 hash for integrity check
         let hash = Insecure.MD5.hash(data: imageData)
         let hashData = Data(hash)
         let base64String = hashData.base64EncodedString()
         let numBytes = imageData.count
-        
+
         let params = Components.Schemas.UploadPhotoParams(
             contentType: "image/jpeg",
             contentLength: Int64(numBytes),
             contentMd5: base64String
         )
-        
+
         return PreparedImageVariant(data: imageData, params: params)
     }
-    
-    // High: original resolution, medium and low are resized
-    guard let high = createUploadPhotoParams(from: uiImage, targetWidth: nil, quality: 0.3),
-          let medium = createUploadPhotoParams(from: uiImage, targetWidth: 600, quality: 0.1),
-          let low = createUploadPhotoParams(from: uiImage, targetWidth: 200, quality: 0.2) else {
+
+    // Only create original quality (1.0 = no compression) - backend handles quality conversion
+    guard let original = createUploadPhotoParams(from: uiImage, quality: 1.0) else {
         return nil
     }
-    
-    // Optional debug prints
-    print("High Quality: \(high.params.contentLength ?? 0), \(high.params.contentMd5 ?? "")")
-    print("Medium Quality: \(medium.params.contentLength ?? 0), \(medium.params.contentMd5 ?? "")")
-    print("Low Quality: \(low.params.contentLength ?? 0), \(low.params.contentMd5 ?? "")")
-    
+
+    print("Original Quality: \(original.params.contentLength ?? 0) bytes, MD5: \(original.params.contentMd5 ?? "")")
+
+    // Send same params for all three - backend requires all three (even though it will handle quality conversion)
     let photoData = Components.Schemas.PhotoDataNoPath(
-        basePhoto: high.params,
-        medQualityPhoto: medium.params,
-        lowQualityPhoto: low.params
+        basePhoto: original.params,
+        medQualityPhoto: original.params,
+        lowQualityPhoto: original.params
     )
-    
-    return (photoData, (high: high, medium: medium, low: low))
+
+    return (photoData, original)
 }
 
 actor FailedVariantTracker {
@@ -111,8 +98,8 @@ enum ImageQuality: String {
 struct PhotoHelper {
     static func createPhotoDatePairs(images: [UIImage], dates: [Date]) -> [Components.Schemas.PhotoVideoDate] {
         return zip(images, dates).map { image, date in
-            let photoDataNoPath = prepareUIImage(image)
-            return mapToPhotoDatePair(photo: photoDataNoPath?.photoData, date: date)
+            let prepared = prepareUIImage(image)
+            return mapToPhotoDatePair(photo: prepared?.photoData, date: date)
         }
     }
     
@@ -167,18 +154,19 @@ struct PhotoHelper {
             completion(.failure(PhotoUploadError.invalidUrl))
             return
         }
-        
+
         let hash = Insecure.MD5.hash(data: data)
         let hashData = Data(hash)
         let base64String = hashData.base64EncodedString()
         let numBytes = data.count
-        
+
         var request = URLRequest(url: uploadUrl)
         request.httpMethod = "PUT"
         request.setValue("image/jpeg", forHTTPHeaderField: "Content-Type")
         request.setValue("\(numBytes)", forHTTPHeaderField: "Content-Length")
         request.setValue(base64String, forHTTPHeaderField: "Content-MD5")
-        
+        request.setValue("AES256", forHTTPHeaderField: "x-amz-server-side-encryption")
+
         PhotoUploader.shared.uploadImage(request: request,
                                          data: data,
                                          progressHandler: progressHandler,
@@ -295,24 +283,25 @@ struct PhotoHelper {
     
     /// Upload images with optional video components (for Live Photos)
     /// - Parameters:
-    ///   - preparedImages: Array of prepared image variants (high, med, low)
-    ///   - urls: Array of photo URLs (high, med, low)
+    ///   - preparedImages: Array of prepared image variants (original quality only)
+    ///   - urls: Array of photo URLs (original quality only - backend handles conversion)
     ///   - livePhotoAssets: Optional array of PHAsset references for Live Photos (video extracted just-in-time)
     ///   - videoUrls: Optional array of video URLs for uploading video components
     ///   - onProgress: Progress callback (completed uploads, total uploads)
     ///   - failedUpload: Failure callback (index, quality)
     ///   - onCompletion: Completion callback (success)
     static func uploadImages(
-        preparedImages: [(high: PreparedImageVariant, med: PreparedImageVariant, low: PreparedImageVariant)],
-        urls: [(high: String?, med: String?, low: String?)],
+        preparedImages: [PreparedImageVariant],
+        urls: [String?],
         livePhotoAssets: [(assetId: String, asset: PHAsset)?]? = nil,
+        transcodedVideoUrls: [URL?]? = nil,
         videoUrls: [String?]? = nil,
         onProgress: @escaping (Int, Int) -> Void,
         failedUpload: @escaping (Int, ImageQuality) -> Void,
         onCompletion: @escaping (Bool) -> Void
     ) async {
-        // Calculate total uploads (3 photo variants per image + optional video)
-        var totalUploads = urls.flatMap { [$0.high, $0.med, $0.low] }.compactMap { $0 }.count
+        // Calculate total uploads (1 photo per image + optional video)
+        var totalUploads = urls.compactMap { $0 }.count
 
         // Add video uploads to total count
         if let videoUrls = videoUrls {
@@ -345,23 +334,16 @@ struct PhotoHelper {
                 }
             }
 
-            func addVideoUploadTask(asset: PHAsset, url: String, index: Int) {
+            func addVideoUploadTask(videoFileUrl: URL, url: String, index: Int) {
                 taskGroup.addTask {
                     await semaphore.wait()
 
                     do {
-                        // Extract video to temp file (memory efficient - no data loading)
-                        print("⏳ Extracting video for Live Photo at index \(index)...")
-                        let components = try await LivePhotoHelper.extractLivePhotoComponents(from: asset)
-
-                        // Ensure cleanup on completion or failure
-                        defer { components.cleanupVideoFile() }
-
-                        let fileSize = components.videoMetadata.fileSize
-                        print("✅ Extracted video file (\(fileSize) bytes) - streaming upload")
+                        // Use pre-transcoded video file (already MP4, already sized correctly)
+                        print("⏳ Uploading pre-transcoded video at index \(index)...")
 
                         // Stream upload directly from file (no memory spike)
-                        try await uploadVideoFromFile(components.videoURL, to: url)
+                        try await uploadVideoFromFile(videoFileUrl, to: url)
                         let newCount = await counter.increment()
                         await MainActor.run {
                             onProgress(newCount, totalUploads)
@@ -377,30 +359,20 @@ struct PhotoHelper {
                 }
             }
 
-            // Upload photo variants
-            for (index, imageVariants) in preparedImages.enumerated() {
-                let (highData, medData, lowData) = (imageVariants.high, imageVariants.med, imageVariants.low)
-                let (highUrl, medUrl, lowUrl) = urls[index]
-
-                if let highUrl {
-                    addUploadTask(data: highData.data, url: highUrl, index: index, quality: .high)
-                }
-                if let medUrl {
-                    addUploadTask(data: medData.data, url: medUrl, index: index, quality: .medium)
-                }
-                if let lowUrl {
-                    addUploadTask(data: lowData.data, url: lowUrl, index: index, quality: .low)
-                }
+            // Upload original quality only (backend handles quality conversion)
+            for (index, imageVariant) in preparedImages.enumerated() {
+                guard index < urls.count, let url = urls[index] else { continue }
+                addUploadTask(data: imageVariant.data, url: url, index: index, quality: .high)
             }
 
-            // Upload video components (for Live Photos) - extract just-in-time
-            if let livePhotoAssets = livePhotoAssets, let videoUrls = videoUrls {
-                for (index, assetRef) in livePhotoAssets.enumerated() {
-                    guard let assetRef = assetRef,
+            // Upload video components (for Live Photos and standalone videos) - use pre-transcoded videos
+            if let transcodedVideoUrls = transcodedVideoUrls, let videoUrls = videoUrls {
+                for (index, videoFileUrl) in transcodedVideoUrls.enumerated() {
+                    guard let videoFileUrl = videoFileUrl,
                           index < videoUrls.count,
-                          let videoUrl = videoUrls[index] else { continue }
+                          let uploadUrl = videoUrls[index] else { continue }
 
-                    addVideoUploadTask(asset: assetRef.asset, url: videoUrl, index: index)
+                    addVideoUploadTask(videoFileUrl: videoFileUrl, url: uploadUrl, index: index)
                 }
             }
         }
@@ -440,15 +412,19 @@ struct PhotoHelper {
             throw PhotoUploadError.invalidUrl
         }
 
-        // Get file size and calculate MD5 hash (streaming, no full load)
-        let base64MD5 = try calculateMD5(of: fileURL)
         let fileSize = try FileManager.default.attributesOfItem(atPath: fileURL.path)[.size] as? Int ?? 0
 
         var request = URLRequest(url: uploadUrl)
         request.httpMethod = "PUT"
-        request.setValue("video/quicktime", forHTTPHeaderField: "Content-Type")
+        request.setValue("video/mp4", forHTTPHeaderField: "Content-Type")
         request.setValue("\(fileSize)", forHTTPHeaderField: "Content-Length")
-        request.setValue(base64MD5, forHTTPHeaderField: "Content-MD5")
+        // Note: No Content-MD5 for videos - backend doesn't include it in presigned URL signature
+        request.setValue("AES256", forHTTPHeaderField: "x-amz-server-side-encryption")
+
+        print("📤 Video upload request:")
+        print("   Content-Type: video/mp4")
+        print("   Content-Length: \(fileSize)")
+        print("   File: \(fileURL.lastPathComponent)")
 
         // Stream upload from file (memory efficient)
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
@@ -464,8 +440,17 @@ struct PhotoHelper {
                     return
                 }
 
-                guard let httpResponse = response as? HTTPURLResponse,
-                      (200...299).contains(httpResponse.statusCode) else {
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    print("❌ Video upload: No HTTP response")
+                    continuation.resume(throwing: PhotoUploadError.uploadFailed)
+                    return
+                }
+
+                guard (200...299).contains(httpResponse.statusCode) else {
+                    print("❌ Video upload failed: HTTP \(httpResponse.statusCode)")
+                    if let data = data, let body = String(data: data, encoding: .utf8) {
+                        print("   Response body: \(body)")
+                    }
                     continuation.resume(throwing: PhotoUploadError.uploadFailed)
                     return
                 }
@@ -533,40 +518,22 @@ final class PhotoUploader: NSObject, URLSessionTaskDelegate {
     ) {
         Task.detached { [weak self] in
             guard let self else { return }
-            
-            let maxAttempts = 3
-            var delay: TimeInterval = 0.5
-            var lastError: Error?
-            
-            for attempt in 1...maxAttempts {
-                do {
-                    let timeout = Self.dynamicTimeout(for: data)
-                    
-                    try await self.withTimeout(seconds: timeout) {
-                        try await self.performSingleUpload(
-                            request: request,
-                            data: data,
-                            progressHandler: progressHandler
-                        )
-                    }
-                    
-                    completion(.success(()))          // ✅ success
-                    return
-                } catch {
-                    lastError = error
-                    print("⚠️ Upload attempt \(attempt) failed: \(error.localizedDescription)")
-                    
-                    guard attempt < maxAttempts else { break }
-                    
-                    let jitter = Double.random(in: 0.75...1.25)
-                    let sleepTime = delay * jitter
-                    print("⏳ Retrying upload attempt \(attempt + 1) in \(String(format: "%.2f", sleepTime)) seconds")
-                    try await Task.sleep(nanoseconds: UInt64(sleepTime * 1_000_000_000))
-                    delay *= 2
+
+            do {
+                let timeout = Self.dynamicTimeout(for: data)
+
+                try await self.withTimeout(seconds: timeout) {
+                    try await self.performSingleUpload(
+                        request: request,
+                        data: data,
+                        progressHandler: progressHandler
+                    )
                 }
+
+                completion(.success(()))
+            } catch {
+                completion(.failure(error))
             }
-            
-            completion(.failure(lastError ?? URLError(.timedOut)))
         }
     }
     
@@ -606,13 +573,19 @@ final class PhotoUploader: NSObject, URLSessionTaskDelegate {
             uploadTask = self.session.uploadTask(with: request, from: data) { [weak self] _, response, error in
                 let duration = Date().timeIntervalSince(startTime)
                 print("📊 Upload duration for task \(uploadTask.taskIdentifier): \(duration) seconds")
-                
+
                 if let error = error {
                     cont.resume(throwing: error)
-                } else if let http = response as? HTTPURLResponse,
-                          (200...299).contains(http.statusCode) {
-                    cont.resume(returning: ())
+                } else if let http = response as? HTTPURLResponse {
+                    if (200...299).contains(http.statusCode) {
+                        cont.resume(returning: ())
+                    } else {
+                        print("❌ S3 Upload failed with status code: \(http.statusCode)")
+                        print("❌ Response headers: \(http.allHeaderFields)")
+                        cont.resume(throwing: PhotoUploadError.uploadFailed)
+                    }
                 } else {
+                    print("❌ No HTTP response received")
                     cont.resume(throwing: PhotoUploadError.uploadFailed)
                 }
                 

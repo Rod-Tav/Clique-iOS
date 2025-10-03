@@ -38,12 +38,15 @@ enum CreateFlowDestination: Hashable {
     var livePhotoExtractionErrors: [String: Error] = [:]
     /// Prepared upload metadata
     var photoDatePairs: [Components.Schemas.PhotoVideoDate] = []
-    /// Prepared image variants for upload
-    var preparedImageVariants: [(high: PreparedImageVariant, med: PreparedImageVariant, low: PreparedImageVariant)] = []
+    /// Prepared image variants for upload (original quality only - backend handles quality conversion)
+    var preparedImageVariants: [PreparedImageVariant] = []
     /// Asset references for Live Photos (parallel to preparedImageVariants, nil for regular photos)
     /// Stores (assetId, asset) tuples to enable just-in-time video extraction during upload
     var livePhotoAssetReferences: [(assetId: String, asset: PHAsset)?] = []
-    
+    /// Pre-transcoded video URLs (parallel to preparedImageVariants, nil for regular photos)
+    /// Videos are transcoded during processing to get accurate file sizes for presigned URL generation
+    var transcodedVideoUrls: [URL?] = []
+
     var collectionToGoTo: ClCollection?
 
     /// Flag to coordinate photo processing between NewCollectionDetailsView and SelectedPhotosView.
@@ -101,7 +104,8 @@ enum CreateFlowDestination: Hashable {
                     "collection": collection,
                     "photoDatePairs": photoDatePairs,
                     "variants": preparedImageVariants,
-                    "livePhotoAssets": livePhotoAssetReferences
+                    "livePhotoAssets": livePhotoAssetReferences,
+                    "transcodedVideoUrls": transcodedVideoUrls
                 ]
             )
            
@@ -190,6 +194,7 @@ enum CreateFlowDestination: Hashable {
         photoDatePairs = []
         preparedImageVariants = []
         livePhotoAssetReferences = []
+        transcodedVideoUrls = []
 
         collectionToGoTo = nil
         shouldProcessAndUploadForNewCollection = false

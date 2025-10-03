@@ -44,6 +44,78 @@ struct LivePhotoHelper {
         return asset.mediaSubtypes.contains(.photoLive)
     }
 
+    // MARK: - Video Extraction (Pre-Processing)
+
+    /// Extracts and transcodes video from either a Live Photo or standalone video asset
+    /// - Parameter asset: PHAsset (either Live Photo or video)
+    /// - Returns: (mp4FileURL, metadata) - Pre-transcoded for upload
+    /// - Important: Call this during processing phase to get accurate file size before backend presigned URL request
+    static func extractAndTranscodeVideo(from asset: PHAsset) async throws -> (URL, VideoMetadata) {
+        let isLivePhoto = asset.mediaSubtypes.contains(.photoLive)
+        let isVideo = asset.mediaType == .video
+
+        guard isLivePhoto || isVideo else {
+            throw LivePhotoError.notALivePhoto
+        }
+
+        let resources = PHAssetResource.assetResources(for: asset)
+
+        // Find the video resource
+        let videoResource: PHAssetResource?
+        if isVideo {
+            videoResource = resources.first(where: { $0.type == .video })
+        } else {
+            videoResource = resources.first(where: { $0.type == .pairedVideo })
+        }
+
+        guard let videoResource = videoResource else {
+            throw LivePhotoError.noVideoComponent
+        }
+
+        return try await withCheckedThrowingContinuation { continuation in
+            // Create temporary file for video (will be transcoded to MP4)
+            let tempURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent(UUID().uuidString)
+                .appendingPathExtension("mov")
+
+            let options = PHAssetResourceRequestOptions()
+            options.isNetworkAccessAllowed = true
+
+            PHAssetResourceManager.default().writeData(
+                for: videoResource,
+                toFile: tempURL,
+                options: options
+            ) { error in
+                if let error = error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+
+                // Transcode MOV to MP4 for backend compatibility
+                Task {
+                    do {
+                        print("🎬 Transcoding \(isVideo ? "video" : "Live Photo video") to MP4...")
+                        let mp4URL = try await transcodeToMP4(from: tempURL)
+
+                        // Clean up original .mov file
+                        try? FileManager.default.removeItem(at: tempURL)
+
+                        // Extract metadata from MP4
+                        let metadata = try extractVideoMetadata(from: mp4URL)
+                        print("✅ Transcoded to MP4: \(metadata.fileSize) bytes")
+
+                        // Return MP4 URL for later upload
+                        continuation.resume(returning: (mp4URL, metadata))
+                    } catch {
+                        // Clean up both files on error
+                        try? FileManager.default.removeItem(at: tempURL)
+                        continuation.resume(throwing: error)
+                    }
+                }
+            }
+        }
+    }
+
     // MARK: - Extraction
 
     /// Extracts both still image and video components from a Live Photo asset
@@ -103,9 +175,9 @@ struct LivePhotoHelper {
         }
     }
 
-    /// Extracts the video component from a Live Photo to a temp file
-    /// - Returns: (tempFileURL, metadata) - Caller responsible for cleanup
-    /// - Important: Memory-efficient - does NOT load video into Data. Returns file URL for streaming.
+    /// Extracts and transcodes the video component from a Live Photo to MP4
+    /// - Returns: (mp4FileURL, metadata) - Caller responsible for cleanup
+    /// - Important: Memory-efficient - transcodes via file, not in-memory. Returns MP4 file URL for streaming.
     private static func extractVideo(from asset: PHAsset) async throws -> (URL, VideoMetadata) {
         // Request video resources for the Live Photo
         let resources = PHAssetResource.assetResources(for: asset)
@@ -134,18 +206,62 @@ struct LivePhotoHelper {
                     return
                 }
 
-                do {
-                    // Extract metadata only (no data loading - streaming upload will read from file)
-                    let metadata = try extractVideoMetadata(from: tempURL)
+                // Transcode MOV to MP4 for backend compatibility
+                Task {
+                    do {
+                        print("🎬 Transcoding video to MP4...")
+                        let mp4URL = try await transcodeToMP4(from: tempURL)
 
-                    // Return URL for streaming upload - DO NOT load into Data!
-                    continuation.resume(returning: (tempURL, metadata))
-                } catch {
-                    // Clean up temp file on error
-                    try? FileManager.default.removeItem(at: tempURL)
-                    continuation.resume(throwing: error)
+                        // Clean up original .mov file
+                        try? FileManager.default.removeItem(at: tempURL)
+
+                        // Extract metadata from MP4
+                        let metadata = try extractVideoMetadata(from: mp4URL)
+
+                        // Return MP4 URL for streaming upload
+                        continuation.resume(returning: (mp4URL, metadata))
+                    } catch {
+                        // Clean up both files on error
+                        try? FileManager.default.removeItem(at: tempURL)
+                        continuation.resume(throwing: error)
+                    }
                 }
             }
+        }
+    }
+
+    /// Transcodes a video file from MOV to MP4
+    /// - Parameter sourceURL: Source .mov file URL
+    /// - Returns: URL of transcoded .mp4 file
+    /// - Important: Caller must clean up both source and output files
+    private static func transcodeToMP4(from sourceURL: URL) async throws -> URL {
+        let outputURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("mp4")
+
+        let asset = AVURLAsset(url: sourceURL)
+
+        guard let exportSession = AVAssetExportSession(
+            asset: asset,
+            presetName: AVAssetExportPresetPassthrough  // Lossless, fast container conversion
+        ) else {
+            throw LivePhotoError.failedToTranscodeVideo
+        }
+
+        exportSession.outputURL = outputURL
+        exportSession.outputFileType = .mp4
+
+        await exportSession.export()
+
+        switch exportSession.status {
+        case .completed:
+            return outputURL
+        case .failed:
+            throw exportSession.error ?? LivePhotoError.failedToTranscodeVideo
+        case .cancelled:
+            throw LivePhotoError.transcodingCancelled
+        default:
+            throw LivePhotoError.failedToTranscodeVideo
         }
     }
 
@@ -256,6 +372,8 @@ enum LivePhotoError: LocalizedError {
     case failedToExtractStillImage
     case noVideoComponent
     case failedToExtractVideoMetadata
+    case failedToTranscodeVideo
+    case transcodingCancelled
 
     var errorDescription: String? {
         switch self {
@@ -267,6 +385,10 @@ enum LivePhotoError: LocalizedError {
             return "Live Photo does not have a video component"
         case .failedToExtractVideoMetadata:
             return "Failed to extract video metadata"
+        case .failedToTranscodeVideo:
+            return "Failed to transcode video to MP4"
+        case .transcodingCancelled:
+            return "Video transcoding was cancelled"
         }
     }
 }

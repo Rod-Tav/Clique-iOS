@@ -37,10 +37,11 @@ struct PhotoProcessingHelper {
         typealias ProcessResult = (
             index: Int,
             photoData: Components.Schemas.PhotoVideoDate?,
-            variants: (high: PreparedImageVariant, med: PreparedImageVariant, low: PreparedImageVariant)?,
-            assetReference: (assetId: String, asset: PHAsset)?,  // For just-in-time video extraction
+            variant: PreparedImageVariant?,
+            assetReference: (assetId: String, asset: PHAsset)?,  // For just-in-time video extraction (standalone videos only)
             assetIdentifier: String?,
-            extractionError: Error?
+            extractionError: Error?,
+            transcodedVideoUrl: URL?  // Pre-transcoded video URL (for Live Photos and videos)
         )
 
         await withTaskGroup(of: ProcessResult.self) { group in
@@ -54,28 +55,42 @@ struct PhotoProcessingHelper {
 
                     // Check if this is a Live Photo
                     let isLivePhoto = matchingAsset.map { livePhotoIdentifiers.contains($0.localIdentifier) } ?? false
+                    // Check if this is a standalone video
+                    let isVideo = matchingAsset?.mediaType == .video
 
-                    // For Live Photos, get video file size without loading data (memory efficient)
+                    // For Live Photos and standalone videos, extract and transcode video NOW (before backend call)
                     var videoFileSize: Int64?
-                    if isLivePhoto, let asset = matchingAsset {
-                        // Get video file size from PHAssetResource (lightweight, no data extraction)
-                        let resources = PHAssetResource.assetResources(for: asset)
-                        if let videoResource = resources.first(where: { $0.type == .pairedVideo }) {
-                            let unsignedSize = videoResource.value(forKey: "fileSize") as? Int ?? 0
-                            videoFileSize = Int64(unsignedSize)
-                            print("✅ Detected Live Photo video component (~\(videoFileSize ?? 0) bytes)")
+                    var transcodedVideoUrl: URL?
+                    var videoExtractionError: Error?
+
+                    if (isLivePhoto || isVideo), let asset = matchingAsset {
+                        do {
+                            // Extract and transcode video to MP4 to get accurate file size
+                            let (videoUrl, metadata) = try await LivePhotoHelper.extractAndTranscodeVideo(from: asset)
+                            videoFileSize = metadata.fileSize
+                            transcodedVideoUrl = videoUrl
+
+                            if isVideo {
+                                print("✅ Transcoded standalone video: \(videoFileSize ?? 0) bytes")
+                            } else {
+                                print("✅ Transcoded Live Photo video: \(videoFileSize ?? 0) bytes")
+                            }
+                        } catch {
+                            print("❌ Failed to extract/transcode video: \(error)")
+                            videoExtractionError = error
+                            // Continue with photo upload even if video fails
                         }
-                        // Note: Video data will be extracted just-in-time during upload to save memory
                     }
 
-                    if let (photoData, variants) = prepareUIImage(image) {
-                        // Prepare video metadata if this is a Live Photo (data extracted later)
+                    if let (photoData, variant) = prepareUIImage(image) {
+                        // Prepare video metadata if this is a Live Photo or standalone video
                         var videoDataNoPath: Components.Schemas.VideoDataNoPath?
-                        if isLivePhoto, let fileSize = videoFileSize {
-                            // Backend expects video metadata (data will be uploaded separately)
+                        if (isLivePhoto || isVideo), let fileSize = videoFileSize {
+                            // Backend validates and requires video/mp4 content type
+                            // Use actual transcoded MP4 file size (not original .mov size)
                             videoDataNoPath = Components.Schemas.VideoDataNoPath(
                                 baseVideo: Components.Schemas.UploadVideoParams(
-                                    contentType: "video/quicktime",
+                                    contentType: "video/mp4",
                                     contentLength: fileSize
                                 )
                             )
@@ -84,12 +99,12 @@ struct PhotoProcessingHelper {
                         let photoPair = Components.Schemas.PhotoVideoDate(
                             photo: photoData,
                             video: videoDataNoPath,
-                            mediaType: isLivePhoto ? .LIVE : .PHOTO,
+                            mediaType: isVideo ? .VIDEO : (isLivePhoto ? .LIVE : .PHOTO),
                             dateCreated: convertFromDate(date)
                         )
-                        // Return asset reference for Live Photos (for just-in-time video extraction)
+                        // Return asset reference (kept for backward compatibility, but video is already transcoded)
                         let assetRef: (assetId: String, asset: PHAsset)?
-                        if isLivePhoto, let asset = matchingAsset {
+                        if (isLivePhoto || isVideo), let asset = matchingAsset {
                             assetRef = (asset.localIdentifier, asset)
                         } else {
                             assetRef = nil
@@ -98,13 +113,14 @@ struct PhotoProcessingHelper {
                         return (
                             index,
                             photoPair,
-                            (high: variants.high, med: variants.medium, low: variants.low),
+                            variant,
                             assetRef,
                             matchingAsset?.localIdentifier,
-                            nil  // No extraction error at this point (extraction happens during upload)
+                            videoExtractionError,  // Track extraction errors
+                            transcodedVideoUrl     // Pre-transcoded video URL
                         )
                     }
-                    return (index, nil, nil, nil, matchingAsset?.localIdentifier, nil)
+                    return (index, nil, nil, nil, matchingAsset?.localIdentifier, nil, nil)
                 }
             }
 
@@ -120,11 +136,13 @@ struct PhotoProcessingHelper {
 
             // Append to viewModel in order
             for result in results {
-                if let photoData = result.photoData, let variants = result.variants {
+                if let photoData = result.photoData, let variant = result.variant {
                     viewModel.photoDatePairs.append(photoData)
-                    viewModel.preparedImageVariants.append(variants)
-                    // Store asset reference for just-in-time video extraction (memory efficient)
+                    viewModel.preparedImageVariants.append(variant)
+                    // Store asset reference (for backward compatibility)
                     viewModel.livePhotoAssetReferences.append(result.assetReference)
+                    // Store pre-transcoded video URL (critical for presigned URL signature matching)
+                    viewModel.transcodedVideoUrls.append(result.transcodedVideoUrl)
 
                     // Track extraction errors for user notification
                     if let error = result.extractionError, let assetId = result.assetIdentifier {

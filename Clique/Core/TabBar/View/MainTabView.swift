@@ -227,8 +227,9 @@ struct MainTabView: View {
             guard let collection = notification.userInfo?["collection"] as? ClCollection,
                   let makingNew = notification.userInfo?["makingNew"] as? Bool,
                   let photoDatePairs = notification.userInfo?["photoDatePairs"] as? [Components.Schemas.PhotoVideoDate],
-                  let variants  = notification.userInfo?["variants"] as? [(PreparedImageVariant, PreparedImageVariant, PreparedImageVariant)],
-                  let livePhotoAssets = notification.userInfo?["livePhotoAssets"] as? [(assetId: String, asset: PHAsset)?]
+                  let variants  = notification.userInfo?["variants"] as? [PreparedImageVariant],
+                  let livePhotoAssets = notification.userInfo?["livePhotoAssets"] as? [(assetId: String, asset: PHAsset)?],
+                  let transcodedVideoUrls = notification.userInfo?["transcodedVideoUrls"] as? [URL?]
             else { return }
 
             isUploading = true
@@ -241,6 +242,7 @@ struct MainTabView: View {
                         photoDatePairs: photoDatePairs,
                         preparedImages: variants,
                         livePhotoAssets: livePhotoAssets,
+                        transcodedVideoUrls: transcodedVideoUrls,
                         collection: collection,
                         collectionStore,
                         collectionImageStore
