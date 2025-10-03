@@ -71,9 +71,7 @@ struct CliqueButton: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(buttonColor ?? type.buttonColor)
-            .animation(.easeOut, value: buttonColor)
-            .clipShape(.capsule)
+            .glassButton(backgroundColor: buttonColor ?? type.buttonColor)
             .if(type == .tertiary) { view in
                 view
                     .overlay(
