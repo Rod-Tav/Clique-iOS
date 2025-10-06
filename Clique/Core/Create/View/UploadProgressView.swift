@@ -65,7 +65,7 @@ struct UploadProgressView: View {
                                 .foregroundStyle(Color.theme.shadesWhite95)
                         }
                     } else {
-                        Text("Uploading \(successfulFlicks / 3) / \(totalFlicks / 3)...")
+                        Text("Uploading \(successfulFlicks) / \(totalFlicks)...")
                             .foregroundStyle(Color.theme.shadesWhite95)
                             .font(.callout.bold())
                     }
@@ -101,6 +101,7 @@ struct UploadProgressView: View {
             }
         }
         .frame(height: 48)
+        .swipeDownToDismiss(isPresented: $showUploading)
     }
     
     private func navAction() {
