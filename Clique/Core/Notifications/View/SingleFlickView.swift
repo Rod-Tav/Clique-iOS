@@ -120,7 +120,7 @@ struct SingleFlickView: View {
     // MARK: Flick View
     private var flickView: some View {
         ZoomContainer {
-            CollectionDetailImageAsyncView(urls: flick.imageUrl, quality: .high)
+            CollectionDetailImageAsyncView(image: flick, quality: .high)
                 .doubleTapToLike(hasLiked: currentImage?.hasLiked ?? false, likeAnimation: $likeAnimation) {
                     handleLikeTapped()
                 }

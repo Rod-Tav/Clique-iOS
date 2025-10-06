@@ -106,7 +106,7 @@ struct FlicksFeedView: View {
                                idx + 1 < viewModel.items.count {
                                 let nextItem = viewModel.items[idx + 1]
                                 if let nextImage = collectionImageStore.images[nextItem.id] {
-                                    CollectionDetailImageAsyncView(urls: nextImage.imageUrl, quality: .high)
+                                    CollectionDetailImageAsyncView(image: nextImage, quality: .high)
                                         .opacity(0)
                                         .allowsHitTesting(false)
                                 }
@@ -581,7 +581,7 @@ struct FlicksFeedView: View {
     
     // MARK: Flick Image
     private func FlickImage(_ image: CollectionImage) -> some View {
-        CollectionDetailImageAsyncView(urls: image.imageUrl, quality: .high)
+        CollectionDetailImageAsyncView(image: image, quality: .high)
             .contentShape(.rect)
             .id(image.id)
             .pinchZoom()
