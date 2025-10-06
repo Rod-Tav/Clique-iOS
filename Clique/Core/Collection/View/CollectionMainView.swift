@@ -492,7 +492,7 @@ extension CollectionMainView {
     }
     
     @ViewBuilder private func ImageCell(_ image: CollectionImage) -> some View {
-        CollectionPreviewAsyncImage(urls: image.imageUrl, quality: .medium)
+        CollectionPreviewAsyncImage(urls: image.imageUrl, quality: .medium, isLivePhoto: image.isLivePhoto)
             .overlayCollectionPreviewStats(likes: image.numLikes, comments: image.numComments, hasLiked: image.hasLiked)
             .id(image.id)
             .heroSource(urls: image.imageUrl) {

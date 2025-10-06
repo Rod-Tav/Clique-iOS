@@ -13,7 +13,8 @@ struct CollectionBottomCarouselAsyncView: View {
     let width: CGFloat
     let height: CGFloat
     let quality: ImageQuality
-    
+    let isLivePhoto: Bool
+
     var body: some View {
         GenericAsyncImage(urls: urls, quality: quality, performanceMode: true) { image in
             image
@@ -26,6 +27,13 @@ struct CollectionBottomCarouselAsyncView: View {
                 .fill(.gray)
                 .frame(width: width, height: height)
                 .roundCorners(8)
+        }
+        .overlay(alignment: .topLeading) {
+            if isLivePhoto {
+                LivePhotoBadge(showText: false)
+                    .padding(2)
+                    .scaleEffect(0.7)  // Smaller badge for carousel thumbnails
+            }
         }
     }
 }

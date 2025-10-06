@@ -11,6 +11,7 @@ import Kingfisher
 struct CollectionPreviewAsyncImage: View {
     let urls: PhotoUrls?
     let quality: ImageQuality
+    let isLivePhoto: Bool
 
     var body: some View {
         GenericAsyncImage(urls: urls, quality: quality, shouldFixSize: false, performanceMode: true) { image in
@@ -22,6 +23,12 @@ struct CollectionPreviewAsyncImage: View {
         } placeholder: {
             Rectangle()
                 .fill(.gray)
+        }
+        .overlay(alignment: .topLeading) {
+            if isLivePhoto {
+                LivePhotoBadge()
+                    .padding(4)
+            }
         }
     }
 }

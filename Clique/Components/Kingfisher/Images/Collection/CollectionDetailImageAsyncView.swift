@@ -9,24 +9,37 @@ import SwiftUI
 import Kingfisher
 
 struct CollectionDetailImageAsyncView: View {
-    let urls: PhotoUrls?
+    let image: CollectionImage
     let quality: ImageQuality
-    
-    var body: some View {
-        GenericAsyncImage(urls: urls, quality: quality) { image in
-            image
-                .contentConfigure { image in
-                    image
-                        .resizable()
-                        .scaledToFit()
-                        .frameRatio(width: UIScreen.width, ratio: Constants.portraitPostRatio)
-                        .clipped()
-                }
 
-        } placeholder: {
-            Rectangle()
-                .fill(.gray)
-                .frameRatio(width: UIScreen.width, ratio: Constants.portraitPostRatio)
+    var body: some View {
+        if image.isLivePhoto {
+            // Live Photo with native-like playback
+            NetworkLivePhotoPlayerView(
+                imageUrl: image.imageUrl,
+                videoUrl: image.videoUrls,
+                quality: quality
+            )
+            .overlay(alignment: .topLeading) {
+                LivePhotoBadge()
+                    .padding(8)
+            }
+        } else {
+            // Regular static image
+            GenericAsyncImage(urls: image.imageUrl, quality: quality) { image in
+                image
+                    .contentConfigure { image in
+                        image
+                            .resizable()
+                            .scaledToFit()
+                            .frameRatio(width: UIScreen.width, ratio: Constants.portraitPostRatio)
+                            .clipped()
+                    }
+            } placeholder: {
+                Rectangle()
+                    .fill(.gray)
+                    .frameRatio(width: UIScreen.width, ratio: Constants.portraitPostRatio)
+            }
         }
     }
 }

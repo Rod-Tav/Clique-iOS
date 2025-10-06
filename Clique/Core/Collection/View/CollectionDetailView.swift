@@ -270,7 +270,7 @@ extension CollectionDetailView {
                                 .font(.callout.bold())
                             
                             if !fromGallery {
-                                IconImage("chevron-right", color: .theme.iconPrimary, size: 16)
+                                IconImage("chevron-right", color: .theme.white, size: 16)
                             }
                         }
                     }
@@ -298,7 +298,7 @@ extension CollectionDetailView {
             //        let screenWidth = UIScreen.width
             ZStack {
                 /// hero close
-                CollectionDetailImageAsyncView(urls: selectedImage.imageUrl, quality: .high)
+                CollectionDetailImageAsyncView(image: selectedImage, quality: .high)
                     .contentShape(.rect)
                     .opacity(dismissing ? 1 : 0)
                 
@@ -433,7 +433,7 @@ extension CollectionDetailView {
     }
     
     @ViewBuilder private func ImageDetailCell(_ image: CollectionImage) -> some View {
-        CollectionDetailImageAsyncView(urls: image.imageUrl, quality: .high)
+        CollectionDetailImageAsyncView(image: image, quality: .high)
             .contentShape(.rect)
             .id(image.id)
             .pinchZoom()
@@ -560,7 +560,7 @@ extension CollectionDetailView {
     
     @ViewBuilder private func BottomCarouselCell(_ image: CollectionImage, width: CGFloat, height: CGFloat) -> some View {
         if let selectedImage {
-            CollectionBottomCarouselAsyncView(urls: image.imageUrl, width: width, height: height, quality: .low)
+            CollectionBottomCarouselAsyncView(urls: image.imageUrl, width: width, height: height, quality: .low, isLivePhoto: image.isLivePhoto)
             
             // TODO: rework
                 .if(heroCoordinator.showDetailView) { view in
