@@ -48,15 +48,15 @@ struct MediaUrls: Codable, Hashable, Sendable {
         validUrls.first
     }
 
-    /// Get URL for specific quality with fallback
+    /// Get URL for specific quality with fallback down to lower qualities
     func url(for quality: ImageQuality) -> URL? {
         switch quality {
         case .high:
             return validUrls.first
         case .medium:
-            return URL(string: medQualityUrl ?? "") ?? validUrls.first
+            return URL(string: medQualityUrl ?? "") ?? URL(string: lowQualityUrl ?? "")
         case .low:
-            return URL(string: lowQualityUrl ?? "") ?? URL(string: medQualityUrl ?? "") ?? validUrls.first
+            return URL(string: lowQualityUrl ?? "")
         }
     }
 
