@@ -42,31 +42,23 @@ import SwiftUI
             banner: preparedBanner?.photoData   // Metadata only
         ))))
         
-        // ✅ Step 4: Upload profile pic variants if provided
-        if let profilePicUrls = editedClique.cliquePic, let imageVariants = preparedPfp?.imageVariants {
-            async let highUpload: () = PhotoHelper.uploadImageData(imageVariants.high.data, to: profilePicUrls.highQualityUrl)
-            async let medUpload: () = PhotoHelper.uploadImageData(imageVariants.medium.data, to: profilePicUrls.medQualityUrl)
-            async let lowUpload: () = PhotoHelper.uploadImageData(imageVariants.low.data, to: profilePicUrls.lowQualityUrl)
-            
+        // ✅ Step 4: Upload profile pic if provided (original quality - backend handles conversion)
+        if let profilePicUrl = editedClique.cliquePic?.url, let imageVariant = preparedPfp?.imageVariant {
             do {
-                _ = try await (highUpload, medUpload, lowUpload)
-                print("🎉 All clique profile pic variants uploaded")
+                try await PhotoHelper.uploadImageData(imageVariant.data, to: profilePicUrl)
+                print("🎉 Clique profile pic uploaded")
             } catch {
-                print("❌ Failed to upload one or more clique profile pic variants: \(error.localizedDescription)")
+                print("❌ Failed to upload clique profile pic: \(error.localizedDescription)")
             }
         }
-        
-        // ✅ Step 5: Upload banner variants if provided
-        if let bannerUrls = editedClique.cliqueBanner, let bannerVariants = preparedBanner?.imageVariants {
-            async let highUpload: () = PhotoHelper.uploadImageData(bannerVariants.high.data, to: bannerUrls.highQualityUrl)
-            async let medUpload: () = PhotoHelper.uploadImageData(bannerVariants.medium.data, to: bannerUrls.medQualityUrl)
-            async let lowUpload: () = PhotoHelper.uploadImageData(bannerVariants.low.data, to: bannerUrls.lowQualityUrl)
-            
+
+        // ✅ Step 5: Upload banner if provided (original quality - backend handles conversion)
+        if let bannerUrl = editedClique.cliqueBanner?.url, let bannerVariant = preparedBanner?.imageVariant {
             do {
-                _ = try await (highUpload, medUpload, lowUpload)
-                print("🎉 All clique banner variants uploaded")
+                try await PhotoHelper.uploadImageData(bannerVariant.data, to: bannerUrl)
+                print("🎉 Clique banner uploaded")
             } catch {
-                print("❌ Failed to upload one or more clique banner variants: \(error.localizedDescription)")
+                print("❌ Failed to upload clique banner: \(error.localizedDescription)")
             }
         }
         

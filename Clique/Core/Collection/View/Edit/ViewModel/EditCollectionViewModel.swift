@@ -41,20 +41,16 @@ import SwiftUI
             )))
         )
         
-        if let coverPhoto, let urls = updatedCollection.coverPhoto {
+        if let coverPhoto, let url = updatedCollection.coverPhoto?.url {
             guard let preparedCoverPhoto = prepareUIImage(coverPhoto) else { return updatedCollection }
-            
-            async let highUpload: () = PhotoHelper.uploadImageData(preparedCoverPhoto.imageVariants.high.data, to: urls.highQualityUrl)
-            async let medUpload: () = PhotoHelper.uploadImageData(preparedCoverPhoto.imageVariants.medium.data, to: urls.medQualityUrl)
-            async let lowUpload: () = PhotoHelper.uploadImageData(preparedCoverPhoto.imageVariants.low.data, to: urls.lowQualityUrl)
-            
+
             do {
-                _ = try await (highUpload, medUpload, lowUpload)
-                print("🎉 All profile pic variants uploaded")
+                try await PhotoHelper.uploadImageData(preparedCoverPhoto.imageVariant.data, to: url)
+                print("🎉 Cover photo uploaded")
             } catch {
-                print("❌ Failed to upload one or more profile pic variants: \(error.localizedDescription)")
+                print("❌ Failed to upload cover photo: \(error.localizedDescription)")
             }
-            
+
             return try await CollectionService.getCollectionById(.init(path: .init(collectionDataId: updatedCollection.id), query: .init(page: 0, size: 1)))
         }
         
