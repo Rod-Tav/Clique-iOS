@@ -64,6 +64,7 @@ struct PhotoProcessingHelper {
                     var videoExtractionError: Error?
 
                     if (isLivePhoto || isVideo), let asset = matchingAsset {
+                        print("🎥 Processing \(isVideo ? "standalone video" : "Live Photo") - Asset ID: \(asset.localIdentifier)")
                         do {
                             // Extract and transcode video to MP4 to get accurate file size
                             let (videoUrl, metadata) = try await LivePhotoHelper.extractAndTranscodeVideo(from: asset)
@@ -71,12 +72,14 @@ struct PhotoProcessingHelper {
                             transcodedVideoUrl = videoUrl
 
                             if isVideo {
-                                print("✅ Transcoded standalone video: \(videoFileSize ?? 0) bytes")
+                                print("✅ Transcoded standalone video: \(videoFileSize ?? 0) bytes, URL: \(videoUrl)")
                             } else {
-                                print("✅ Transcoded Live Photo video: \(videoFileSize ?? 0) bytes")
+                                print("✅ Transcoded Live Photo video: \(videoFileSize ?? 0) bytes, URL: \(videoUrl)")
                             }
                         } catch {
-                            print("❌ Failed to extract/transcode video: \(error)")
+                            print("❌ Failed to extract/transcode \(isVideo ? "video" : "Live Photo"): \(error)")
+                            print("   Asset ID: \(asset.localIdentifier)")
+                            print("   Will fall back to PHOTO mode")
                             videoExtractionError = error
                             // Continue with photo upload even if video fails
                         }
@@ -94,14 +97,43 @@ struct PhotoProcessingHelper {
                                     contentLength: fileSize
                                 )
                             )
+                            print("📦 Created video metadata - Type: \(isVideo ? "VIDEO" : "LIVE"), Size: \(fileSize) bytes")
+                        } else if isLivePhoto || isVideo {
+                            print("⚠️ Skipping video metadata - extraction failed or fileSize is nil")
+                            print("   isVideo: \(isVideo), isLivePhoto: \(isLivePhoto), videoFileSize: \(String(describing: videoFileSize))")
+                        }
+
+                        // Determine media type based on what data we actually have
+                        let finalMediaType: Components.Schemas.MediaType
+                        if isVideo {
+                            if videoDataNoPath != nil {
+                                finalMediaType = .VIDEO
+                                print("📸 Media type: VIDEO (with video data)")
+                            } else {
+                                finalMediaType = .PHOTO
+                                print("⚠️ Media type: PHOTO (video extraction failed for standalone video)")
+                            }
+                        } else if isLivePhoto {
+                            if videoDataNoPath != nil {
+                                finalMediaType = .LIVE
+                                print("📸 Media type: LIVE (with video data)")
+                            } else {
+                                finalMediaType = .PHOTO
+                                print("⚠️ Media type: PHOTO (video extraction failed for Live Photo)")
+                            }
+                        } else {
+                            finalMediaType = .PHOTO
+                            print("📸 Media type: PHOTO (regular photo)")
                         }
 
                         let photoPair = Components.Schemas.PhotoVideoDate(
                             photo: photoData,
                             video: videoDataNoPath,
-                            mediaType: isVideo ? .VIDEO : (isLivePhoto ? .LIVE : .PHOTO),
+                            mediaType: finalMediaType,
                             dateCreated: convertFromDate(date)
                         )
+
+                        print("✅ Created PhotoVideoDate - mediaType: \(finalMediaType.rawValue), hasVideo: \(videoDataNoPath != nil)")
                         // Return asset reference (kept for backward compatibility, but video is already transcoded)
                         let assetRef: (assetId: String, asset: PHAsset)?
                         if (isLivePhoto || isVideo), let asset = matchingAsset {

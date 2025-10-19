@@ -31,7 +31,7 @@ struct UploadProgressView: View {
         ZStack(alignment: .topLeading) {
             Button {
                 guard showNav else { return }
-                print("nav action")
+                print("✅ Button tapped, showNav: \(showNav)")
                 navAction()
             } label: {
                 RoundedRectangle(cornerRadius: 8)
@@ -39,7 +39,7 @@ struct UploadProgressView: View {
                     .contentShape(.rect)
             }
             .disabled(!showNav)
-            
+
             VStack(alignment: .leading) {
                 HStack {
                     if showNav {
@@ -89,9 +89,9 @@ struct UploadProgressView: View {
                     }
                 }
                 .padding(8)
-                
+
                 Spacer()
-                
+
                 if !showNav {
                     Capsule()
                         .fill(Color.theme.cliquePink)
@@ -105,18 +105,31 @@ struct UploadProgressView: View {
     }
     
     private func navAction() {
-        guard !tapped else { return }
-        
+        guard !tapped else {
+            print("⚠️ navAction blocked: already tapped")
+            return
+        }
+
         tapped = true
-        
+        print("📍 navAction called, fetching collection: \(collectionId)")
+
         Task {
-            if let collectionToNav = try? await CollectionService.getCollectionById(.init(path: .init(collectionDataId: collectionId), query: .init(page: 0, size: 1))) {
-                
+            do {
+                let collectionToNav = try await CollectionService.getCollectionById(.init(
+                    path: .init(collectionDataId: collectionId),
+                    query: .init(page: 0, size: 1)
+                ))
+
+                print("✅ Got collection: \(collectionToNav.name)")
+
                 collectionStore.updateCollection(collectionToNav, collectionImageStore)
-                
                 tabViewCoordinator.navigate(to: collectionToNav)
-                
                 showUploading = false
+
+                print("✅ Navigation completed")
+            } catch {
+                print("❌ Navigation failed: \(error)")
+                tapped = false // Reset on error to allow retry
             }
         }
     }

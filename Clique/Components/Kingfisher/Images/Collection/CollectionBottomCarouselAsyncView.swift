@@ -14,6 +14,7 @@ struct CollectionBottomCarouselAsyncView: View {
     let height: CGFloat
     let quality: ImageQuality
     let isLivePhoto: Bool
+    let isVideo: Bool
 
     var body: some View {
         GenericAsyncImage(urls: urls, quality: quality, performanceMode: true) { image in
@@ -31,6 +32,10 @@ struct CollectionBottomCarouselAsyncView: View {
         .overlay(alignment: .topLeading) {
             if isLivePhoto {
                 LivePhotoBadge(showText: false)
+                    .padding(2)
+                    .scaleEffect(0.7)  // Smaller badge for carousel thumbnails
+            } else if isVideo {
+                VideoBadge(showText: false)
                     .padding(2)
                     .scaleEffect(0.7)  // Smaller badge for carousel thumbnails
             }

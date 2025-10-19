@@ -560,7 +560,7 @@ extension CollectionDetailView {
     
     @ViewBuilder private func BottomCarouselCell(_ image: CollectionImage, width: CGFloat, height: CGFloat) -> some View {
         if let selectedImage {
-            CollectionBottomCarouselAsyncView(urls: image.imageUrl, width: width, height: height, quality: .low, isLivePhoto: image.isLivePhoto)
+            CollectionBottomCarouselAsyncView(urls: image.imageUrl, width: width, height: height, quality: .low, isLivePhoto: image.isLivePhoto, isVideo: image.isVideo)
             
             // TODO: rework
                 .if(heroCoordinator.showDetailView) { view in

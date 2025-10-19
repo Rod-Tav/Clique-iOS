@@ -60,6 +60,29 @@ struct MediaUrls: Codable, Hashable, Sendable {
         }
     }
 
+    /// Get URL specifically for videos - prioritizes backend-processed versions over original upload
+    ///
+    /// Unlike `url(for:)` which prioritizes the original upload, this method prioritizes
+    /// backend-processed versions (720p/360p) which have proper streaming optimization
+    /// via ffmpeg's `-movflags +faststart`. This ensures videos play correctly in AVPlayer.
+    ///
+    /// - Parameter quality: The desired quality level
+    /// - Returns: URL prioritizing backend-processed (medium/low) over original
+    func videoUrl(for quality: ImageQuality) -> URL? {
+        switch quality {
+        case .high:
+            // For videos: backend-processed medium > low > original
+            // Backend creates 720p/360p with proper streaming flags
+            return URL(string: medQualityUrl ?? "")
+                ?? URL(string: lowQualityUrl ?? "")
+                ?? URL(string: url ?? "")
+        case .medium:
+            return URL(string: medQualityUrl ?? "") ?? URL(string: lowQualityUrl ?? "")
+        case .low:
+            return URL(string: lowQualityUrl ?? "")
+        }
+    }
+
     /// Legacy property for backward compatibility
     var highQualityUrl: String? {
         get { url }

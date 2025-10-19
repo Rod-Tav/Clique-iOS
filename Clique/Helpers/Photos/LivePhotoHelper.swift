@@ -91,20 +91,20 @@ struct LivePhotoHelper {
                     return
                 }
 
-                // Transcode MOV to MP4 for backend compatibility
+                // Prepare video for backend (rename to .mp4, backend's ffmpeg handles MOV)
                 Task {
                     do {
-                        print("🎬 Transcoding \(isVideo ? "video" : "Live Photo video") to MP4...")
+                        print("📦 Preparing \(isVideo ? "video" : "Live Photo video") for upload...")
                         let mp4URL = try await transcodeToMP4(from: tempURL)
 
                         // Clean up original .mov file
                         try? FileManager.default.removeItem(at: tempURL)
 
-                        // Extract metadata from MP4
+                        // Extract metadata
                         let metadata = try extractVideoMetadata(from: mp4URL)
-                        print("✅ Transcoded to MP4: \(metadata.fileSize) bytes")
+                        print("✅ Video ready for upload: \(metadata.fileSize) bytes")
 
-                        // Return MP4 URL for later upload
+                        // Return prepared video URL for upload
                         continuation.resume(returning: (mp4URL, metadata))
                     } catch {
                         // Clean up both files on error
@@ -206,19 +206,19 @@ struct LivePhotoHelper {
                     return
                 }
 
-                // Transcode MOV to MP4 for backend compatibility
+                // Prepare video for backend (rename to .mp4, backend's ffmpeg handles MOV)
                 Task {
                     do {
-                        print("🎬 Transcoding video to MP4...")
+                        print("📦 Preparing Live Photo video for upload...")
                         let mp4URL = try await transcodeToMP4(from: tempURL)
 
                         // Clean up original .mov file
                         try? FileManager.default.removeItem(at: tempURL)
 
-                        // Extract metadata from MP4
+                        // Extract metadata
                         let metadata = try extractVideoMetadata(from: mp4URL)
 
-                        // Return MP4 URL for streaming upload
+                        // Return prepared video URL for upload
                         continuation.resume(returning: (mp4URL, metadata))
                     } catch {
                         // Clean up both files on error
@@ -230,39 +230,30 @@ struct LivePhotoHelper {
         }
     }
 
-    /// Transcodes a video file from MOV to MP4
+    /// "Transcodes" a video file by simply renaming MOV to MP4
+    ///
+    /// **IMPORTANT**: This doesn't actually transcode - it just renames the file.
+    /// The backend receives the raw MOV file with content-type "video/mp4", but ffmpeg
+    /// doesn't care about the extension and will process MOV files correctly.
+    ///
+    /// This bypasses the broken AVAssetExportSession transcoding which created
+    /// MP4 files that wouldn't play in AVPlayer.
+    ///
     /// - Parameter sourceURL: Source .mov file URL
-    /// - Returns: URL of transcoded .mp4 file
+    /// - Returns: URL of "transcoded" .mp4 file (actually just renamed MOV)
     /// - Important: Caller must clean up both source and output files
     private static func transcodeToMP4(from sourceURL: URL) async throws -> URL {
         let outputURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
             .appendingPathExtension("mp4")
 
-        let asset = AVURLAsset(url: sourceURL)
+        // Just copy the MOV file and change extension to .mp4
+        // Backend's ffmpeg will process it correctly regardless of extension
+        try FileManager.default.copyItem(at: sourceURL, to: outputURL)
 
-        guard let exportSession = AVAssetExportSession(
-            asset: asset,
-            presetName: AVAssetExportPresetPassthrough  // Lossless, fast container conversion
-        ) else {
-            throw LivePhotoError.failedToTranscodeVideo
-        }
+        print("✅ Prepared video for upload (MOV → MP4 rename): \(outputURL.lastPathComponent)")
 
-        exportSession.outputURL = outputURL
-        exportSession.outputFileType = .mp4
-
-        await exportSession.export()
-
-        switch exportSession.status {
-        case .completed:
-            return outputURL
-        case .failed:
-            throw exportSession.error ?? LivePhotoError.failedToTranscodeVideo
-        case .cancelled:
-            throw LivePhotoError.transcodingCancelled
-        default:
-            throw LivePhotoError.failedToTranscodeVideo
-        }
+        return outputURL
     }
 
     /// Extracts metadata from a video file

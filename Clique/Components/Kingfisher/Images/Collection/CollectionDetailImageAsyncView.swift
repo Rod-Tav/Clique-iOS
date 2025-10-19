@@ -24,6 +24,17 @@ struct CollectionDetailImageAsyncView: View {
                 LivePhotoBadge()
                     .padding(8)
             }
+        } else if image.isVideo {
+            // Standalone video with auto-play
+            NetworkVideoPlayerView(
+                thumbnailUrl: image.imageUrl,
+                videoUrl: image.videoUrls,
+                quality: quality
+            )
+            .overlay(alignment: .topLeading) {
+                VideoBadge()
+                    .padding(8)
+            }
         } else {
             // Regular static image
             GenericAsyncImage(urls: image.imageUrl, quality: quality) { image in

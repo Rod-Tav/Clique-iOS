@@ -185,7 +185,7 @@ struct MainTabView: View {
                             successfulFlicks: viewModel.successfulImages,
                             failedFlicks: viewModel.retryImages?.count ?? 0,
                             showUploading: $showUploading,
-                            showNav: !isUploading,
+                            showNav: !isUploading && !viewModel.collectionId.isEmpty,
                             showRetry: viewModel.uploadFailed,
                             retryAction: {
                                 isUploading = true

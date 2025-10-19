@@ -60,7 +60,18 @@ import Photos
         } else {
             collectionId = collection.id
         }
-     
+
+        // Log what we're sending to backend
+        print("📤 Sending to backend:")
+        print("   Collection ID: \(collectionId)")
+        print("   Total items: \(photoDatePairs.count)")
+        for (index, pair) in photoDatePairs.enumerated() {
+            print("   [\(index)] mediaType: \(pair.mediaType?.rawValue ?? "nil"), hasPhoto: \(pair.photo != nil), hasVideo: \(pair.video != nil)")
+            if let video = pair.video, let baseVideo = video.baseVideo {
+                print("       Video - contentType: \(baseVideo.contentType ?? "nil"), size: \(baseVideo.contentLength ?? 0)")
+            }
+        }
+
         let collectionWithPutLinks = try await CollectionService.uploadPhotosToCollection(
             .init(body: .json(.init(collectionId: collectionId, photos: photoDatePairs)))
         )

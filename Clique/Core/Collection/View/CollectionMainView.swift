@@ -157,6 +157,10 @@ struct CollectionMainView: View {
             .onAppear {
                 guard let collection else { return }
                 Task {
+                    // TEMPORARY: Clear video cache on appear for testing
+                    // This ensures we're always downloading fresh backend-processed videos
+                    await VideoCache.shared.clearCache()
+
                     do {
                         try await viewModel.fetchClique(cid: collection.cliqueId, cliqueStore)
                     } catch {
@@ -492,7 +496,7 @@ extension CollectionMainView {
     }
     
     @ViewBuilder private func ImageCell(_ image: CollectionImage) -> some View {
-        CollectionPreviewAsyncImage(urls: image.imageUrl, quality: .medium, isLivePhoto: image.isLivePhoto)
+        CollectionPreviewAsyncImage(urls: image.imageUrl, quality: .medium, isLivePhoto: image.isLivePhoto, isVideo: image.isVideo)
             .overlayCollectionPreviewStats(likes: image.numLikes, comments: image.numComments, hasLiked: image.hasLiked)
             .id(image.id)
             .heroSource(urls: image.imageUrl) {
