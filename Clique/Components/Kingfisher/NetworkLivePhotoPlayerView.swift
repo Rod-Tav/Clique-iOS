@@ -68,15 +68,13 @@ struct NetworkLivePhotoPlayerView: View {
                             image
                                 .resizable()
                                 .scaledToFill()
-                                .aspectRatio(1, contentMode: .fill)
-                                .frame(width: width)
+                                .frame(width: width, height: width)
                                 .clipped()
                         }
                 } placeholder: {
                     Rectangle()
                         .fill(.gray)
-                        .aspectRatio(1, contentMode: .fill)
-                        .frame(width: width)
+                        .frame(width: width, height: width)
                 }
             } else {
                 // Portrait format for detail views
@@ -101,8 +99,7 @@ struct NetworkLivePhotoPlayerView: View {
                 VideoPlayerView(player: player, shouldFill: width != nil)
                     .if(width != nil) { view in
                         view
-                            .aspectRatio(1, contentMode: .fill)
-                            .frame(width: width!)
+                            .frame(width: width!, height: width!)
                             .clipped()
                     }
                     .opacity(videoOpacity)

@@ -189,8 +189,10 @@ extension CollectionFeedCellView {
                         }
                     }
                     .padding(.top, -16)
+                    .padding(.horizontal, 16)
             } else if imagesPgVM.items.isEmpty {
                 LoadingStateView()
+                    .padding(.horizontal, 16)
             } else {
                 // lazy hstack doesn't load images behind because of offset stuff
                 // adding content margins loads the second image behind but messes up when swiping
@@ -223,6 +225,7 @@ extension CollectionFeedCellView {
                     .scrollTargetBehavior(.viewAligned)
                     .scrollIndicators(.hidden)
                     .padding(.vertical, -32)
+                    .padding(.horizontal, 16)
                     // results in black screen idk man
 //                    .onChange(of: clCoordinator.selectedImageId) { _, newValue in
 //                        scrollPosition = newValue

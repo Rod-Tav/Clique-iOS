@@ -61,8 +61,7 @@ struct NetworkVideoPlayerView: View {
                     if let width = width {
                         // Square format for feed cells
                         AVPlayerViewControllerWrapper(player: player)
-                            .aspectRatio(1, contentMode: .fill)
-                            .frame(width: width)
+                            .frame(width: width, height: width)
                             .clipped()
                             .onAppear {
                                 configureAudioSession()
@@ -81,8 +80,7 @@ struct NetworkVideoPlayerView: View {
                     // Controlless mode (feed cells)
                     if let width = width {
                         VideoPlayerView(player: player, shouldFill: true)
-                            .aspectRatio(1, contentMode: .fill)
-                            .frame(width: width)
+                            .frame(width: width, height: width)
                             .clipped()
                             .onAppear {
                                 configureAudioSession()
@@ -107,15 +105,13 @@ struct NetworkVideoPlayerView: View {
                                 image
                                     .resizable()
                                     .scaledToFill()
-                                    .aspectRatio(1, contentMode: .fill)
-                                    .frame(width: width)
+                                    .frame(width: width, height: width)
                                     .clipped()
                             }
                     } placeholder: {
                         Rectangle()
                             .fill(.gray)
-                            .aspectRatio(1, contentMode: .fill)
-                            .frame(width: width)
+                            .frame(width: width, height: width)
                     }
                 } else {
                     // Portrait format for detail views
