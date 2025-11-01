@@ -19,6 +19,7 @@ struct CollectionImage: Identifiable, Hashable, Codable {
     // VIDEO component (present for LIVE and VIDEO types)
     var videoUrls: MediaUrls? = nil
     var videoId: String? = nil
+    var videoDuration: TimeInterval? = nil
 
     // Media type indicator
     var mediaType: MediaType = .PHOTO
@@ -28,6 +29,11 @@ struct CollectionImage: Identifiable, Hashable, Codable {
     var numComments: Int = 0
     var numTaggedMembers: Int = 0
     var hasLiked: Bool = false
+
+    // Timezone offset cached from video metadata (not persisted, runtime only)
+    // Format: "-0400", "+0530", etc.
+    // This is extracted from video file metadata to display dates in original timezone
+    var cachedTimezoneOffset: String? = nil
 
     // Computed properties
     var isLivePhoto: Bool {
@@ -45,9 +51,9 @@ struct CollectionImage: Identifiable, Hashable, Codable {
 
 extension CollectionImage {
     enum CodingKeys: String, CodingKey {
-        case id, owner, imageUrl, videoUrls, videoId, mediaType
+        case id, owner, imageUrl, videoUrls, videoId, videoDuration, mediaType
         case date, numLikes, numComments, numTaggedMembers, hasLiked
-        // intentionally exclude `uiImage`
+        // intentionally exclude `uiImage` and `cachedTimezoneOffset` (runtime only)
     }
 }
 

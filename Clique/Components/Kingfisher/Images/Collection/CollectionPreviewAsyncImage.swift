@@ -25,14 +25,5 @@ struct CollectionPreviewAsyncImage: View {
             Rectangle()
                 .fill(.gray)
         }
-        .overlay(alignment: .topLeading) {
-            if isLivePhoto {
-                LivePhotoBadge()
-                    .padding(4)
-            } else if isVideo {
-                VideoBadge()
-                    .padding(4)
-            }
-        }
     }
 }

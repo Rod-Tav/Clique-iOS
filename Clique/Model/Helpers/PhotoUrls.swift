@@ -60,26 +60,62 @@ struct MediaUrls: Codable, Hashable, Sendable {
         }
     }
 
-    /// Get URL specifically for videos - prioritizes backend-processed versions over original upload
+    /// Get URL for videos with network-adaptive quality selection
     ///
-    /// Unlike `url(for:)` which prioritizes the original upload, this method prioritizes
-    /// backend-processed versions (720p/360p) which have proper streaming optimization
-    /// via ffmpeg's `-movflags +faststart`. This ensures videos play correctly in AVPlayer.
+    /// Automatically adjusts quality based on network connection:
+    /// - **WiFi/Ethernet**: Prioritizes quality (original → med → low)
+    /// - **Cellular**: Prioritizes data savings (med → low → original)
     ///
     /// - Parameter quality: The desired quality level
-    /// - Returns: URL prioritizing backend-processed (medium/low) over original
+    /// - Returns: URL with network-adaptive fallback logic
     func videoUrl(for quality: ImageQuality) -> URL? {
+        let networkMonitor = NetworkMonitor.shared
+        let prefersHighQuality = networkMonitor.connectionType.prefersHighQuality
+
         switch quality {
         case .high:
-            // For videos: backend-processed medium > low > original
-            // Backend creates 720p/360p with proper streaming flags
+            if prefersHighQuality {
+                // WiFi: Try original first (best quality)
+                return URL(string: url ?? "")
+                    ?? URL(string: medQualityUrl ?? "")
+                    ?? URL(string: lowQualityUrl ?? "")
+            } else {
+                // Cellular: Try processed version first (data savings)
+                return URL(string: medQualityUrl ?? "")
+                    ?? URL(string: lowQualityUrl ?? "")
+                    ?? URL(string: url ?? "")
+            }
+        case .medium:
+            // Always prefer med quality for medium request
             return URL(string: medQualityUrl ?? "")
                 ?? URL(string: lowQualityUrl ?? "")
                 ?? URL(string: url ?? "")
-        case .medium:
-            return URL(string: medQualityUrl ?? "") ?? URL(string: lowQualityUrl ?? "")
         case .low:
+            // Always prefer low quality for low request
             return URL(string: lowQualityUrl ?? "")
+                ?? URL(string: medQualityUrl ?? "")
+                ?? URL(string: url ?? "")
+        }
+    }
+
+    /// Get URL for videos with manual quality override (for detail view quality selector)
+    /// - Parameter quality: Specific quality level to fetch
+    /// - Parameter forceQuality: If true, only returns the exact quality requested (no fallback)
+    /// - Returns: URL for specified quality
+    func videoUrl(for quality: ImageQuality, forceQuality: Bool) -> URL? {
+        if forceQuality {
+            // Return exact quality requested, no fallback
+            switch quality {
+            case .high:
+                return URL(string: url ?? "")
+            case .medium:
+                return URL(string: medQualityUrl ?? "")
+            case .low:
+                return URL(string: lowQualityUrl ?? "")
+            }
+        } else {
+            // Use network-adaptive logic
+            return videoUrl(for: quality)
         }
     }
 

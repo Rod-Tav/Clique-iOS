@@ -102,10 +102,10 @@ struct SingleFlickView: View {
                     HStack(spacing: 4) {
                         Text(collection.name)
                             .font(.callout.bold())
-                        
+
                         IconImage("chevron-right", color: .theme.iconPrimary, size: 16)
                     }
-                    
+
                     Text("\(formatDateMMMMdYYYY(flick.date)) • \(formatDateHHmm(flick.date))")
                         .font(.caption)
                 }

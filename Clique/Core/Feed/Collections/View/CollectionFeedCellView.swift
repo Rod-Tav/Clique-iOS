@@ -238,7 +238,7 @@ extension CollectionFeedCellView {
                 if let selectedIndex = imagesPgVM.items.firstIndex(where: { $0.id == scrollPosition }),
                    abs(index - selectedIndex) <= 3
                 {
-                    CollectionPreviewSlideView(imageId: image.id, commentStore, userStore)
+                    CollectionPreviewSlideView(imageId: image.id, scrollPosition: scrollPosition, commentStore, userStore)
                     
                 } else {
                     Color.clear

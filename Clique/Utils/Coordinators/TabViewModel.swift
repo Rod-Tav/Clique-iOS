@@ -20,6 +20,7 @@ import Photos
     var retryLivePhotoAssets: [(assetId: String, asset: PHAsset)?]? = nil
     var retryTranscodedVideoUrls: [URL?]? = nil
     var retryUrlItems: [Components.Schemas.UrlCollectionItem]? = nil
+    var retryPhotoDatePairs: [Components.Schemas.PhotoVideoDate]? = nil
     var retryCollectionId: String? = nil
     
     func reset() {
@@ -33,6 +34,7 @@ import Photos
         retryLivePhotoAssets = nil
         retryTranscodedVideoUrls = nil
         retryUrlItems = nil
+        retryPhotoDatePairs = nil
         retryCollectionId = nil
     }
     
@@ -86,6 +88,11 @@ import Photos
             return item.videoUrls?.url // Only need the full resolution video URL
         }
 
+        // Extract video content-types from photoDatePairs
+        let videoContentTypes: [String?] = photoDatePairs.map { pair in
+            return pair.video?.baseVideo?.contentType
+        }
+
         print("🚀 Preparing Upload")
         print("📸 Total Images: \(preparedImages.count)")
         print("🔗 Total URLs: \(urls.compactMap { $0 }.count)")
@@ -109,6 +116,7 @@ import Photos
             livePhotoAssets: livePhotoAssets,
             transcodedVideoUrls: transcodedVideoUrls,
             videoUrls: videoUrls,
+            videoContentTypes: videoContentTypes,
             onProgress: { completed, total in
                 self.successfulImages = completed
                 self.totalImages = total
@@ -146,11 +154,13 @@ import Photos
                     let retryAssets = failedUploadIndices.map { livePhotoAssets[$0] }
                     let retryVideos = failedUploadIndices.map { transcodedVideoUrls[$0] }
                     let retryUrlItems = failedUploadIndices.map { urlItems[$0] }
+                    let retryPairs = failedUploadIndices.map { photoDatePairs[$0] }
 
                     self.retryImages = retryImages
                     self.retryLivePhotoAssets = retryAssets
                     self.retryTranscodedVideoUrls = retryVideos
                     self.retryUrlItems = retryUrlItems
+                    self.retryPhotoDatePairs = retryPairs
                     self.retryCollectionId = collectionId
                     self.reset()
                 }
@@ -161,7 +171,7 @@ import Photos
     }
     
     func retryUploadImages() async throws {
-        guard let retryImages, let retryLivePhotoAssets, let retryTranscodedVideoUrls, let retryUrlItems, let retryCollectionId else { return }
+        guard let retryImages, let retryLivePhotoAssets, let retryTranscodedVideoUrls, let retryUrlItems, let retryPhotoDatePairs, let retryCollectionId else { return }
 
         var failedUploadIndices: [Int] = []
 
@@ -172,6 +182,11 @@ import Photos
             return item.videoUrls?.url
         }
 
+        // Extract video content-types from retryPhotoDatePairs
+        let videoContentTypes: [String?] = retryPhotoDatePairs.map { pair in
+            return pair.video?.baseVideo?.contentType
+        }
+
         self.uploadFailed = false
 
         await PhotoHelper.uploadImages(
@@ -180,6 +195,7 @@ import Photos
             livePhotoAssets: retryLivePhotoAssets,
             transcodedVideoUrls: retryTranscodedVideoUrls,
             videoUrls: videoUrls,
+            videoContentTypes: videoContentTypes,
             onProgress: { completed, total in
                 self.successfulImages = completed
                 self.totalImages = total
@@ -216,11 +232,13 @@ import Photos
                     let retryAssets = failedUploadIndices.map { retryLivePhotoAssets[$0] }
                     let retryVideos = failedUploadIndices.map { retryTranscodedVideoUrls[$0] }
                     let retryUrlItems = failedUploadIndices.map { retryUrlItems[$0] }
+                    let retryPairs = failedUploadIndices.map { retryPhotoDatePairs[$0] }
 
                     self.retryImages = retryImages
                     self.retryLivePhotoAssets = retryAssets
                     self.retryTranscodedVideoUrls = retryVideos
                     self.retryUrlItems = retryUrlItems
+                    self.retryPhotoDatePairs = retryPairs
                     self.uploadFailed = true
                 }
             }

@@ -91,9 +91,12 @@ struct CliqueApp: App {
     init() {
         // Development tools (commented out for production)
 //         loadRocketSimConnect()
-        
+
         registerBackgroundTasks()
         KingfisherConfig.configure()
+
+        // Initialize network monitoring early for video quality selection
+        _ = NetworkMonitor.shared
     }
     
     /// The main scene containing the app's UI hierarchy.

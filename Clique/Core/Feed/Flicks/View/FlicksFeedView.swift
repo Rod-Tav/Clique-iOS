@@ -43,6 +43,12 @@ struct FlicksFeedView: View {
     
     @State var loadedImage: UIImage?
 
+    /// Video quality preference
+    @AppStorage("videoQualityPreference") private var videoQualityPreference: VideoQualityPreference = .auto
+
+    /// Live Photo save state
+    @State private var isSavingLivePhoto: Bool = false
+
     // Grid view state
     @AppStorage("flicksGridColumns") private var gridColumns: Int = 3
     @State private var gridScrollPosition: String? = nil
@@ -313,7 +319,12 @@ struct FlicksFeedView: View {
             .overlayCollectionPreviewStats(
                 likes: item.flick.numLikes,
                 comments: item.flick.numComments,
-                hasLiked: item.flick.hasLiked
+                hasLiked: item.flick.hasLiked,
+                isLivePhoto: item.flick.isLivePhoto,
+                isVideo: item.flick.isVideo,
+                videoDuration: item.flick.videoDuration,
+                videoUrl: item.flick.videoUrls?.videoUrl(for: .medium),
+                compact: gridColumns >= 4
             )
             .id(item.flick.id)
             .contentShape(.rect)
@@ -355,6 +366,29 @@ struct FlicksFeedView: View {
                         Spacer()
                         
                         Menu {
+                            // Video quality selector (only for videos)
+                            if currentImage?.isVideo == true {
+                                Menu {
+                                    ForEach(VideoQualityPreference.allCases, id: \.self) { quality in
+                                        Button {
+                                            videoQualityPreference = quality
+                                            print("🎬 [QUALITY] User selected: \(quality.displayName)")
+                                        } label: {
+                                            HStack {
+                                                Text(quality.displayName)
+                                                if videoQualityPreference == quality {
+                                                    Image(systemName: "checkmark")
+                                                }
+                                            }
+                                        }
+                                    }
+                                } label: {
+                                    Text("Video Quality")
+                                    Image(systemName: "video.badge.waveform")
+                                        .color(.theme.iconPrimary)
+                                }
+                            }
+
                             if let cid = currentCollection?.cliqueId, isInClique(cid: cid, cliqueStore), let loadedImage {
                                 ShareLink(
                                     item: Image(uiImage: loadedImage),
@@ -366,19 +400,103 @@ struct FlicksFeedView: View {
                                         .color(.theme.iconPrimary)
                                 }
                                 
-                                Button {
-                                    Task {
-                                        guard let imageUrl = currentImage?.imageUrl, let url = imageUrl.highQualityUrl, let date = currentImage?.date, let loadedImage = await fetchImageWithKingfisher(from: url) else { return }
-                                        
-                                        let imageSaver = ImageSaver()
-                                        imageSaver.writeToPhotoAlbum(image: loadedImage, date: date) { success in
-                                            presentToast(success ? Toasts.savedImage : Toasts.somethingWentWrong)
+                                // Save button (conditional based on media type)
+                                if let currentImage = currentImage {
+                                    if currentImage.isLivePhoto {
+                                        // Save Live Photo with metadata injection (falls back to video if metadata fails)
+                                        Button {
+                                            guard !isSavingLivePhoto else { return }
+
+                                            Task {
+                                                guard let imageUrl = currentImage.imageUrl?.highQualityUrl,
+                                                      let videoUrl = currentImage.videoUrls?.highQualityUrl else { return }
+
+                                                let date = currentImage.date
+                                                isSavingLivePhoto = true
+
+                                                let saver = LivePhotoSaver()
+                                                let success = await saver.saveLivePhoto(
+                                                    imageUrl: imageUrl,
+                                                    videoUrl: videoUrl,
+                                                    date: date
+                                                ) { progress in
+                                                    switch progress {
+                                                    case .downloading, .processing:
+                                                        presentToast(Toasts.savingLivePhoto)
+                                                    case .saving:
+                                                        // Keep showing processing toast
+                                                        break
+                                                    case .completed:
+                                                        presentToast(Toasts.savedLivePhoto)
+                                                        isSavingLivePhoto = false
+                                                    case .failed:
+                                                        // Fallback already happened, show video saved toast
+                                                        presentToast(Toasts.savedVideo)
+                                                        isSavingLivePhoto = false
+                                                    }
+                                                }
+
+                                                if !success && !isSavingLivePhoto {
+                                                    presentToast(Toasts.somethingWentWrong)
+                                                }
+                                            }
+                                        } label: {
+                                            HStack {
+                                                Text(isSavingLivePhoto ? "Saving..." : "Save Live Photo")
+                                                if !isSavingLivePhoto {
+                                                    Image("download")
+                                                        .color(.theme.iconPrimary)
+                                                } else {
+                                                    ProgressView()
+                                                        .tint(.theme.iconPrimary)
+                                                }
+                                            }
+                                        }
+                                        .disabled(isSavingLivePhoto)
+                                    } else if currentImage.isVideo {
+                                        // Save Video
+                                        Button {
+                                            Task {
+                                                guard let videoUrl = currentImage.videoUrls?.highQualityUrl else { return }
+
+                                                let date = currentImage.date
+
+                                                do {
+                                                    // Download video
+                                                    let videoLocalUrl = try await VideoCache.shared.getVideo(from: URL(string: videoUrl)!)
+
+                                                    // Save video
+                                                    let imageSaver = ImageSaver()
+                                                    imageSaver.writeVideoToPhotoAlbum(videoUrl: videoLocalUrl, date: date) { success in
+                                                        presentToast(success ? Toasts.savedVideo : Toasts.somethingWentWrong)
+                                                    }
+                                                } catch {
+                                                    print("❌ Failed to save video: \(error)")
+                                                    presentToast(Toasts.somethingWentWrong)
+                                                }
+                                            }
+                                        } label: {
+                                            Text("Save Video")
+                                            Image("download")
+                                                .color(.theme.iconPrimary)
+                                        }
+                                    } else {
+                                        // Save static image
+                                        Button {
+                                            Task {
+                                                guard let imageUrl = currentImage.imageUrl, let url = imageUrl.highQualityUrl, let loadedImage = await fetchImageWithKingfisher(from: url) else { return }
+
+                                                let imageSaver = ImageSaver()
+                                                imageSaver.writeToPhotoAlbum(image: loadedImage, date: currentImage.date) { success in
+                                                    presentToast(success ? Toasts.savedImage : Toasts.somethingWentWrong)
+                                                }
+                                            }
+                                        } label: {
+                                            Text("Save Image")
+                                            Image("download")
+                                                .color(.theme.iconPrimary)
                                         }
                                     }
-                                } label: {
-                                    Text("Save Image")
-                                    Image("download")
-                                        .color(.theme.iconPrimary)
                                 }
                                 
                                 DeleteButton {
@@ -452,21 +570,25 @@ struct FlicksFeedView: View {
                                     Text(currentCollection.name)
                                         .font(.callout.bold())
                                         .foregroundStyle(Color.theme.shadesWhite95)
-                                    
+
                                     if currentCollection.visibility == .priv {
                                         IconImage("lock", color: .theme.shadesWhite95, size: 16)
                                             .padding(.leading, 2)
                                     }
-                                    
+
                                     IconImage("chevron-right", color: .theme.shadesWhite95, size: 16)
                                 }
-                                
-                                Text("\(formatDateMMMMdd(currentImage.date)) • \(formatDateHHmm(currentImage.date))")
-                                    .font(.caption2)
-                                    .foregroundStyle(Color.theme.shadesWhite95)
+
+                                // Date, time, and media type inline
+                                DateMediaTypeLabel(
+                                    image: currentImage,
+                                    dateFormat: .short,
+                                    fontSize: .caption2,
+                                    textColor: .theme.shadesWhite95
+                                )
                             }
                             .maxWidth(.leading)
-                            
+
                         }
                         .contentShape(.rect)
                     }.noHighlight()
@@ -581,10 +703,17 @@ struct FlicksFeedView: View {
     
     // MARK: Flick Image
     private func FlickImage(_ image: CollectionImage) -> some View {
-        CollectionDetailImageAsyncView(image: image, quality: .high)
+        CollectionDetailImageAsyncView(
+            image: image,
+            quality: videoQualityPreference.imageQuality,
+            forceQuality: videoQualityPreference != .auto,
+            isVisible: currentFlickId == image.id
+        )
             .contentShape(.rect)
             .id(image.id)
-            .pinchZoom()
+            .if(!image.isVideo && !image.isLivePhoto) { view in
+                view.pinchZoom()  // Only apply pinch zoom to static photos
+            }
             .scrollTransition { content, phase in
                 content
                     .opacity(phase.isIdentity ? 1 : 0.7)
@@ -687,7 +816,7 @@ extension FlicksFeedView {
             viewModel.first = true
             viewModel.seed = Int(Int32.random(in: Int32.min..<Int32.max))
         }
-        
+
         await PaginationHelper.updateItems(
             operation,
             viewModel: viewModel,

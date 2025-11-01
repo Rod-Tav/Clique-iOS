@@ -44,13 +44,13 @@ struct LivePhotoHelper {
         return asset.mediaSubtypes.contains(.photoLive)
     }
 
-    // MARK: - Video Extraction (Pre-Processing)
+    // MARK: - Video Extraction (No Conversion)
 
-    /// Extracts and transcodes video from either a Live Photo or standalone video asset
+    /// Extracts video from either a Live Photo or standalone video asset as-is (no transcoding)
     /// - Parameter asset: PHAsset (either Live Photo or video)
-    /// - Returns: (mp4FileURL, metadata) - Pre-transcoded for upload
+    /// - Returns: (videoFileURL, metadata, contentType) - Original video file for upload
     /// - Important: Call this during processing phase to get accurate file size before backend presigned URL request
-    static func extractAndTranscodeVideo(from asset: PHAsset) async throws -> (URL, VideoMetadata) {
+    static func extractVideoWithoutTranscoding(from asset: PHAsset) async throws -> (URL, VideoMetadata, String) {
         let isLivePhoto = asset.mediaSubtypes.contains(.photoLive)
         let isVideo = asset.mediaType == .video
 
@@ -72,11 +72,31 @@ struct LivePhotoHelper {
             throw LivePhotoError.noVideoComponent
         }
 
+        // Determine file extension from resource type
+        let fileExtension: String
+        let contentType: String
+
+        print("🔍 [UPLOAD-FORMAT] Detecting video format...")
+        print("   UTI: \(videoResource.uniformTypeIdentifier)")
+
+        // Check if this is a QuickTime/MOV file
+        if videoResource.uniformTypeIdentifier.contains("quicktime") ||
+           videoResource.uniformTypeIdentifier.contains("mov") {
+            fileExtension = "mov"
+            contentType = "video/quicktime"
+            print("   ✅ Format: MOV (video/quicktime)")
+        } else {
+            // Default to MP4 for other video types
+            fileExtension = "mp4"
+            contentType = "video/mp4"
+            print("   ✅ Format: MP4 (video/mp4)")
+        }
+
         return try await withCheckedThrowingContinuation { continuation in
-            // Create temporary file for video (will be transcoded to MP4)
+            // Create temporary file with correct extension
             let tempURL = FileManager.default.temporaryDirectory
                 .appendingPathComponent(UUID().uuidString)
-                .appendingPathExtension("mov")
+                .appendingPathExtension(fileExtension)
 
             let options = PHAssetResourceRequestOptions()
             options.isNetworkAccessAllowed = true
@@ -91,23 +111,24 @@ struct LivePhotoHelper {
                     return
                 }
 
-                // Prepare video for backend (rename to .mp4, backend's ffmpeg handles MOV)
+                // Extract metadata from original file
                 Task {
                     do {
-                        print("📦 Preparing \(isVideo ? "video" : "Live Photo video") for upload...")
-                        let mp4URL = try await transcodeToMP4(from: tempURL)
+                        let metadata = try extractVideoMetadata(from: tempURL)
+                        let sizeMB = Double(metadata.fileSize) / 1_048_576
+                        print("✅ [UPLOAD-READY] Video extracted without conversion")
+                        print("   Format: \(fileExtension.uppercased())")
+                        print("   Content-Type: \(contentType)")
+                        print("   Size: \(String(format: "%.2f", sizeMB)) MB (\(metadata.fileSize) bytes)")
+                        print("   Duration: \(String(format: "%.1f", metadata.duration))s")
+                        print("   Resolution: \(Int(metadata.size.width))x\(Int(metadata.size.height))")
+                        if let codec = metadata.codec {
+                            print("   Video Codec: \(codec)")
+                        }
 
-                        // Clean up original .mov file
-                        try? FileManager.default.removeItem(at: tempURL)
-
-                        // Extract metadata
-                        let metadata = try extractVideoMetadata(from: mp4URL)
-                        print("✅ Video ready for upload: \(metadata.fileSize) bytes")
-
-                        // Return prepared video URL for upload
-                        continuation.resume(returning: (mp4URL, metadata))
+                        // Return original video URL for upload
+                        continuation.resume(returning: (tempURL, metadata, contentType))
                     } catch {
-                        // Clean up both files on error
                         try? FileManager.default.removeItem(at: tempURL)
                         continuation.resume(throwing: error)
                     }
@@ -132,7 +153,7 @@ struct LivePhotoHelper {
         let (stillImageData, stillImage) = try await extractStillImage(from: asset)
 
         // Extract video to temp file (streaming-friendly)
-        let (videoURL, videoMetadata) = try await extractVideo(from: asset)
+        let (videoURL, videoMetadata, _) = try await extractVideoWithoutTranscoding(from: asset)
 
         let creationDate = asset.creationDate ?? Date()
 
@@ -175,86 +196,6 @@ struct LivePhotoHelper {
         }
     }
 
-    /// Extracts and transcodes the video component from a Live Photo to MP4
-    /// - Returns: (mp4FileURL, metadata) - Caller responsible for cleanup
-    /// - Important: Memory-efficient - transcodes via file, not in-memory. Returns MP4 file URL for streaming.
-    private static func extractVideo(from asset: PHAsset) async throws -> (URL, VideoMetadata) {
-        // Request video resources for the Live Photo
-        let resources = PHAssetResource.assetResources(for: asset)
-
-        // Find the paired video resource
-        guard let videoResource = resources.first(where: { $0.type == .pairedVideo }) else {
-            throw LivePhotoError.noVideoComponent
-        }
-
-        return try await withCheckedThrowingContinuation { continuation in
-            // Create temporary file for video (will be streamed for upload, not loaded into memory)
-            let tempURL = FileManager.default.temporaryDirectory
-                .appendingPathComponent(UUID().uuidString)
-                .appendingPathExtension("mov")
-
-            let options = PHAssetResourceRequestOptions()
-            options.isNetworkAccessAllowed = true
-
-            PHAssetResourceManager.default().writeData(
-                for: videoResource,
-                toFile: tempURL,
-                options: options
-            ) { error in
-                if let error = error {
-                    continuation.resume(throwing: error)
-                    return
-                }
-
-                // Prepare video for backend (rename to .mp4, backend's ffmpeg handles MOV)
-                Task {
-                    do {
-                        print("📦 Preparing Live Photo video for upload...")
-                        let mp4URL = try await transcodeToMP4(from: tempURL)
-
-                        // Clean up original .mov file
-                        try? FileManager.default.removeItem(at: tempURL)
-
-                        // Extract metadata
-                        let metadata = try extractVideoMetadata(from: mp4URL)
-
-                        // Return prepared video URL for upload
-                        continuation.resume(returning: (mp4URL, metadata))
-                    } catch {
-                        // Clean up both files on error
-                        try? FileManager.default.removeItem(at: tempURL)
-                        continuation.resume(throwing: error)
-                    }
-                }
-            }
-        }
-    }
-
-    /// "Transcodes" a video file by simply renaming MOV to MP4
-    ///
-    /// **IMPORTANT**: This doesn't actually transcode - it just renames the file.
-    /// The backend receives the raw MOV file with content-type "video/mp4", but ffmpeg
-    /// doesn't care about the extension and will process MOV files correctly.
-    ///
-    /// This bypasses the broken AVAssetExportSession transcoding which created
-    /// MP4 files that wouldn't play in AVPlayer.
-    ///
-    /// - Parameter sourceURL: Source .mov file URL
-    /// - Returns: URL of "transcoded" .mp4 file (actually just renamed MOV)
-    /// - Important: Caller must clean up both source and output files
-    private static func transcodeToMP4(from sourceURL: URL) async throws -> URL {
-        let outputURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString)
-            .appendingPathExtension("mp4")
-
-        // Just copy the MOV file and change extension to .mp4
-        // Backend's ffmpeg will process it correctly regardless of extension
-        try FileManager.default.copyItem(at: sourceURL, to: outputURL)
-
-        print("✅ Prepared video for upload (MOV → MP4 rename): \(outputURL.lastPathComponent)")
-
-        return outputURL
-    }
 
     /// Extracts metadata from a video file
     private static func extractVideoMetadata(from url: URL) throws -> VideoMetadata {

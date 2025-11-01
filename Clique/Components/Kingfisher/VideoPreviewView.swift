@@ -9,15 +9,14 @@ import SwiftUI
 import AVKit
 import Photos
 
-/// Full-size video preview with playback controls.
+/// Full-size video preview with native playback controls.
 ///
-/// This component provides video playback in the review/selected photos screen.
-/// Users can tap to play/pause and scrub through the video.
+/// Provides video playback in the review/selected photos screen for locally selected videos.
 ///
 /// ## Features
-/// - **Video Playback**: Uses AVPlayer for smooth video playback
-/// - **Playback Controls**: Standard iOS video controls overlay
-/// - **High-Quality Loading**: Loads full-quality video from PHAsset
+/// - **Local Video Playback**: Loads video directly from PHAsset (Photos library)
+/// - **Native Controls**: Full AVPlayerViewController controls via ``AVPlayerViewControllerWrapper``
+/// - **High-Quality Loading**: Loads full-quality video from device
 /// - **Fallback Support**: Shows thumbnail while loading
 /// - **Content Mode**: Configurable aspect ratio (fit/fill)
 ///
@@ -45,7 +44,7 @@ struct VideoPreviewView: View {
         Group {
             if let player = player {
                 // Video loaded successfully - use AVPlayerViewController with visible controls
-                VideoPlayerWithControls(player: player)
+                AVPlayerViewControllerWrapper(player: player)
                     .onAppear {
                         // Auto-play video when view appears
                         player.play()
@@ -128,22 +127,6 @@ struct VideoPreviewView: View {
                 continuation.resume(returning: playerItem)
             }
         }
-    }
-}
-
-/// UIViewControllerRepresentable wrapper for AVPlayerViewController with always-visible controls
-struct VideoPlayerWithControls: UIViewControllerRepresentable {
-    let player: AVPlayer
-
-    func makeUIViewController(context: Context) -> AVPlayerViewController {
-        let controller = AVPlayerViewController()
-        controller.player = player
-        controller.showsPlaybackControls = true
-        return controller
-    }
-
-    func updateUIViewController(_ controller: AVPlayerViewController, context: Context) {
-        controller.player = player
     }
 }
 

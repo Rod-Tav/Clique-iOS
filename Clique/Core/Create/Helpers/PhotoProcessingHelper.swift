@@ -21,6 +21,7 @@ struct PhotoProcessingHelper {
         // Capture data before entering task group to avoid data races
         let imagesToProcess = viewModel.selectedImages
         let datesToProcess = viewModel.selectedImagesDates
+        let timezonesToProcess = viewModel.selectedImagesTimezoneOffsets  // Capture timezone offsets
         let assetsToProcess = Array(viewModel.processedAssets)
         let livePhotoIdentifiers = viewModel.livePhotoAssets
         let processedImageData = viewModel.processedImageData  // Capture to avoid concurrent access
@@ -49,6 +50,7 @@ struct PhotoProcessingHelper {
             for (index, image) in imagesToProcess.enumerated() {
                 group.addTask {
                     let date = index < datesToProcess.count ? datesToProcess[index] : Date()
+                    let timezoneOffset = index < timezonesToProcess.count ? timezonesToProcess[index] : nil
 
                     // Find the corresponding PHAsset for this image using O(1) lookup
                     let matchingAsset = imageToAssetMap[ObjectIdentifier(image)]
@@ -58,26 +60,28 @@ struct PhotoProcessingHelper {
                     // Check if this is a standalone video
                     let isVideo = matchingAsset?.mediaType == .video
 
-                    // For Live Photos and standalone videos, extract and transcode video NOW (before backend call)
+                    // For Live Photos and standalone videos, extract video NOW (before backend call)
                     var videoFileSize: Int64?
                     var transcodedVideoUrl: URL?
+                    var videoContentType: String?
                     var videoExtractionError: Error?
 
                     if (isLivePhoto || isVideo), let asset = matchingAsset {
                         print("🎥 Processing \(isVideo ? "standalone video" : "Live Photo") - Asset ID: \(asset.localIdentifier)")
                         do {
-                            // Extract and transcode video to MP4 to get accurate file size
-                            let (videoUrl, metadata) = try await LivePhotoHelper.extractAndTranscodeVideo(from: asset)
+                            // Extract video as-is (no transcoding) to get accurate file size
+                            let (videoUrl, metadata, contentType) = try await LivePhotoHelper.extractVideoWithoutTranscoding(from: asset)
                             videoFileSize = metadata.fileSize
                             transcodedVideoUrl = videoUrl
+                            videoContentType = contentType
 
                             if isVideo {
-                                print("✅ Transcoded standalone video: \(videoFileSize ?? 0) bytes, URL: \(videoUrl)")
+                                print("✅ Extracted standalone video (\(contentType)): \(videoFileSize ?? 0) bytes, URL: \(videoUrl)")
                             } else {
-                                print("✅ Transcoded Live Photo video: \(videoFileSize ?? 0) bytes, URL: \(videoUrl)")
+                                print("✅ Extracted Live Photo video (\(contentType)): \(videoFileSize ?? 0) bytes, URL: \(videoUrl)")
                             }
                         } catch {
-                            print("❌ Failed to extract/transcode \(isVideo ? "video" : "Live Photo"): \(error)")
+                            print("❌ Failed to extract \(isVideo ? "video" : "Live Photo"): \(error)")
                             print("   Asset ID: \(asset.localIdentifier)")
                             print("   Will fall back to PHOTO mode")
                             videoExtractionError = error
@@ -88,18 +92,22 @@ struct PhotoProcessingHelper {
                     if let (photoData, variant) = prepareUIImage(image) {
                         // Prepare video metadata if this is a Live Photo or standalone video
                         var videoDataNoPath: Components.Schemas.VideoDataNoPath?
-                        if (isLivePhoto || isVideo), let fileSize = videoFileSize {
-                            // Backend validates and requires video/mp4 content type
-                            // Use actual transcoded MP4 file size (not original .mov size)
+                        if (isLivePhoto || isVideo), let fileSize = videoFileSize, let contentType = videoContentType {
+                            // Use detected content-type (video/quicktime for MOV, video/mp4 for MP4)
                             videoDataNoPath = Components.Schemas.VideoDataNoPath(
                                 baseVideo: Components.Schemas.UploadVideoParams(
-                                    contentType: "video/mp4",
+                                    contentType: contentType,
                                     contentLength: fileSize
                                 )
                             )
-                            print("📦 Created video metadata - Type: \(isVideo ? "VIDEO" : "LIVE"), Size: \(fileSize) bytes")
+                            let sizeMB = Double(fileSize) / 1_048_576
+                            print("📦 [UPLOAD-METADATA] Created for backend")
+                            print("   Media Type: \(isVideo ? "VIDEO" : "LIVE_PHOTO")")
+                            print("   Content-Type: \(contentType)")
+                            print("   Size: \(String(format: "%.2f", sizeMB)) MB")
+                            print("   ✅ Backend will receive correct format signature")
                         } else if isLivePhoto || isVideo {
-                            print("⚠️ Skipping video metadata - extraction failed or fileSize is nil")
+                            print("⚠️ Skipping video metadata - extraction failed or fileSize/contentType is nil")
                             print("   isVideo: \(isVideo), isLivePhoto: \(isLivePhoto), videoFileSize: \(String(describing: videoFileSize))")
                         }
 
@@ -130,7 +138,7 @@ struct PhotoProcessingHelper {
                             photo: photoData,
                             video: videoDataNoPath,
                             mediaType: finalMediaType,
-                            dateCreated: convertFromDate(date)
+                            dateCreated: convertFromDate(date, timezoneOffset: timezoneOffset)  // Include timezone offset
                         )
 
                         print("✅ Created PhotoVideoDate - mediaType: \(finalMediaType.rawValue), hasVideo: \(videoDataNoPath != nil)")
@@ -239,6 +247,7 @@ struct PhotoProcessingHelper {
             asset: PHAsset,
             image: UIImage?,
             date: Date,
+            timezoneOffset: String?,  // Timezone offset extracted from EXIF
             isLivePhoto: Bool,
             error: Error?
         )
@@ -255,10 +264,13 @@ struct PhotoProcessingHelper {
                         // Load image data using PHImageManager
                         let (_, image) = try await loadImageFromAsset(asset)
 
-                        return (index, asset, image, asset.creationDate ?? Date(), isLivePhoto, nil)
+                        // Extract timezone offset from EXIF metadata
+                        let timezoneOffset = await PHAssetMetadataHelper.extractTimezoneOffset(from: asset)
+
+                        return (index, asset, image, asset.creationDate ?? Date(), timezoneOffset, isLivePhoto, nil)
                     } catch {
                         print("Failed to load asset at index \(index): \(error)")
-                        return (index, asset, nil, asset.creationDate ?? Date(), false, error)
+                        return (index, asset, nil, asset.creationDate ?? Date(), nil, false, error)
                     }
                 }
             }
@@ -286,9 +298,9 @@ struct PhotoProcessingHelper {
             let sortedResults = results // Create a copy to avoid concurrency issues
 
             // Separate successful results from errors
-            let successfulAssets = sortedResults.compactMap { result -> (asset: PHAsset, image: UIImage, date: Date, isLivePhoto: Bool)? in
+            let successfulAssets = sortedResults.compactMap { result -> (asset: PHAsset, image: UIImage, date: Date, timezoneOffset: String?, isLivePhoto: Bool)? in
                 guard let image = result.image else { return nil }
-                return (asset: result.asset, image: image, date: result.date, isLivePhoto: result.isLivePhoto)
+                return (asset: result.asset, image: image, date: result.date, timezoneOffset: result.timezoneOffset, isLivePhoto: result.isLivePhoto)
             }
 
             let errors = sortedResults.compactMap { $0.error }
@@ -297,9 +309,9 @@ struct PhotoProcessingHelper {
             await MainActor.run {
                 // Batch add all successful assets at once
                 if !successfulAssets.isEmpty {
-                    // Convert to old format for now (will be updated in Phase 3)
-                    let simpleAssets = successfulAssets.map { (asset: $0.asset, image: $0.image, date: $0.date) }
-                    viewModel.addProcessedAssets(simpleAssets)
+                    // Include timezone offset in the data
+                    let assetsWithTimezone = successfulAssets.map { (asset: $0.asset, image: $0.image, date: $0.date, timezoneOffset: $0.timezoneOffset) }
+                    viewModel.addProcessedAssets(assetsWithTimezone)
 
                     // Track which assets are Live Photos for upload phase
                     for assetData in successfulAssets {

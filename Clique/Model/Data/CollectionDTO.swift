@@ -54,6 +54,16 @@ func mapToPhotoDatePair(photo: Components.Schemas.PhotoDataNoPath?, date: Date) 
 // MARK: - Collection Image Mapping
 
 func mapToCollectionImage(_ data: Components.Schemas.UrlCollectionItem) -> CollectionImage {
+    // DEBUG: Log raw API data to see all available fields
+    print("🔍 [API-DEBUG] Raw CollectionItem data:")
+    print("   dateCreated: \(data.collectionItem!.dateCreated ?? "nil")")
+    print("   Full collectionItem: \(data.collectionItem!)")
+
+    // Parse date and extract timezone offset if present in the date string
+    let dateResult = convertToDateWithTimezone(data.collectionItem!.dateCreated!)
+    let date = dateResult?.date ?? Date()
+    let timezoneOffset = dateResult?.offset  // Extracted from date string if present
+
     return CollectionImage(
         id: data.collectionItem!.collectionItemId!,
         owner: mapToUser(data.collectionItem!.user!),
@@ -61,11 +71,12 @@ func mapToCollectionImage(_ data: Components.Schemas.UrlCollectionItem) -> Colle
         videoUrls: data.videoUrls != nil ? mapToMediaUrls(data.videoUrls!) : nil,
         videoId: data.collectionItem!.videoId,
         mediaType: data.collectionItem!.mediaType != nil ? mapToMediaType(data.collectionItem!.mediaType!) : .PHOTO,
-        date: convertToDate(data.collectionItem!.dateCreated!),
+        date: date,
         numLikes: data.collectionItem!.likes!,
         numComments: data.collectionItem!.commentCount ?? 0,
         numTaggedMembers: 0,
-        hasLiked: data.isLiked ?? false
+        hasLiked: data.isLiked ?? false,
+        cachedTimezoneOffset: timezoneOffset  // Store timezone offset extracted from date string
     )
 }
 

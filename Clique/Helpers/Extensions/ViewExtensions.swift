@@ -158,10 +158,10 @@ extension View {
             }
     }
     
-    func overlayCollectionPreviewStats(likes: Int, comments: Int, hasLiked: Bool) -> some View {
+    func overlayCollectionPreviewStats(likes: Int, comments: Int, hasLiked: Bool, isLivePhoto: Bool, isVideo: Bool, videoDuration: TimeInterval?, videoUrl: URL?, compact: Bool = false) -> some View {
         self
             .overlay(alignment: .bottomLeading) {
-                CollectionPreviewStatsView(likes: likes, comments: comments, hasLiked: hasLiked)
+                CollectionPreviewStatsView(likes: likes, comments: comments, hasLiked: hasLiked, isLivePhoto: isLivePhoto, isVideo: isVideo, videoDuration: videoDuration, videoUrl: videoUrl, compact: compact)
             }
     }
 }

@@ -52,18 +52,19 @@ actor VideoCache {
     /// Get video from cache or download if not cached
     func getVideo(from url: URL) async throws -> URL {
         let cacheKey = cacheKeyFor(url)
-        let cachedURL = cacheDirectory.appendingPathComponent(cacheKey).appendingPathExtension("mp4")
 
-        // Check if already cached
-        if FileManager.default.fileExists(atPath: cachedURL.path) {
-            print("✅ Video cache hit: \(cacheKey)")
-            updateAccessTime(for: cacheKey)
-            return cachedURL
+        // Check both possible extensions (mov and mp4)
+        let possibleExtensions = ["mov", "mp4"]
+        for ext in possibleExtensions {
+            let cachedURL = cacheDirectory.appendingPathComponent(cacheKey).appendingPathExtension(ext)
+            if FileManager.default.fileExists(atPath: cachedURL.path) {
+                updateAccessTime(for: cacheKey)
+                return cachedURL
+            }
         }
 
-        print("⬇️ Downloading video: \(url.lastPathComponent)")
+        // Not cached - download it
 
-        // Download video
         let (data, response) = try await URLSession.shared.data(from: url)
 
         guard let httpResponse = response as? HTTPURLResponse,
@@ -71,28 +72,26 @@ actor VideoCache {
             throw VideoCacheError.downloadFailed
         }
 
+        // Determine file extension from content-type
+        let fileExtension: String
+        if let contentType = httpResponse.value(forHTTPHeaderField: "Content-Type") {
+            if contentType.contains("quicktime") {
+                fileExtension = "mov"
+            } else if contentType.contains("mp4") {
+                fileExtension = "mp4"
+            } else {
+                fileExtension = "mp4" // Default fallback
+            }
+        } else {
+            fileExtension = "mp4" // Default fallback
+        }
+
+        // Use correct file extension based on content-type
+        let cachedURL = cacheDirectory.appendingPathComponent(cacheKey).appendingPathExtension(fileExtension)
+
         // Write to cache
         try data.write(to: cachedURL)
         updateAccessTime(for: cacheKey)
-
-        print("💾 Cached video: \(cacheKey) (\(data.count / 1024)KB)")
-
-        // Verify file was written successfully
-        if FileManager.default.fileExists(atPath: cachedURL.path) {
-            if let attrs = try? FileManager.default.attributesOfItem(atPath: cachedURL.path),
-               let fileSize = attrs[.size] as? Int64 {
-                print("✅ File verification: exists, size=\(fileSize) bytes")
-            }
-        } else {
-            print("⚠️ File verification failed: file does not exist at path")
-        }
-
-        // Check HTTP response headers
-        if let httpResponse = response as? HTTPURLResponse {
-            if let contentType = httpResponse.value(forHTTPHeaderField: "Content-Type") {
-                print("📄 Content-Type: \(contentType)")
-            }
-        }
 
         // Cleanup old videos if needed
         await cleanupIfNeeded()

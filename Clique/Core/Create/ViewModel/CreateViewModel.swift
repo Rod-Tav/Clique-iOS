@@ -28,10 +28,11 @@ enum CreateFlowDestination: Hashable {
     
     var selectedImages: [UIImage] = []
     var selectedImagesDates: [Date] = []
+    var selectedImagesTimezoneOffsets: [String?] = []  // Timezone offsets for each photo (e.g., "-0400", "+0530")
     var selectedAssets: Set<PHAsset> = []
     var processedAssets: Set<PHAsset> = []
-    // Maps PHAsset identifiers to their processed image and date
-    var processedImageData: [String: (image: UIImage, date: Date)] = [:]
+    // Maps PHAsset identifiers to their processed image, date, and timezone offset
+    var processedImageData: [String: (image: UIImage, date: Date, timezoneOffset: String?)] = [:]
     // Tracks which assets are Live Photos (by localIdentifier)
     var livePhotoAssets: Set<String> = []
     // Tracks Live Photo extraction errors (by asset localIdentifier)
@@ -144,7 +145,7 @@ enum CreateFlowDestination: Hashable {
     }
     
     /// Add processed assets - handles both single and multiple assets efficiently
-    func addProcessedAssets(_ assets: [(asset: PHAsset, image: UIImage, date: Date)]) {
+    func addProcessedAssets(_ assets: [(asset: PHAsset, image: UIImage, date: Date, timezoneOffset: String?)]) {
         // Process each asset and directly append to arrays
         for item in assets {
             // Skip if already processed
@@ -152,11 +153,12 @@ enum CreateFlowDestination: Hashable {
 
             // Update tracking sets/dictionaries
             processedAssets.insert(item.asset)
-            processedImageData[item.asset.localIdentifier] = (image: item.image, date: item.date)
+            processedImageData[item.asset.localIdentifier] = (image: item.image, date: item.date, timezoneOffset: item.timezoneOffset)
 
             // Directly append to arrays - no rebuild needed!
             selectedImages.append(item.image)
             selectedImagesDates.append(item.date)
+            selectedImagesTimezoneOffsets.append(item.timezoneOffset)
         }
     }
 
@@ -165,6 +167,7 @@ enum CreateFlowDestination: Hashable {
         selectedAssets.removeAll()
         selectedImages.removeAll()
         selectedImagesDates.removeAll()
+        selectedImagesTimezoneOffsets.removeAll()
         processedAssets.removeAll()
         processedImageData.removeAll()
         livePhotoAssets.removeAll()
@@ -186,6 +189,7 @@ enum CreateFlowDestination: Hashable {
         
         selectedImages = []
         selectedImagesDates = []
+        selectedImagesTimezoneOffsets = []
         selectedAssets = []
         processedAssets = []
         processedImageData = [:]

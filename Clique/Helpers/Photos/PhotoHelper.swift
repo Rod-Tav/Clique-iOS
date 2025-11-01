@@ -296,6 +296,7 @@ struct PhotoHelper {
         livePhotoAssets: [(assetId: String, asset: PHAsset)?]? = nil,
         transcodedVideoUrls: [URL?]? = nil,
         videoUrls: [String?]? = nil,
+        videoContentTypes: [String?]? = nil,
         onProgress: @escaping (Int, Int) -> Void,
         failedUpload: @escaping (Int, ImageQuality) -> Void,
         onCompletion: @escaping (Bool) -> Void
@@ -334,16 +335,16 @@ struct PhotoHelper {
                 }
             }
 
-            func addVideoUploadTask(videoFileUrl: URL, url: String, index: Int) {
+            func addVideoUploadTask(videoFileUrl: URL, url: String, index: Int, contentType: String) {
                 taskGroup.addTask {
                     await semaphore.wait()
 
                     do {
-                        // Use pre-transcoded video file (already MP4, already sized correctly)
-                        print("⏳ Uploading pre-transcoded video at index \(index)...")
+                        // Use prepared video file (MOV or MP4)
+                        print("⏳ Uploading video at index \(index)...")
 
                         // Stream upload directly from file (no memory spike)
-                        try await uploadVideoFromFile(videoFileUrl, to: url)
+                        try await uploadVideoFromFile(videoFileUrl, to: url, contentType: contentType)
                         let newCount = await counter.increment()
                         await MainActor.run {
                             onProgress(newCount, totalUploads)
@@ -365,14 +366,17 @@ struct PhotoHelper {
                 addUploadTask(data: imageVariant.data, url: url, index: index, quality: .high)
             }
 
-            // Upload video components (for Live Photos and standalone videos) - use pre-transcoded videos
+            // Upload video components (for Live Photos and standalone videos) - use prepared videos
             if let transcodedVideoUrls = transcodedVideoUrls, let videoUrls = videoUrls {
                 for (index, videoFileUrl) in transcodedVideoUrls.enumerated() {
                     guard let videoFileUrl = videoFileUrl,
                           index < videoUrls.count,
                           let uploadUrl = videoUrls[index] else { continue }
 
-                    addVideoUploadTask(videoFileUrl: videoFileUrl, url: uploadUrl, index: index)
+                    // Get content-type for this video (default to video/mp4 for backward compatibility)
+                    let contentType = (videoContentTypes?[safe: index] ?? nil) ?? "video/mp4"
+
+                    addVideoUploadTask(videoFileUrl: videoFileUrl, url: uploadUrl, index: index, contentType: contentType)
                 }
             }
         }
@@ -406,8 +410,9 @@ struct PhotoHelper {
     /// - Parameters:
     ///   - fileURL: Local file URL containing video data
     ///   - url: S3 presigned URL
+    ///   - contentType: The content-type to use for upload (e.g., "video/quicktime", "video/mp4")
     /// - Important: Streams from disk - does NOT load entire file into memory
-    private static func uploadVideoFromFile(_ fileURL: URL, to url: String) async throws {
+    private static func uploadVideoFromFile(_ fileURL: URL, to url: String, contentType: String) async throws {
         guard let uploadUrl = URL(string: url) else {
             throw PhotoUploadError.invalidUrl
         }
@@ -416,13 +421,13 @@ struct PhotoHelper {
 
         var request = URLRequest(url: uploadUrl)
         request.httpMethod = "PUT"
-        request.setValue("video/mp4", forHTTPHeaderField: "Content-Type")
+        request.setValue(contentType, forHTTPHeaderField: "Content-Type")
         request.setValue("\(fileSize)", forHTTPHeaderField: "Content-Length")
         // Note: No Content-MD5 for videos - backend doesn't include it in presigned URL signature
         request.setValue("AES256", forHTTPHeaderField: "x-amz-server-side-encryption")
 
         print("📤 Video upload request:")
-        print("   Content-Type: video/mp4")
+        print("   Content-Type: \(contentType)")
         print("   Content-Length: \(fileSize)")
         print("   File: \(fileURL.lastPathComponent)")
 
@@ -468,6 +473,15 @@ struct PhotoHelper {
                 continuation.resume(throwing: URLError(.timedOut))
             }
         }
+    }
+}
+
+// MARK: - Array Extension
+
+extension Array {
+    /// Safe array subscript that returns nil if index is out of bounds
+    subscript(safe index: Int) -> Element? {
+        return indices.contains(index) ? self[index] : nil
     }
 }
 

@@ -91,7 +91,29 @@ import Foundation
     func updateImages(_ newImages: [CollectionImage], forceUpdateURLs: Bool = false) {
         newImages.forEach { updateImage($0, forceUpdateURL: forceUpdateURLs) }
     }
-    
+
+    /// Caches timezone offset for a collection image.
+    ///
+    /// This is used to store timezone offset extracted from video metadata
+    /// so dates can be displayed in the original timezone without re-extracting.
+    ///
+    /// - Parameters:
+    ///   - imageId: ID of the collection image
+    ///   - timezoneOffset: Timezone offset string (e.g., "-0400", "+0530")
+    func cacheTimezoneOffset(for imageId: String, offset: String) {
+        guard var image = images[imageId] else { return }
+        image.cachedTimezoneOffset = offset
+        images[imageId] = image
+    }
+
+    /// Gets cached timezone offset for a collection image.
+    ///
+    /// - Parameter imageId: ID of the collection image
+    /// - Returns: Cached timezone offset or nil if not cached
+    func getCachedTimezoneOffset(for imageId: String) -> String? {
+        return images[imageId]?.cachedTimezoneOffset
+    }
+
     func reset() {
         images = [String: CollectionImage]()
     }
