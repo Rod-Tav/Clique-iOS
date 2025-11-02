@@ -131,7 +131,7 @@ struct NewCollectionDetailsView: View {
             CliqueButton(
                 type: .primary,
                 leadingIcon: "check",
-                text: viewModel.fromLibrary && viewModel.selectedImages.count > 1 ? "Upload Flicks" : "Upload Flick",
+                text: "Upload \(pluralizeWithCount(count: viewModel.selectedAssets.count, singular: "Flick"))",
                 textColor: buttonEnabled ? .theme.buttonContent : .theme.textSecondary,
                 fontWeight: .semibold,
                 buttonColor: buttonEnabled ? .theme.buttonCTA : .theme.surfacesElevatedPrimary,

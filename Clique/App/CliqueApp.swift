@@ -130,6 +130,11 @@ struct CliqueApp: App {
                 .environment(commentStore)
                 .onAppear {
                     handleForegroundEntry()
+
+                    // Clean up expired pending image cache entries
+                    Task {
+                        await PendingImageCache.shared.cleanup()
+                    }
                 }
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
                     handleForegroundEntry()

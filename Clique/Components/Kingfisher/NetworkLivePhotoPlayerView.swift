@@ -114,7 +114,7 @@ struct NetworkLivePhotoPlayerView: View {
                         .contentShape(Rectangle())
                         .gesture(
                             LivePhotoInteractionGesture(
-                                minimumPressDuration: 0.05,
+                                minimumPressDuration: 0.35,
                                 allowableMovement: 15,
                                 onPressChanged: { location in
                                     // Monitor movement during press
@@ -136,7 +136,7 @@ struct NetworkLivePhotoPlayerView: View {
                                     // Press started - record time, location and start timer
                                     touchStartTime = Date()
                                     touchStartLocation = location
-                                    pressTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: false) { _ in
+                                    pressTimer = Timer.scheduledTimer(withTimeInterval: 0.35, repeats: false) { _ in
                                         if !isPlaying {
                                             startPlayback()
                                         }
@@ -167,8 +167,8 @@ struct NetworkLivePhotoPlayerView: View {
                                         touchStartTime = Date()
                                         touchStartLocation = value.location
 
-                                        // Start timer - if touch lasts 150ms without movement, start playback
-                                        pressTimer = Timer.scheduledTimer(withTimeInterval: 0.15, repeats: false) { _ in
+                                        // Start timer - if touch lasts 350ms without movement, start playback
+                                        pressTimer = Timer.scheduledTimer(withTimeInterval: 0.35, repeats: false) { _ in
                                             if !isPlaying {
                                                 startPlayback()
                                             }
@@ -259,33 +259,29 @@ struct NetworkLivePhotoPlayerView: View {
     private func preloadVideo() async {
         guard let videoURL = videoUrl?.videoUrl(for: quality) else { return }
 
-        do {
-            let cachedURL = try await VideoCache.shared.getVideo(from: videoURL)
+        // Create player with network URL for streaming
+        // AVPlayer handles preloading and caching automatically
+        await MainActor.run {
+            let avPlayer = AVPlayer(url: videoURL)
+            avPlayer.isMuted = true
+            avPlayer.actionAtItemEnd = .none
 
-            await MainActor.run {
-                let avPlayer = AVPlayer(url: cachedURL)
-                avPlayer.isMuted = true
-                avPlayer.actionAtItemEnd = .none
-
-                // Setup looping
-                if let playerItem = avPlayer.currentItem {
-                    loopObserver = NotificationCenter.default.addObserver(
-                        forName: .AVPlayerItemDidPlayToEndTime,
-                        object: playerItem,
-                        queue: .main
-                    ) { [weak avPlayer] _ in
-                        avPlayer?.seek(to: .zero)
-                        if self.isPlaying {
-                            avPlayer?.play()
-                        }
+            // Setup looping
+            if let playerItem = avPlayer.currentItem {
+                loopObserver = NotificationCenter.default.addObserver(
+                    forName: .AVPlayerItemDidPlayToEndTime,
+                    object: playerItem,
+                    queue: .main
+                ) { [weak avPlayer] _ in
+                    avPlayer?.seek(to: .zero)
+                    if self.isPlaying {
+                        avPlayer?.play()
                     }
                 }
-
-                player = avPlayer
-                isVideoReady = true
             }
-        } catch {
-            print("❌ Failed to preload Live Photo video: \(error.localizedDescription)")
+
+            player = avPlayer
+            isVideoReady = true
         }
     }
 

@@ -151,7 +151,7 @@ extension CollectionFeedCellView {
                     CliqueFeedHeader(
                         clique: clique,
                         visibility: collection.visibility,
-                        numFlicks: collection.numFlicks
+                        numFlicks: collection.displayFlickCount(currentUserId: userStore.currentUserId)
                     )
                     
                     if !cliqueMembersVM.firstXMembers.isEmpty {
@@ -241,8 +241,8 @@ extension CollectionFeedCellView {
                 if let selectedIndex = imagesPgVM.items.firstIndex(where: { $0.id == scrollPosition }),
                    abs(index - selectedIndex) <= 3
                 {
-                    CollectionPreviewSlideView(imageId: image.id, scrollPosition: scrollPosition, commentStore, userStore)
-                    
+                    CollectionPreviewSlideView(imageId: image.id, collectionId: collectionId, scrollPosition: scrollPosition, commentStore, userStore)
+
                 } else {
                     Color.clear
                         .frame(UIScreen.width - 32)
@@ -357,10 +357,10 @@ extension CollectionFeedCellView {
                             .minimumScaleFactor(0.5)
                             .lineLimit(1)
                             .textPrimary()
-                        
+
                         IconImage("chevron-right", color: .theme.iconPrimary, size: 16)
-                        
-                        Text("• \(pluralizeWithCount(count: collection.numFlicks, singular: "flick"))")
+
+                        Text("• \(pluralizeWithCount(count: collection.displayFlickCount(currentUserId: userStore.currentUserId), singular: "flick"))")
                             .font(.footnote)
                             .textSecondary()
                         

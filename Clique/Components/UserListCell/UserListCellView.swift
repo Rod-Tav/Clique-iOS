@@ -23,7 +23,7 @@ struct UserListCellView: View {
     var body: some View {
         if let user {
             HStack(spacing: 8) {
-                UserPfpAsyncView(pfp: user.profilePic, size: type.size, quality: type.quality)
+                UserPfpAsyncView(pfp: user.profilePic, size: type.size, quality: type.quality, context: .list)
                 
                 VStack(alignment: .leading, spacing: showFollowedByLine ? 2 : 4) {
                     HStack(spacing: 4) {

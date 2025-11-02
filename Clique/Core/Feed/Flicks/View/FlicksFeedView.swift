@@ -11,6 +11,8 @@ import Toasts
 
 struct FlicksFeedView: View {
     @AppStorage("hasSwipedUpToOpenComments") private var hasSwipedUpToOpenComments: Bool = false
+    @AppStorage("videoQualityPreference") private var videoQualityPreference: VideoQualityPreference = .auto
+    @AppStorage("flicksGridColumns") private var gridColumns: Int = 3
     
     @Environment(\.presentToast) private var presentToast
     
@@ -43,14 +45,10 @@ struct FlicksFeedView: View {
     
     @State var loadedImage: UIImage?
 
-    /// Video quality preference
-    @AppStorage("videoQualityPreference") private var videoQualityPreference: VideoQualityPreference = .auto
 
     /// Live Photo save state
     @State private var isSavingLivePhoto: Bool = false
 
-    // Grid view state
-    @AppStorage("flicksGridColumns") private var gridColumns: Int = 3
     @State private var gridScrollPosition: String? = nil
     @State private var gridReaderProxy: ScrollViewProxy? = nil
 
@@ -66,7 +64,7 @@ struct FlicksFeedView: View {
     init(_ collectionStore: CollectionStore, _ collectionImageStore: CollectionImageStore, _ cliqueStore: CliqueStore, _ userStore: UserStore) {
         self.viewModel = .init(collectionStore, collectionImageStore, userStore, cliqueStore)
     }
-    
+
     var body: some View {
         Group {
             if tabViewCoordinator.flicksShowGrid {
@@ -74,6 +72,9 @@ struct FlicksFeedView: View {
             } else {
                 existingCarouselView
             }
+        }
+        .onChange(of: gridColumns, initial: true) { oldValue, newValue in
+            viewModel.gridColumns = newValue
         }
     }
     
@@ -156,7 +157,14 @@ struct FlicksFeedView: View {
             }
             .background {
                 if let currentImage {
-                    CollectionDetailBackgroundAsyncImage(urls: currentImage.imageUrl, quality: .low)
+                    CollectionDetailBackgroundAsyncImage(
+                        urls: currentImage.imageUrl,
+                        quality: .low,
+                        uploadStatus: currentImage.uploadStatus,
+                        itemId: currentImage.id,
+                        isLivePhoto: currentImage.isLivePhoto,
+                        isVideo: currentImage.isVideo
+                    )
                         .blur(radius: 12.5, opaque: true)
                         .overlay(Color.theme.surfacesImageBgDarkOverlay)
                         .overlay(.black.opacity(0.2))
@@ -260,32 +268,41 @@ struct FlicksFeedView: View {
             leadingIcon: { },
             header: { HeaderTextStar("Flicks") },
             trailingIcon: {
-                Menu {
-                    ForEach([2, 3, 4], id: \.self) { count in
-                        Button {
-                            gridColumns = count
-                        } label: {
-                            HStack {
-                                Text("\(count) columns")
-                                if gridColumns == count {
-                                    Spacer()
-                                    Image(systemName: "checkmark")
+                HStack(spacing: 12) {
+                    Menu {
+                        ForEach([2, 3, 4], id: \.self) { count in
+                            Button {
+                                gridColumns = count
+                            } label: {
+                                HStack {
+                                    Text("\(count) columns")
+                                    if gridColumns == count {
+                                        Spacer()
+                                        Image(systemName: "checkmark")
+                                    }
                                 }
                             }
                         }
+                    } label: {
+                        IconImage("filter", color: .theme.white, size: 26)
+                        
+//                        HStack(spacing: 4) {
+//                            Image(systemName: "square.grid.3x3")
+//                                .font(.callout)
+//                            Image(systemName: "chevron.down")
+//                                .font(.caption2)
+//                        }
+//                        .textSecondary()
+//                        .padding(.horizontal, 8)
+//                        .padding(.vertical, 4)
+//                        .background(Color.theme.textSecondary.opacity(0.1))
+//                        .roundCorners(6)
                     }
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "square.grid.3x3")
-                            .font(.callout)
-                        Image(systemName: "chevron.down")
-                            .font(.caption2)
+                    
+                    NavigationLink(value: "NotificationsCenter") {
+                        IconImage("inbox", color: .theme.iconPrimary, size: 26)
+                            .overlayTopRightNotification(when: tabViewCoordinator.hasNotification)
                     }
-                    .textSecondary()
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.theme.textSecondary.opacity(0.1))
-                    .roundCorners(6)
                 }
             }
         )
@@ -301,6 +318,10 @@ struct FlicksFeedView: View {
                 content: items
             )
             .scrollTargetLayout()
+            
+            if paginationState == .loading {
+                CliqueProgressView()
+            }
         }
         .refreshable {
             guard paginationState == .idle else { return }
@@ -412,19 +433,34 @@ struct FlicksFeedView: View {
                                                       let videoUrl = currentImage.videoUrls?.highQualityUrl else { return }
 
                                                 let date = currentImage.date
+                                                var timezoneOffset = currentImage.cachedTimezoneOffset
+
+                                                // Check store cache (timezone may have been extracted during display)
+                                                if timezoneOffset == nil {
+                                                    timezoneOffset = collectionImageStore.getCachedTimezoneOffset(for: currentImage.id)
+                                                    print("📅 [SAVE] Checked store cache: \(timezoneOffset ?? "nil")")
+                                                }
+
+                                                // For old photos without cached timezone, try to extract from video metadata
+                                                if timezoneOffset == nil, let videoURL = URL(string: videoUrl) {
+                                                    timezoneOffset = await VideoMetadataHelper.extractTimezoneOffset(from: videoURL)
+                                                    print("📅 [SAVE-FALLBACK] Extracted timezone from video: \(timezoneOffset ?? "nil")")
+                                                }
+
                                                 isSavingLivePhoto = true
 
                                                 let saver = LivePhotoSaver()
                                                 let success = await saver.saveLivePhoto(
                                                     imageUrl: imageUrl,
                                                     videoUrl: videoUrl,
-                                                    date: date
+                                                    date: date,
+                                                    timezoneOffset: timezoneOffset
                                                 ) { progress in
                                                     switch progress {
-                                                    case .downloading, .processing:
+                                                    case .downloading:
                                                         presentToast(Toasts.savingLivePhoto)
-                                                    case .saving:
-                                                        // Keep showing processing toast
+                                                    case .processing, .saving:
+                                                        // Don't show additional toasts, initial toast still showing
                                                         break
                                                     case .completed:
                                                         presentToast(Toasts.savedLivePhoto)
@@ -460,6 +496,7 @@ struct FlicksFeedView: View {
                                                 guard let videoUrl = currentImage.videoUrls?.highQualityUrl else { return }
 
                                                 let date = currentImage.date
+                                                let timezoneOffset = currentImage.cachedTimezoneOffset
 
                                                 do {
                                                     // Download video
@@ -467,7 +504,7 @@ struct FlicksFeedView: View {
 
                                                     // Save video
                                                     let imageSaver = ImageSaver()
-                                                    imageSaver.writeVideoToPhotoAlbum(videoUrl: videoLocalUrl, date: date) { success in
+                                                    imageSaver.writeVideoToPhotoAlbum(videoUrl: videoLocalUrl, date: date, timezoneOffset: timezoneOffset) { success in
                                                         presentToast(success ? Toasts.savedVideo : Toasts.somethingWentWrong)
                                                     }
                                                 } catch {
@@ -487,7 +524,7 @@ struct FlicksFeedView: View {
                                                 guard let imageUrl = currentImage.imageUrl, let url = imageUrl.highQualityUrl, let loadedImage = await fetchImageWithKingfisher(from: url) else { return }
 
                                                 let imageSaver = ImageSaver()
-                                                imageSaver.writeToPhotoAlbum(image: loadedImage, date: currentImage.date) { success in
+                                                imageSaver.writeToPhotoAlbum(image: loadedImage, date: currentImage.date, timezoneOffset: currentImage.cachedTimezoneOffset) { success in
                                                     presentToast(success ? Toasts.savedImage : Toasts.somethingWentWrong)
                                                 }
                                             }

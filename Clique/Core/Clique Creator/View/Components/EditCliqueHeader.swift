@@ -97,7 +97,7 @@ struct EditCliqueHeader: View {
             if let pfp = selectedPfpUIImage {
                 CliquePfpView(pfp: pfp, type: .cliqueProfile)
             } else if let ogCliquePic {
-                CliquePfpAsyncView(pfp: ogCliquePic, type: .cliqueProfile, quality: .medium)
+                CliquePfpAsyncView(pfp: ogCliquePic, type: .cliqueProfile, quality: .low)
             } else {
                 CliquePfpView(pfp: "default-gradient", type: .cliqueProfile)
             }

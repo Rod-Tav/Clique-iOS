@@ -15,45 +15,38 @@ struct CollectionPreviewStatsView: View {
     let isVideo: Bool
     let videoDuration: TimeInterval?
     let videoUrl: URL?
-    let compact: Bool
+    var compact: Bool = false
 
     @State private var fetchedDuration: TimeInterval?
 
-    var displayDuration: TimeInterval? {
+    private var displayDuration: TimeInterval? {
         videoDuration ?? fetchedDuration
-    }
-
-    init(likes: Int, comments: Int, hasLiked: Bool, isLivePhoto: Bool, isVideo: Bool, videoDuration: TimeInterval?, videoUrl: URL?, compact: Bool = false) {
-        self.likes = likes
-        self.comments = comments
-        self.hasLiked = hasLiked
-        self.isLivePhoto = isLivePhoto
-        self.isVideo = isVideo
-        self.videoDuration = videoDuration
-        self.videoUrl = videoUrl
-        self.compact = compact
     }
 
     var body: some View {
         HStack(spacing: 4) {
-            // Likes
-            HStack(spacing: 2) {
-                IconImage("heart-filled", color: hasLiked ? .theme.red : .theme.white, size: 12)
-
-                Text(formatNumber(likes))
-                    .font(.caption2.bold())
-                    .foregroundStyle(Color.theme.white)
-                    .fixedSize()
+            if likes > 0 {
+                // Likes
+                HStack(spacing: 2) {
+                    IconImage("heart-filled", color: hasLiked ? .theme.red : .theme.white, size: 12)
+                    
+                    Text(formatNumber(likes))
+                        .font(.caption2.bold())
+                        .foregroundStyle(Color.theme.white)
+                        .fixedSize()
+                }
             }
 
-            // Comments
-            HStack(spacing: 2) {
-                IconImage("comment-filled", color: .theme.white, size: 12)
-
-                Text(formatNumber(comments))
-                    .font(.caption2.bold())
-                    .foregroundStyle(Color.theme.white)
-                    .fixedSize()
+            if comments > 0 {
+                // Comments
+                HStack(spacing: 2) {
+                    IconImage("comment-filled", color: .theme.white, size: 12)
+                    
+                    Text(formatNumber(comments))
+                        .font(.caption2.bold())
+                        .foregroundStyle(Color.theme.white)
+                        .fixedSize()
+                }
             }
 
             // Media type badge

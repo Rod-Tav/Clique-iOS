@@ -7,24 +7,33 @@
 
 import Foundation
 
-/// Lightweight video cache manager for caching videos from network URLs.
+/// Lightweight video cache manager for operations requiring local file URLs.
 ///
 /// ## Overview
-/// Downloads videos from S3 URLs and caches them locally with `.mp4` extension,
-/// allowing AVPlayer to properly detect video format without backend changes.
+/// Downloads videos from S3 URLs and caches them locally with proper file extensions
+/// (`.mp4` or `.mov` based on Content-Type header).
+///
+/// ## Usage
+/// VideoCache is used **only** for operations where Apple frameworks require local file URLs:
+/// - Saving videos to Photos library (PHAssetCreationRequest requirement)
+/// - Saving Live Photos (same requirement)
+/// - Video metadata extraction (timezone, duration)
+///
+/// **For video playback**, use network URLs directly with AVPlayer:
+/// ```swift
+/// // ✅ For playback - use direct streaming
+/// let player = AVPlayer(url: networkURL)
+///
+/// // ✅ For saving - use VideoCache
+/// let localURL = try await VideoCache.shared.getVideo(from: networkURL)
+/// PHAssetCreationRequest.addResource(with: .video, fileURL: localURL, options: nil)
+/// ```
 ///
 /// ## Features
 /// - **Automatic Caching**: Downloads and caches videos on first access
 /// - **LRU Eviction**: Removes least recently used videos when cache is full
 /// - **Thread-Safe**: All operations are synchronized
 /// - **Memory Efficient**: Only stores file URLs, not video data in memory
-///
-/// ## Usage
-/// ```swift
-/// let cache = VideoCache.shared
-/// let localURL = try await cache.getVideo(from: s3URL)
-/// let player = AVPlayer(url: localURL)
-/// ```
 actor VideoCache {
     static let shared = VideoCache()
 

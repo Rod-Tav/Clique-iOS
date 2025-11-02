@@ -145,7 +145,14 @@ struct CollectionDetailView: View {
             }
             .background {
                 if let selectedImage {
-                    CollectionDetailBackgroundAsyncImage(urls: selectedImage.imageUrl, quality: .low)
+                    CollectionDetailBackgroundAsyncImage(
+                        urls: selectedImage.imageUrl,
+                        quality: .low,
+                        uploadStatus: selectedImage.uploadStatus,
+                        itemId: selectedImage.id,
+                        isLivePhoto: selectedImage.isLivePhoto,
+                        isVideo: selectedImage.isVideo
+                    )
                         .blur(radius: 12.5 /*- (10 * ((idx + 1) - diff))*/, opaque: true)
                         .overlay(Color.theme.surfacesImageBgDarkOverlay)
                         .overlay(.black.opacity(0.2))
@@ -220,19 +227,40 @@ extension CollectionDetailView {
                                               let videoUrl = selectedImage.videoUrls?.highQualityUrl else { return }
 
                                         let date = selectedImage.date
+                                        var timezoneOffset = selectedImage.cachedTimezoneOffset
+
+                                        // Check store cache (timezone may have been extracted during display)
+                                        if timezoneOffset == nil {
+                                            timezoneOffset = collectionImageStore.getCachedTimezoneOffset(for: selectedImage.id)
+                                            print("📅 [SAVE] Checked store cache: \(timezoneOffset ?? "nil")")
+                                        }
+
+                                        // For old photos without cached timezone, try to extract from video metadata
+                                        if timezoneOffset == nil, let videoURL = URL(string: videoUrl) {
+                                            timezoneOffset = await VideoMetadataHelper.extractTimezoneOffset(from: videoURL)
+                                            print("📅 [SAVE-FALLBACK] Extracted timezone from video: \(timezoneOffset ?? "nil")")
+                                        }
+
+                                        if timezoneOffset == nil {
+                                            print("⚠️ [SAVE] No timezone information available for this photo")
+                                            print("   This is an old photo uploaded before timezone preservation was implemented")
+                                            print("   It will be saved in the device's current timezone")
+                                        }
+
                                         isSavingLivePhoto = true
 
                                         let saver = LivePhotoSaver()
                                         let success = await saver.saveLivePhoto(
                                             imageUrl: imageUrl,
                                             videoUrl: videoUrl,
-                                            date: date
+                                            date: date,
+                                            timezoneOffset: timezoneOffset
                                         ) { progress in
                                             switch progress {
-                                            case .downloading, .processing:
+                                            case .downloading:
                                                 presentToast(Toasts.savingLivePhoto)
-                                            case .saving:
-                                                // Keep showing processing toast
+                                            case .processing, .saving:
+                                                // Don't show additional toasts, initial toast still showing
                                                 break
                                             case .completed:
                                                 presentToast(Toasts.savedLivePhoto)
@@ -268,6 +296,7 @@ extension CollectionDetailView {
                                         guard let videoUrl = selectedImage.videoUrls?.highQualityUrl else { return }
 
                                         let date = selectedImage.date
+                                        let timezoneOffset = selectedImage.cachedTimezoneOffset
 
                                         do {
                                             // Download video
@@ -275,7 +304,7 @@ extension CollectionDetailView {
 
                                             // Save video
                                             let imageSaver = ImageSaver()
-                                            imageSaver.writeVideoToPhotoAlbum(videoUrl: videoLocalUrl, date: date) { success in
+                                            imageSaver.writeVideoToPhotoAlbum(videoUrl: videoLocalUrl, date: date, timezoneOffset: timezoneOffset) { success in
                                                 presentToast(success ? Toasts.savedVideo : Toasts.somethingWentWrong)
                                             }
                                         } catch {
@@ -296,7 +325,7 @@ extension CollectionDetailView {
                                             guard let url = url.highQualityUrl, let loadedImage = await fetchImageWithKingfisher(from: url) else { return }
 
                                             let imageSaver = ImageSaver()
-                                            imageSaver.writeToPhotoAlbum(image: loadedImage, date: selectedImage.date) { success in
+                                            imageSaver.writeToPhotoAlbum(image: loadedImage, date: selectedImage.date, timezoneOffset: selectedImage.cachedTimezoneOffset) { success in
                                                 presentToast(success ? Toasts.savedImage : Toasts.somethingWentWrong)
                                             }
                                         }
@@ -421,7 +450,8 @@ extension CollectionDetailView {
                         image: selectedImage,
                         quality: videoQualityPreference.imageQuality,
                         forceQuality: videoQualityPreference != .auto,
-                        isVisible: true
+                        isVisible: true,
+                        onRefresh: refreshCollection
                     )
                         .contentShape(.rect)
                 }
@@ -561,7 +591,8 @@ extension CollectionDetailView {
             image: image,
             quality: videoQualityPreference.imageQuality,
             forceQuality: videoQualityPreference != .auto,
-            isVisible: selectedImageId == image.id
+            isVisible: selectedImageId == image.id,
+            onRefresh: refreshCollection
         )
             .contentShape(.rect)
             .id(image.id)
@@ -622,6 +653,13 @@ extension CollectionDetailView {
             isButtonDisabled = false
         }
         .disabled(isButtonDisabled)
+    }
+
+    // MARK: - Helper Functions
+
+    /// Triggers a refresh of the collection to update processing status
+    private func refreshCollection() {
+        trigger(.refreshCollectionImages, object: [clCoordinator.collectionId])
     }
 }
 
@@ -691,8 +729,17 @@ extension CollectionDetailView {
     
     @ViewBuilder private func BottomCarouselCell(_ image: CollectionImage, width: CGFloat, height: CGFloat) -> some View {
         if let selectedImage {
-            CollectionBottomCarouselAsyncView(urls: image.imageUrl, width: width, height: height, quality: .low, isLivePhoto: image.isLivePhoto, isVideo: image.isVideo)
-            
+            CollectionBottomCarouselAsyncView(
+                urls: image.imageUrl,
+                width: width,
+                height: height,
+                quality: .low,
+                uploadStatus: image.uploadStatus,
+                itemId: image.id,
+                isLivePhoto: image.isLivePhoto,
+                isVideo: image.isVideo
+            )
+
             // TODO: rework
                 .if(heroCoordinator.showDetailView) { view in
                     view

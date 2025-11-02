@@ -134,11 +134,11 @@ struct CliquePicWithSubIcon: View {
     var hasBorder: Bool = true
     let size: CGFloat
     let quality: ImageQuality
-    var loadingBug: Bool = false
-    
+    var context: ImageLoadingContext = .detail
+
     var body: some View {
         ZStack {
-            CliquePfpAsyncView(pfp: pfp, type: cliquePfpType, hasBorder: hasBorder, quality: quality, loadingBug: loadingBug)
+            CliquePfpAsyncView(pfp: pfp, type: cliquePfpType, hasBorder: hasBorder, quality: quality, context: context)
             
             if subIconType.stroke {
                 IconOuterStroke(

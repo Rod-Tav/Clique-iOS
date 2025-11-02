@@ -51,7 +51,14 @@ struct SingleFlickView: View {
         .commentSheet(imageId: flick.id, fromCollectionDetail: true, showCommentSheet: $showCommentSheet)
         .background {
             if let currentImage {
-                CollectionDetailBackgroundAsyncImage(urls: currentImage.imageUrl, quality: .low)
+                CollectionDetailBackgroundAsyncImage(
+                    urls: currentImage.imageUrl,
+                    quality: .low,
+                    uploadStatus: currentImage.uploadStatus,
+                    itemId: currentImage.id,
+                    isLivePhoto: currentImage.isLivePhoto,
+                    isVideo: currentImage.isVideo
+                )
                     .blur(radius: 12.5, opaque: true)
                     .overlay(Color.theme.surfacesImageBgDarkOverlay)
                     .overlay(.black.opacity(0.2))

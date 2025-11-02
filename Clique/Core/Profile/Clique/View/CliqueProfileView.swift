@@ -197,7 +197,7 @@ extension CliqueProfileView {
                     }
                     
                     HStack(spacing: 0) {
-                        CliquePfpAsyncView(pfp: clique.cliquePic, type: .cliqueProfile, quality: .medium)
+                        CliquePfpAsyncView(pfp: clique.cliquePic, type: .cliqueProfile, quality: .low)
                             .onTapGesture {
                                 showCliquePfp = true
                             }

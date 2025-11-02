@@ -9,20 +9,33 @@ import SwiftUI
 import Kingfisher
 
 struct UserPfpAsyncView: View {
+    @Environment(UserStore.self) private var userStore
+
     var pfp: PhotoUrls?
     let size: CGFloat
     let quality: ImageQuality
-    var loadingBug: Bool = true
-    
+    var context: ImageLoadingContext = .detail
+
+    /// Smart context that auto-enables preloading for current user's profile picture.
+    /// Current user's pfp should always load aggressively to avoid gray placeholders.
+    private var effectiveContext: ImageLoadingContext {
+        // If this is the current user's profile picture, always preload
+        if let currentUserPfp = userStore.currentUser?.profilePic,
+           pfp == currentUserPfp {
+            return .list // Force preload for current user
+        }
+        return context
+    }
+
     var body: some View {
         if let pfp {
-            GenericAsyncImage(urls: pfp, quality: quality, loadingBug: loadingBug) { image in
+            GenericAsyncImage(urls: pfp, quality: quality, context: effectiveContext) { image in
                 image
                     .contentConfigure { image in
                         image
                             .userPfp(size: size)
                     }
-                
+
             } placeholder: {
                 Circle()
                     .fill(Color.theme.iconTertiary)

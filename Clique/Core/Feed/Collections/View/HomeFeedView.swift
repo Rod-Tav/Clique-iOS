@@ -366,7 +366,7 @@ extension HomeFeedView {
     @ViewBuilder private func CliqueCell(clique: Clique) -> some View {
         NavigationLink(value: clique) {
             VStack(spacing: 6) {
-                CliquePfpAsyncView(pfp: clique.cliquePic, type: .small, quality: .medium)
+                CliquePfpAsyncView(pfp: clique.cliquePic, type: .small, quality: .low)
                 
                 Text(clique.name)
                     .textPrimary()

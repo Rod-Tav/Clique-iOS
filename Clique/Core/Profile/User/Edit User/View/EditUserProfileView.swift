@@ -70,7 +70,7 @@ struct EditUserProfileView: View {
                         Image(uiImage: pfp)
                             .userPfp(size: 72)
                     } else {
-                        UserPfpAsyncView(pfp: user?.profilePic, size: 72, quality: .medium)
+                        UserPfpAsyncView(pfp: user?.profilePic, size: 72, quality: .low)
                     }
                     
                     SmallCTA(type: .secondary, text: "Edit") {

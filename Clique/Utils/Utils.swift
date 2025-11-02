@@ -153,6 +153,50 @@ func formatTimezoneOffset(_ offsetSeconds: Int) -> String {
     return String(format: "%@%02d%02d", sign, hours, minutes)
 }
 
+/// Geocodes a location to get its timezone using reverse geocoding with caching and rate limiting.
+///
+/// Uses a cached result if available for nearby locations (within ~100 meters).
+/// Applies rate limiting (1.2 second delay) to avoid hitting CLGeocoder limits.
+///
+/// - Parameters:
+///   - location: The CLLocation to geocode
+///   - date: The date to use for timezone offset calculation (important for DST)
+/// - Returns: Timezone offset string (e.g., "-0400", "+0530") or nil if geocoding fails
+func geocodeLocationToTimezone(location: CLLocation, for date: Date) async -> String? {
+    let latitude = location.coordinate.latitude
+    let longitude = location.coordinate.longitude
+    let key = "\(round(latitude * 1000) / 1000),\(round(longitude * 1000) / 1000)"
+
+    var timeZone: TimeZone?
+    if let cachedTimeZone = gpsTimezoneCache[key] {
+        timeZone = cachedTimeZone
+        print("🗺️ [GEOCODE] Using cached timezone for \(key)")
+    } else {
+        await GeocodingRateLimiter.shared.waitAndThrottle()
+        print("🌍 [GEOCODE] Reverse geocoding location: \(latitude), \(longitude)")
+        timeZone = await withCheckedContinuation { continuation in
+            CLGeocoder().reverseGeocodeLocation(location) { placemarks, error in
+                if let error = error {
+                    print("❌ [GEOCODE] Failed: \(error.localizedDescription)")
+                }
+                continuation.resume(returning: placemarks?.first?.timeZone)
+            }
+        }
+        if let timeZone {
+            gpsTimezoneCache[key] = timeZone
+            print("✅ [GEOCODE] Cached timezone: \(timeZone.identifier)")
+        }
+    }
+
+    if let timeZone {
+        let offsetSeconds = timeZone.secondsFromGMT(for: date)
+        let offsetString = formatTimezoneOffset(offsetSeconds)
+        return offsetString
+    }
+
+    return nil
+}
+
 /// Extracts date and timezone offset from photo/video metadata.
 ///
 /// Returns both the Date and the timezone offset string (e.g., "-0400", "+0530")
@@ -255,8 +299,6 @@ func convertToDateWithTimezone(_ dateCreated: String?) -> (date: Date, offset: S
         return nil
     }
 
-    print("📥 [API-PARSE] Parsing date from API: \(dateCreated)")
-
     // Formats with timezone offset (XXXXX = ±HH:MM, XXXX = ±HHMM)
     let formatsWithTimezone = [
         "yyyy-MM-dd'T'HH:mm:ss.SSSSSSXXXXX",  // With timezone: -04:00
@@ -273,7 +315,6 @@ func convertToDateWithTimezone(_ dateCreated: String?) -> (date: Date, offset: S
         if let date = formatter.date(from: dateCreated) {
             // Extract timezone offset from string
             if let offset = extractTimezoneOffsetFromString(dateCreated) {
-                print("✅ [API-PARSE] Parsed WITH timezone: offset=\(offset), date=\(date)")
                 return (date, offset)
             }
         }
@@ -297,12 +338,9 @@ func convertToDateWithTimezone(_ dateCreated: String?) -> (date: Date, offset: S
             timeZone: TimeZone(secondsFromGMT: 0)!  // Parse as UTC
         )
         if let date = formatter.date(from: dateCreated) {
-            print("⚠️ [API-PARSE] Parsed WITHOUT timezone (UTC fallback): date=\(date)")
             return (date, nil)  // No timezone offset preserved
         }
     }
-
-    print("❌ [API-PARSE] Failed to parse: \(dateCreated)")
     return nil
 }
 
@@ -439,8 +477,9 @@ func formatDateInOriginalTimezone(
        let timezone = TimeZone(offsetString: offset) {
         formatter.timeZone = timezone
     } else {
-        // Fallback to current timezone if no offset available
-        formatter.timeZone = .current
+        // When no timezone info available, use UTC to preserve the local time value
+        // (EXIF DateTimeOriginal is local time, stored as UTC to preserve the time value)
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
     }
 
     return formatter.string(from: date)

@@ -119,7 +119,7 @@ struct FeedCellBottomOverlay: View {
     
     @ViewBuilder private func CommentPreviewCell(_ comment: Comment) -> some View {
         HStack(spacing: 8) {
-            UserPfpAsyncView(pfp: comment.author.profilePic, size: 16, quality: .low)
+            UserPfpAsyncView(pfp: comment.author.profilePic, size: 16, quality: .low, context: .list)
             
             Text(comment.text)
                 .font(.caption)

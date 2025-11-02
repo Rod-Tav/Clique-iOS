@@ -7,6 +7,7 @@
 
 import SwiftUI
 import AVKit
+import AVFoundation
 
 /// Displays a standalone video from network URLs with native Apple Photos-style controls.
 ///
@@ -18,7 +19,7 @@ import AVKit
 /// - **Looping**: Video loops continuously
 /// - **Native Controls**: Full AVPlayerViewController controls via ``AVPlayerViewControllerWrapper``
 /// - **Muted by Default**: Starts muted, user can unmute via controls
-/// - **Local Caching**: Videos cached via ``VideoCache`` for instant playback
+/// - **HTTP Streaming**: Direct AVPlayer streaming with automatic URLCache management
 /// - **Quality Selection**: Network-adaptive or manual quality override
 ///
 /// ## Usage
@@ -146,34 +147,37 @@ struct NetworkVideoPlayerView: View {
 
             guard let videoURL = videoURL else { return }
 
-            do {
-                // Download and cache video (returns local URL)
-                let localURL = try await VideoCache.shared.getVideo(from: videoURL)
+            // Create player with network URL for streaming
+            // AVPlayer handles caching automatically via URLCache
+            await MainActor.run {
+                player = AVPlayer(url: videoURL)
+                player?.isMuted = true
+                player?.actionAtItemEnd = .none
 
-                // Create player with local cached URL
-                await MainActor.run {
-                    player = AVPlayer(url: localURL)
-                    player?.isMuted = true
-                    player?.actionAtItemEnd = .none
-
-                    // Setup looping
-                    if let currentItem = player?.currentItem {
-                        setupLoopObserver(for: currentItem, player: player!)
-                    }
+                // Setup looping
+                if let currentItem = player?.currentItem {
+                    setupLoopObserver(for: currentItem, player: player!)
                 }
-            } catch {
-                print("❌ Video playback failed: \(error.localizedDescription)")
+
+                // Start playing immediately if visible
+                if isVisible {
+                    configureAudioSession()
+                    player?.play()
+                }
             }
         }
         .onChange(of: isVisible) { _, newValue in
             if newValue {
+                configureAudioSession()
                 player?.play()
             } else {
                 player?.pause()
             }
         }
         .onDisappear {
-            cleanup()
+            // Only pause on disappear, don't cleanup
+            // This preserves playback position when scrolling between videos
+            player?.pause()
         }
     }
 

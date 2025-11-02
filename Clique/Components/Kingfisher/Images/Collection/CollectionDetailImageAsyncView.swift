@@ -13,48 +13,70 @@ struct CollectionDetailImageAsyncView: View {
     let quality: ImageQuality
     let forceQuality: Bool
     let isVisible: Bool
+    let onRefresh: (() -> Void)?
 
-    init(image: CollectionImage, quality: ImageQuality, forceQuality: Bool = false, isVisible: Bool = true) {
+    @State private var videoIsVisible: Bool
+
+    init(image: CollectionImage, quality: ImageQuality, forceQuality: Bool = false, isVisible: Bool = true, onRefresh: (() -> Void)? = nil) {
         self.image = image
         self.quality = quality
         self.forceQuality = forceQuality
         self.isVisible = isVisible
+        self.onRefresh = onRefresh
+        self._videoIsVisible = State(initialValue: isVisible)
     }
 
     var body: some View {
-        if image.isLivePhoto {
-            // Live Photo with native-like playback
-            // Always use high quality for live photo still images (video quality preference only affects playback)
-            NetworkLivePhotoPlayerView(
-                imageUrl: image.imageUrl,
-                videoUrl: image.videoUrls,
-                quality: .high
-            )
-        } else if image.isVideo {
-            // Standalone video with auto-play
-            NetworkVideoPlayerView(
-                thumbnailUrl: image.imageUrl,
-                videoUrl: image.videoUrls,
-                quality: quality,
-                forceQuality: forceQuality,
-                isVisible: isVisible
-            )
-        } else {
-            // Regular static image
-            GenericAsyncImage(urls: image.imageUrl, quality: quality) { image in
-                image
-                    .contentConfigure { image in
-                        image
-                            .resizable()
-                            .scaledToFit()
-                            .frameRatio(width: UIScreen.width, ratio: Constants.portraitPostRatio)
-                            .clipped()
-                    }
-            } placeholder: {
-                Rectangle()
-                    .fill(.gray)
-                    .frameRatio(width: UIScreen.width, ratio: Constants.portraitPostRatio)
+        Group {
+            if image.uploadStatus == .PENDING {
+                // PENDING: Show device photo
+                UnifiedCollectionImageView(
+                    urls: nil,
+                    uploadStatus: .PENDING,
+                    itemId: image.id,
+                    quality: quality,
+                    sizing: .detailView,
+                    isLivePhoto: image.isLivePhoto,
+                    isVideo: image.isVideo,
+                    performanceMode: false
+                )
+            } else if image.isLivePhoto {
+                // Live Photo with native-like playback
+                // Always use high quality for live photo still images (video quality preference only affects playback)
+                NetworkLivePhotoPlayerView(
+                    imageUrl: image.imageUrl,
+                    videoUrl: image.videoUrls,
+                    quality: .high
+                )
+            } else if image.isVideo {
+                // Standalone video with auto-play
+                NetworkVideoPlayerView(
+                    thumbnailUrl: image.imageUrl,
+                    videoUrl: image.videoUrls,
+                    quality: quality,
+                    forceQuality: forceQuality,
+                    isVisible: videoIsVisible
+                )
+            } else {
+                // Regular static image
+                GenericAsyncImage(urls: image.imageUrl, quality: quality) { image in
+                    image
+                        .contentConfigure { image in
+                            image
+                                .resizable()
+                                .scaledToFit()
+                                .frameRatio(width: UIScreen.width, ratio: Constants.portraitPostRatio)
+                                .clipped()
+                        }
+                } placeholder: {
+                    Rectangle()
+                        .fill(.gray)
+                        .frameRatio(width: UIScreen.width, ratio: Constants.portraitPostRatio)
+                }
             }
+        }
+        .task(id: isVisible) {
+            videoIsVisible = isVisible
         }
     }
 }

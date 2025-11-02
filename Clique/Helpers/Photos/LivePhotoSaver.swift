@@ -47,12 +47,14 @@ actor LivePhotoSaver {
     ///   - imageUrl: URL of the still image
     ///   - videoUrl: URL of the video component
     ///   - date: Creation date for the Live Photo
+    ///   - timezoneOffset: Optional timezone offset (e.g., "-0400") to preserve original timezone
     ///   - progressHandler: Callback for progress updates
     /// - Returns: Success result
     func saveLivePhoto(
         imageUrl: String,
         videoUrl: String,
         date: Date,
+        timezoneOffset: String? = nil,
         progressHandler: ProgressHandler?
     ) async -> Bool {
         // Step 1: Download both components
@@ -87,7 +89,8 @@ actor LivePhotoSaver {
             let success = try await saveToPhotosLibrary(
                 imageURL: resources.pairedImage,
                 videoURL: resources.pairedVideo,
-                date: date
+                date: date,
+                timezoneOffset: timezoneOffset
             )
 
             if success {
@@ -108,7 +111,7 @@ actor LivePhotoSaver {
 
             // Fallback: Save as video instead
             print("⚠️ Falling back to video save")
-            return await fallbackToVideoSave(videoUrl: videoUrl, date: date)
+            return await fallbackToVideoSave(videoUrl: videoUrl, date: date, timezoneOffset: timezoneOffset)
         }
     }
 
@@ -182,7 +185,8 @@ actor LivePhotoSaver {
     private func saveToPhotosLibrary(
         imageURL: URL,
         videoURL: URL,
-        date: Date
+        date: Date,
+        timezoneOffset: String?
     ) async throws -> Bool {
         return try await withCheckedThrowingContinuation { continuation in
             PHPhotoLibrary.shared().performChanges {
@@ -206,10 +210,13 @@ actor LivePhotoSaver {
                     options: videoOptions
                 )
 
-                // NOTE: Set creationDate as fallback for devices where video metadata isn't read
-                // Photos will prefer video file metadata if present (preserving timezone),
-                // but use this as fallback on devices that don't read video metadata
-                creationRequest.creationDate = date
+                // Adjust date to preserve original timezone when saving
+                let adjustedDate = Self.adjustDateForSave(date, timezoneOffset: timezoneOffset)
+                creationRequest.creationDate = adjustedDate
+
+                print("📅 [SAVE] Original date: \(date)")
+                print("📅 [SAVE] Timezone offset: \(timezoneOffset ?? "nil")")
+                print("📅 [SAVE] Adjusted date: \(adjustedDate)")
 
             } completionHandler: { success, error in
                 if let error = error {
@@ -222,9 +229,58 @@ actor LivePhotoSaver {
         }
     }
 
+    // MARK: - Date Adjustment
+
+    /// Adjusts a Date object to preserve original timezone when saving to Photos
+    ///
+    /// iOS Photos interprets creationDate in the device's current timezone.
+    /// To preserve the original timezone, we need to adjust the Date so that
+    /// when iOS interprets it, it shows the correct original time.
+    ///
+    /// CRITICAL: For old photos uploaded before the fix, the Date object is wrong
+    /// (parsed as UTC instead of in original timezone). We detect this and reconstruct
+    /// the correct absolute time first, then apply the adjustment.
+    ///
+    /// Example (NEW photo - correct Date):
+    /// - Photo taken: Oct 21, 8:05 PM EDT (-0400)
+    /// - Date object: Oct 22, 00:05 UTC (correct absolute time)
+    /// - Device timezone: PDT (-0700)
+    /// - Adjustment: We want iOS to show 8:05 PM, so we adjust by timezone difference
+    ///
+    /// Example (OLD photo - wrong Date):
+    /// - Photo taken: Oct 21, 8:05 PM EDT (-0400)
+    /// - Date object: Oct 21, 20:05 UTC (wrong - parsed as UTC instead of EDT)
+    /// - First reconstruct: 20:05 UTC + 4 hours = Oct 22, 00:05 UTC (correct)
+    /// - Then apply device adjustment
+    private static func adjustDateForSave(_ date: Date, timezoneOffset: String?) -> Date {
+        guard let offset = timezoneOffset else {
+            return date  // No adjustment if no timezone info
+        }
+
+        guard let timezone = TimeZone(offsetString: offset) else {
+            return date  // Invalid timezone format
+        }
+
+        let originalOffset = timezone.secondsFromGMT(for: date)
+
+        // CRITICAL FIX: For old photos, the Date was parsed as UTC but represents local time
+        // Example: "20:05" in EXIF was parsed as "20:05 UTC" instead of "20:05 EDT"
+        // We need to reconstruct the correct absolute time first
+        // EDT is UTC-4, so: 20:05 EDT = 20:05 + 4 hours = 00:05 UTC (next day)
+        // But originalOffset is -14400 (negative for EDT)
+        // So we SUBTRACT the offset (which adds for negative values)
+        let correctedDate = date.addingTimeInterval(TimeInterval(-originalOffset))
+
+        // Now apply the save adjustment for iOS Photos
+        let deviceOffset = TimeZone.current.secondsFromGMT(for: correctedDate)
+        let saveAdjustment = TimeInterval(originalOffset - deviceOffset)
+
+        return correctedDate.addingTimeInterval(saveAdjustment)
+    }
+
     // MARK: - Fallback
 
-    private func fallbackToVideoSave(videoUrl: String, date: Date) async -> Bool {
+    private func fallbackToVideoSave(videoUrl: String, date: Date, timezoneOffset: String?) async -> Bool {
         do {
             guard let url = URL(string: videoUrl) else {
                 return false
@@ -234,7 +290,7 @@ actor LivePhotoSaver {
 
             return await withCheckedContinuation { continuation in
                 let imageSaver = ImageSaver()
-                imageSaver.writeVideoToPhotoAlbum(videoUrl: localVideoURL, date: date) { success in
+                imageSaver.writeVideoToPhotoAlbum(videoUrl: localVideoURL, date: date, timezoneOffset: timezoneOffset) { success in
                     continuation.resume(returning: success)
                 }
             }

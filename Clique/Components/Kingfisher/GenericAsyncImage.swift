@@ -312,19 +312,31 @@ private final class ImageCacheLifecycleManager {
 ///   - urls: Photo URLs for different quality levels
 ///   - quality: Target quality level to load
 ///   - shouldFixSize: Whether to fix size for layout stability
-///   - loadingBug: Legacy compatibility flag
-///   - performanceMode: Use lightweight mode for grids (default: false)
+///   - context: Loading context (list/grid/detail/hero) for optimal strategy
+///   - performanceMode: Use lightweight mode for grids (default: false, auto-enabled for list/grid contexts)
 ///   - content: View builder for the loaded image
 ///   - placeholder: View to show while loading
 struct GenericAsyncImage<Content: View, Placeholder: View>: View {
     let urls: PhotoUrls?
     var quality: ImageQuality
     var shouldFixSize: Bool = true
-    var loadingBug: Bool = false
-    var performanceMode: Bool = false  // New parameter for lightweight mode
+    var context: ImageLoadingContext = .detail
+    var performanceMode: Bool = false  // Automatically enabled for list/grid contexts
 
     let content: (KFImage) -> Content
     @ViewBuilder var placeholder: Placeholder
+
+    /// Computed performance mode based on context.
+    /// List and grid contexts automatically use performance mode for better scrolling.
+    private var effectivePerformanceMode: Bool {
+        performanceMode || context == .list || context == .grid
+    }
+
+    /// Effective context considering force preload flag from timeout retry.
+    /// If we've detected a stuck placeholder, force preload even in detail context.
+    private var effectiveContext: ImageLoadingContext {
+        forcePreload ? .list : context
+    }
 
 
     // MARK: - Simplified State Machine
@@ -354,6 +366,11 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
     @State private var imageLoadTasks: Set<AnyCancellable> = []
     @State private var retryCount: [String: Int] = [:]
 
+    // Smart retry mechanism for stuck placeholders
+    @State private var loadingTimeoutTask: Task<Void, Never>?
+    @State private var hasAttemptedRetry = false
+    @State private var forcePreload = false
+
     // Cache status for immediate display
     @State private var hasCachedLow = false
     @State private var hasCachedMedium = false
@@ -361,6 +378,21 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
 
     private let cacheManager = GenericAsyncImageCacheManager.shared
     private let maxRetries = 2
+
+    /// Network-adaptive timeout for placeholder detection
+    /// - WiFi/Ethernet: 750ms - Fast networks should load quickly
+    /// - Cellular: 2000ms - Accommodate variable cellular speeds (3G/4G/5G)
+    /// - Unknown: 1500ms - Middle ground for uncertain conditions
+    private var placeholderTimeout: TimeInterval {
+        switch NetworkMonitor.shared.connectionType {
+        case .wifi, .ethernet:
+            return 0.75
+        case .cellular:
+            return 2.0
+        case .unknown:
+            return 1.5
+        }
+    }
 
     // MARK: - Computed Properties
 
@@ -393,7 +425,7 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
 
     var body: some View {
         ZStack {
-            if performanceMode {
+            if effectivePerformanceMode {
                 // Performance mode: Single layer approach for fast scrolling
                 performanceModeView
             } else {
@@ -433,6 +465,14 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
                     }
                 }
             }
+
+            // Start smart timeout detection for stuck placeholders
+            startPlaceholderTimeoutDetection()
+        }
+        .onDisappear {
+            // Cancel timeout task when view disappears
+            loadingTimeoutTask?.cancel()
+            loadingTimeoutTask = nil
         }
         .onChange(of: urls) { oldUrls, newUrls in
             guard oldUrls != newUrls else { return }
@@ -441,6 +481,12 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
             cacheCheckCompleted = false
             retryCount.removeAll()
             loadingState = .idle
+            hasAttemptedRetry = false
+            forcePreload = false
+
+            // Cancel existing timeout
+            loadingTimeoutTask?.cancel()
+            loadingTimeoutTask = nil
 
             // Check cache for new URLs asynchronously
             Task.detached(priority: .userInitiated) {
@@ -451,6 +497,9 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
                     }
                 }
             }
+
+            // Restart timeout detection
+            startPlaceholderTimeoutDetection()
         }
     }
 
@@ -545,7 +594,7 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
     ) -> some View {
         if let url = url {
             content(KFImage(urlFor(url))
-                .kfModifiers(shouldFade: shouldFade, loadingBug: loadingBug)
+                .kfModifiers(shouldFade: shouldFade, context: effectiveContext)
                 .onSuccess { _ in onSuccess() }
                 .onFailure { _ in onFailure() }
             )
@@ -766,6 +815,65 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
 
         if allFailed {
             loadingState = .failed
+        }
+    }
+
+    // MARK: - Smart Timeout Detection
+
+    /// Starts monitoring for stuck placeholders and automatically retries with preloading if detected.
+    ///
+    /// This function implements intelligent failure detection by:
+    /// 1. Waiting for a timeout period (2.5 seconds)
+    /// 2. Checking if image is still showing placeholder
+    /// 3. If stuck, forcing preload mode and triggering cache clear + retry
+    ///
+    /// This solves the iOS 16-18 List lifecycle bug where onAppear doesn't fire reliably,
+    /// causing images to never start loading in certain contexts.
+    private func startPlaceholderTimeoutDetection() {
+        // Cancel any existing timeout
+        loadingTimeoutTask?.cancel()
+
+        loadingTimeoutTask = Task {
+            // Wait for timeout period
+            try? await Task.sleep(for: .seconds(placeholderTimeout))
+
+            // Check if still showing placeholder and haven't retried yet
+            guard !Task.isCancelled,
+                  !hasAttemptedRetry,
+                  !loadingState.isShowingAny,
+                  urls != nil else {
+                return
+            }
+
+            // Image is stuck as placeholder - force aggressive retry
+            await performSmartRetry()
+        }
+    }
+
+    /// Performs an intelligent retry by enabling preload mode and refreshing the image.
+    @MainActor
+    private func performSmartRetry() {
+        hasAttemptedRetry = true
+        forcePreload = true
+
+        // Reset loading state to trigger fresh load with preload enabled
+        loadingState = .idle
+        cacheCheckCompleted = false
+        retryCount.removeAll()
+
+        // Clear any potentially stale cache entries
+        if let lowUrl = urls?.lowQualityUrl {
+            KingfisherManager.shared.cache.removeImage(forKey: lowUrl)
+        }
+
+        // Trigger fresh async cache check with new preload context
+        Task.detached(priority: .userInitiated) {
+            await self.performAsyncCacheCheck()
+            await MainActor.run {
+                if !self.cacheCheckCompleted {
+                    Task { await self.determineInitialState() }
+                }
+            }
         }
     }
 }

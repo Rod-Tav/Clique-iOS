@@ -35,6 +35,16 @@ func mapToMediaType(_ mediaType: Components.Schemas.MediaType) -> MediaType {
     }
 }
 
+// MARK: - Upload Status Mapping
+
+func mapToUploadStatus(_ status: Components.Schemas.UploadStatus) -> UploadStatus {
+    switch status {
+    case .PENDING: return .PENDING
+    case .FAILED: return .FAILED
+    case .COMPLETED: return .COMPLETED
+    }
+}
+
 // MARK: - Photo/Video Date Mapping
 
 func mapToPhotoVideoDate(photo: Components.Schemas.PhotoDataNoPath?, video: Components.Schemas.VideoDataNoPath?, mediaType: MediaType, date: Date) -> Components.Schemas.PhotoVideoDate {
@@ -54,11 +64,6 @@ func mapToPhotoDatePair(photo: Components.Schemas.PhotoDataNoPath?, date: Date) 
 // MARK: - Collection Image Mapping
 
 func mapToCollectionImage(_ data: Components.Schemas.UrlCollectionItem) -> CollectionImage {
-    // DEBUG: Log raw API data to see all available fields
-    print("🔍 [API-DEBUG] Raw CollectionItem data:")
-    print("   dateCreated: \(data.collectionItem!.dateCreated ?? "nil")")
-    print("   Full collectionItem: \(data.collectionItem!)")
-
     // Parse date and extract timezone offset if present in the date string
     let dateResult = convertToDateWithTimezone(data.collectionItem!.dateCreated!)
     let date = dateResult?.date ?? Date()
@@ -71,6 +76,7 @@ func mapToCollectionImage(_ data: Components.Schemas.UrlCollectionItem) -> Colle
         videoUrls: data.videoUrls != nil ? mapToMediaUrls(data.videoUrls!) : nil,
         videoId: data.collectionItem!.videoId,
         mediaType: data.collectionItem!.mediaType != nil ? mapToMediaType(data.collectionItem!.mediaType!) : .PHOTO,
+        uploadStatus: data.collectionItem!.uploadStatus != nil ? mapToUploadStatus(data.collectionItem!.uploadStatus!) : nil,
         date: date,
         numLikes: data.collectionItem!.likes!,
         numComments: data.collectionItem!.commentCount ?? 0,

@@ -275,6 +275,7 @@ struct LivePhotoHelper {
                 imageOptions.deliveryMode = .highQualityFormat
                 imageOptions.isNetworkAccessAllowed = true
                 imageOptions.isSynchronous = false
+                imageOptions.resizeMode = .none  // Prevents iOS green tint bug with PHImageManagerMaximumSize
 
                 PHImageManager.default().requestImage(
                     for: asset,

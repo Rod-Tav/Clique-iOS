@@ -43,6 +43,7 @@ extension View {
 
 struct SwipeToDismissWithBindingModifier: ViewModifier {
     @Binding var isPresented: Bool
+    var isSwiping: Binding<Bool>?
 
     @State private var dismissOffset: CGFloat = 0
 
@@ -55,6 +56,8 @@ struct SwipeToDismissWithBindingModifier: ViewModifier {
                         guard abs(value.translation.width) < GestureConstants.maximumHorizontalDeviation else { return }
                         // Only allow downward movement - clamp at 0 to prevent upward drift
                         dismissOffset = max(0, value.translation.height)
+                        // Notify that swiping has started
+                        isSwiping?.wrappedValue = true
                     }
                     .onEnded { value in
                         let height = value.translation.height + (value.velocity.height / GestureConstants.velocityDampening)
@@ -67,11 +70,14 @@ struct SwipeToDismissWithBindingModifier: ViewModifier {
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                                 isPresented = false
                                 dismissOffset = 0 // Reset for next appearance
+                                isSwiping?.wrappedValue = false
                             }
                         } else {
                             withAnimation(.easeInOut(duration: 0.2)) {
                                 dismissOffset = 0
                             }
+                            // Reset swiping state immediately if swipe was cancelled
+                            isSwiping?.wrappedValue = false
                         }
                     }
             )
@@ -79,7 +85,7 @@ struct SwipeToDismissWithBindingModifier: ViewModifier {
 }
 
 extension View {
-    func swipeDownToDismiss(isPresented: Binding<Bool>) -> some View {
-        self.modifier(SwipeToDismissWithBindingModifier(isPresented: isPresented))
+    func swipeDownToDismiss(isPresented: Binding<Bool>, isSwiping: Binding<Bool>? = nil) -> some View {
+        self.modifier(SwipeToDismissWithBindingModifier(isPresented: isPresented, isSwiping: isSwiping))
     }
 }

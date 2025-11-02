@@ -90,7 +90,7 @@ struct FollowRequestsListView: View {
             tabViewCoordinator.navigate(to: fr.fromUser)
         } label: {
             HStack(spacing: 8) {
-                UserPfpAsyncView(pfp: fr.fromUser.profilePic, size: UserListCellViewType.large.size, quality: .medium)
+                UserPfpAsyncView(pfp: fr.fromUser.profilePic, size: UserListCellViewType.large.size, quality: .low, context: .list)
                 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(fr.fromUser.fullname)

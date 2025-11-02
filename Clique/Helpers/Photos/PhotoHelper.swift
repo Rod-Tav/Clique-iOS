@@ -54,13 +54,74 @@ func prepareUIImage(_ uiImage: UIImage?) -> (photoData: Components.Schemas.Photo
 
 actor FailedVariantTracker {
     private var failed: [Int: Set<ImageQuality>] = [:]
-    
+
     func insert(_ index: Int, quality: ImageQuality) {
         failed[index, default: []].insert(quality)
     }
-    
+
     func isEmpty() -> Bool {
         failed.isEmpty
+    }
+}
+
+/// Tracks completion of media items (each item may have photo + video components)
+/// Uses fractional progress to show partial completion (e.g., 0.5 when photo done, 1.0 when both done)
+actor ItemCompletionTracker {
+    private var completedPhotos: Set<Int> = []
+    private var completedVideos: Set<Int> = []
+    private var itemsWithVideo: Set<Int> = [] // Track which items have videos
+    private let totalItems: Int
+
+    init(totalItems: Int) {
+        self.totalItems = totalItems
+    }
+
+    /// Register that an item has a video component
+    func registerItemWithVideo(index: Int) {
+        itemsWithVideo.insert(index)
+    }
+
+    /// Mark photo component as complete for an item index
+    /// Returns fractional progress (current completion / total items)
+    func markPhotoComplete(index: Int) -> Double {
+        completedPhotos.insert(index)
+        return calculateProgress()
+    }
+
+    /// Mark video component as complete for an item index
+    /// Returns fractional progress (current completion / total items)
+    func markVideoComplete(index: Int) -> Double {
+        completedVideos.insert(index)
+        return calculateProgress()
+    }
+
+    /// Calculate fractional progress
+    /// Each item contributes 1.0 to total. Items with videos: photo=0.5, video=0.5
+    private func calculateProgress() -> Double {
+        var progress: Double = 0.0
+
+        for index in 0..<totalItems {
+            let hasVideo = itemsWithVideo.contains(index)
+            let photoComplete = completedPhotos.contains(index)
+            let videoComplete = completedVideos.contains(index)
+
+            if hasVideo {
+                // Item has video: photo and video each worth 0.5
+                if photoComplete {
+                    progress += 0.5
+                }
+                if videoComplete {
+                    progress += 0.5
+                }
+            } else {
+                // Item is photo-only: photo worth 1.0
+                if photoComplete {
+                    progress += 1.0
+                }
+            }
+        }
+
+        return progress
     }
 }
 
@@ -287,7 +348,8 @@ struct PhotoHelper {
     ///   - urls: Array of photo URLs (original quality only - backend handles conversion)
     ///   - livePhotoAssets: Optional array of PHAsset references for Live Photos (video extracted just-in-time)
     ///   - videoUrls: Optional array of video URLs for uploading video components
-    ///   - onProgress: Progress callback (completed uploads, total uploads)
+    ///   - totalItems: Total number of media items (for display - not upload task count)
+    ///   - onProgress: Progress callback (fractional progress [0.0-totalItems], total items)
     ///   - failedUpload: Failure callback (index, quality)
     ///   - onCompletion: Completion callback (success)
     static func uploadImages(
@@ -297,11 +359,13 @@ struct PhotoHelper {
         transcodedVideoUrls: [URL?]? = nil,
         videoUrls: [String?]? = nil,
         videoContentTypes: [String?]? = nil,
-        onProgress: @escaping (Int, Int) -> Void,
+        totalItems: Int,
+        onProgress: @escaping (Double, Int) -> Void,
         failedUpload: @escaping (Int, ImageQuality) -> Void,
         onCompletion: @escaping (Bool) -> Void
     ) async {
         // Calculate total uploads (1 photo per image + optional video)
+        // This is for internal tracking - we report totalItems to the user
         var totalUploads = urls.compactMap { $0 }.count
 
         // Add video uploads to total count
@@ -310,8 +374,18 @@ struct PhotoHelper {
         }
 
         let counter = UploadCounter()
+        let itemCompletionTracker = ItemCompletionTracker(totalItems: totalItems)
         let semaphore = AsyncSemaphore(value: 6)
         let failedTracker = FailedVariantTracker()
+
+        // Register which items have videos before starting uploads
+        if let transcodedVideoUrls = transcodedVideoUrls {
+            for (index, videoUrl) in transcodedVideoUrls.enumerated() {
+                if videoUrl != nil {
+                    await itemCompletionTracker.registerItemWithVideo(index: index)
+                }
+            }
+        }
 
         await withTaskGroup(of: Void.self) { taskGroup in
 
@@ -321,9 +395,12 @@ struct PhotoHelper {
 
                     do {
                         try await uploadImageDataWithRetry(data, to: url)
-                        let newCount = await counter.increment()
+                        let _ = await counter.increment()
+
+                        // Mark photo as complete for this item and report fractional progress
+                        let fractionalProgress = await itemCompletionTracker.markPhotoComplete(index: index)
                         await MainActor.run {
-                            onProgress(newCount, totalUploads)
+                            onProgress(fractionalProgress, totalItems)
                         }
                     } catch {
                         await failedTracker.insert(index, quality: quality)
@@ -345,9 +422,12 @@ struct PhotoHelper {
 
                         // Stream upload directly from file (no memory spike)
                         try await uploadVideoFromFile(videoFileUrl, to: url, contentType: contentType)
-                        let newCount = await counter.increment()
+                        let _ = await counter.increment()
+
+                        // Mark video as complete for this item and report fractional progress
+                        let fractionalProgress = await itemCompletionTracker.markVideoComplete(index: index)
                         await MainActor.run {
-                            onProgress(newCount, totalUploads)
+                            onProgress(fractionalProgress, totalItems)
                         }
                         print("✅ Video uploaded for index \(index)")
                     } catch {

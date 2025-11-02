@@ -67,9 +67,12 @@ struct CollectionGridCell: View {
                         
                         Group {
                             if let coverPhoto = collection.coverPhoto {
-                                ProfileCollectionCoverPhotoAsyncImage(urls: coverPhoto, side: side, quality: .medium)
-                            } else if let mostLikedImage = collection.mostLikedImage, let urls = collectionImageStore.images[mostLikedImage]?.imageUrl {
-                                ProfileCollectionCoverPhotoAsyncImage(urls: urls, side: side, quality: .medium)
+                                ProfileCollectionCoverPhotoAsyncImage(urls: coverPhoto, side: side, quality: .low)
+                            } else if let mostLikedImage = collection.mostLikedImage,
+                                      let image = collectionImageStore.images[mostLikedImage],
+                                      image.uploadStatus != .PENDING,
+                                      let urls = image.imageUrl {
+                                ProfileCollectionCoverPhotoAsyncImage(urls: urls, side: side, quality: .low, uploadStatus: image.uploadStatus)
                             } else {
                                 ProfileCollectionPlaceholder(side: side)
                             }
@@ -122,16 +125,16 @@ struct CollectionGridCell: View {
                                     Text(clique.name)
                                         .lineLimit(1)
                                 }
-                                
+
                                 Text("•")
-                                
-                                Text("\(collection.numFlicks)")
+
+                                Text("\(collection.displayFlickCount(currentUserId: userStore.currentUserId))")
                             }
                             .font(.caption2)
                             .textSecondary()
                         }
                     } else {
-                        Text("\(collection.numFlicks)") // TODO: DRY
+                        Text("\(collection.displayFlickCount(currentUserId: userStore.currentUserId))") // TODO: DRY
                             .font(.caption2)
                             .textSecondary()
                     }

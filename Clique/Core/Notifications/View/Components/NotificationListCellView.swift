@@ -21,7 +21,7 @@ struct NotificationListCellView: View {
         HStack(spacing: 0) {
             NavigationLink(value: notification.user) {
                 ZStack(alignment: .bottomTrailing) {
-                    UserPfpAsyncView(pfp: notification.user.profilePic, size: UserListCellViewType.large.size, quality: .medium)
+                    UserPfpAsyncView(pfp: notification.user.profilePic, size: UserListCellViewType.large.size, quality: .low, context: .list)
                         .overlayTopLeftNotification(when: !(notification.viewed ?? false), size: 10)
                     
                     switch notification.type {

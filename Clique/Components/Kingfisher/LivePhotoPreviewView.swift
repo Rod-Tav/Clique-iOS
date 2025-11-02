@@ -119,19 +119,47 @@ struct LivePhotoPlaybackView: UIViewRepresentable {
     let livePhoto: PHLivePhoto
     let contentMode: SwiftUI.ContentMode
 
-    func makeUIView(context: Context) -> PHLivePhotoView {
+    func makeUIView(context: Context) -> UIView {
+        // Use a container view to properly handle SwiftUI frame constraints
+        let container = UIView()
+        container.clipsToBounds = true
+
         let livePhotoView = PHLivePhotoView()
         livePhotoView.contentMode = contentMode == .fill ? .scaleAspectFill : .scaleAspectFit
         livePhotoView.livePhoto = livePhoto
+        livePhotoView.clipsToBounds = true
+        livePhotoView.translatesAutoresizingMaskIntoConstraints = false
 
         // Enable tap-to-play interaction (user can tap and hold to play)
         livePhotoView.isMuted = false
 
-        return livePhotoView
+        container.addSubview(livePhotoView)
+
+        // Pin livePhotoView to container edges
+        NSLayoutConstraint.activate([
+            livePhotoView.topAnchor.constraint(equalTo: container.topAnchor),
+            livePhotoView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            livePhotoView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            livePhotoView.bottomAnchor.constraint(equalTo: container.bottomAnchor)
+        ])
+
+        // Store reference for updateUIView
+        container.tag = 999
+
+        return container
     }
 
-    func updateUIView(_ livePhotoView: PHLivePhotoView, context: Context) {
-        livePhotoView.livePhoto = livePhoto
+    func updateUIView(_ container: UIView, context: Context) {
+        guard let livePhotoView = container.subviews.first as? PHLivePhotoView else { return }
+
+        // Force clear and reassign to ensure proper sizing recalculation
+        // This fixes the issue where the same Live Photo appears oversized on second selection
+        livePhotoView.livePhoto = nil
         livePhotoView.contentMode = contentMode == .fill ? .scaleAspectFill : .scaleAspectFit
+        livePhotoView.livePhoto = livePhoto
+
+        // Force layout update to ensure proper sizing
+        container.setNeedsLayout()
+        container.layoutIfNeeded()
     }
 }

@@ -44,7 +44,7 @@ struct CliqueListCellView: View {
     var body: some View {
         if let clique {
             HStack(spacing: 0) {
-                CliquePfpAsyncView(pfp: clique.cliquePic, type: .cliqueListCell, quality: .medium)
+                CliquePfpAsyncView(pfp: clique.cliquePic, type: .cliqueListCell, quality: .low)
                     .padding(.trailing, 16)
                 
                 VStack(alignment: .leading, spacing: 4) {
@@ -59,8 +59,8 @@ struct CliqueListCellView: View {
                         }
                     case .cliqueInvite(let fromUserPfp, let fromUserFirstName):
                         HStack(spacing: 4) {
-                            UserPfpAsyncView(pfp: fromUserPfp, size: 16, quality: .low)
-                            
+                            UserPfpAsyncView(pfp: fromUserPfp, size: 16, quality: .low, context: .list)
+
                             Text("**\(fromUserFirstName)** invited you")
                                 .textSecondary()
                                 .font(.caption2)

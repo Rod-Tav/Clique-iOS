@@ -284,7 +284,7 @@ extension UserProfileTabsView {
     @ViewBuilder private func UserPfpAndPinnedCliques() -> some View {
         HStack(spacing: 0) {
             if let user {
-                UserPfpAsyncView(pfp: user.profilePic, size: 64, quality: .medium)
+                UserPfpAsyncView(pfp: user.profilePic, size: 64, quality: .low)
                     .onTapGesture {
                         showPfp = true
                     }

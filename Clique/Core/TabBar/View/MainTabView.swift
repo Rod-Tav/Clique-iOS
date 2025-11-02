@@ -220,16 +220,14 @@ struct MainTabView: View {
             //                    .animation(.easeInOut, value: tabViewCoordinator.overlayColor)
             //            }
         }
-//        .onReceive(NotificationCenter.default.publisher(for: .showProcessingImagesForUpload)) { _ in
-//            print("hi")
-//        }
-        .onReceive(NotificationCenter.default.publisher(for: .uploadImagesToCollection)) { notification in
+        .onReceive(of: .uploadImagesToCollection) { notification in
             guard let collection = notification.userInfo?["collection"] as? ClCollection,
                   let makingNew = notification.userInfo?["makingNew"] as? Bool,
                   let photoDatePairs = notification.userInfo?["photoDatePairs"] as? [Components.Schemas.PhotoVideoDate],
                   let variants  = notification.userInfo?["variants"] as? [PreparedImageVariant],
                   let livePhotoAssets = notification.userInfo?["livePhotoAssets"] as? [(assetId: String, asset: PHAsset)?],
-                  let transcodedVideoUrls = notification.userInfo?["transcodedVideoUrls"] as? [URL?]
+                  let transcodedVideoUrls = notification.userInfo?["transcodedVideoUrls"] as? [URL?],
+                  let allAssetIdentifiers = notification.userInfo?["allAssetIdentifiers"] as? [String?]
             else { return }
 
             isUploading = true
@@ -243,6 +241,7 @@ struct MainTabView: View {
                         preparedImages: variants,
                         livePhotoAssets: livePhotoAssets,
                         transcodedVideoUrls: transcodedVideoUrls,
+                        allAssetIdentifiers: allAssetIdentifiers,
                         collection: collection,
                         collectionStore,
                         collectionImageStore

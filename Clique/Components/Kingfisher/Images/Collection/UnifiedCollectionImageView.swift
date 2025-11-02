@@ -38,6 +38,7 @@ struct UnifiedCollectionImageView: View {
     @State private var deviceAsset: PHAsset?
     @State private var deviceMediaType: MediaType?
     @State private var isLoadingDevice: Bool = false
+    @State private var deviceLoadFailed: Bool = false
 
     init(
         urls: PhotoUrls?,
@@ -61,14 +62,14 @@ struct UnifiedCollectionImageView: View {
 
     var body: some View {
         Group {
-            if uploadStatus == .PENDING, let itemId = itemId {
+            if uploadStatus == .PENDING, let itemId = itemId, !deviceLoadFailed {
                 // PENDING: Load from device using AppStorage cache
                 deviceImageView
                     .task {
                         await loadDeviceAsset(itemId: itemId)
                     }
             } else {
-                // Normal: Load from network
+                // Normal: Load from network (or fallback from failed device load)
                 networkImageView
             }
         }
@@ -101,21 +102,12 @@ struct UnifiedCollectionImageView: View {
                     )
                 }
             }
-        } else if isLoadingDevice {
+        } else {
+            // Loading or will fallback to network if cache miss
             sizing.applyToView(
                 Rectangle()
                     .fill(Color.theme.iconTertiary)
                     .overlay { ProgressView().scaleEffect(0.5) }
-            )
-        } else {
-            // Cache miss - should never happen for PENDING items
-            sizing.applyToView(
-                Color.red.opacity(0.3)
-                    .overlay {
-                        Text("CACHE MISS")
-                            .foregroundColor(.white)
-                            .font(.caption.bold())
-                    }
             )
         }
     }
@@ -154,8 +146,9 @@ struct UnifiedCollectionImageView: View {
 
         // Check AppStorage cache for asset mapping
         guard let cachedInfo = PendingImageCache.shared.get(itemId) else {
-            print("⚠️ [UNIFIED-IMAGE] No cache entry for itemId: \(itemId)")
+            print("⚠️ [UNIFIED-IMAGE] No cache entry for itemId: \(itemId) - falling back to S3")
             isLoadingDevice = false
+            deviceLoadFailed = true
             return
         }
 
@@ -166,9 +159,10 @@ struct UnifiedCollectionImageView: View {
         )
 
         guard let foundAsset = fetchResult.firstObject else {
-            print("⚠️ [UNIFIED-IMAGE] Asset not found (deleted?): \(cachedInfo.assetIdentifier)")
+            print("⚠️ [UNIFIED-IMAGE] Asset not found (deleted?): \(cachedInfo.assetIdentifier) - falling back to S3")
             PendingImageCache.shared.remove(itemId)
             isLoadingDevice = false
+            deviceLoadFailed = true
             return
         }
 

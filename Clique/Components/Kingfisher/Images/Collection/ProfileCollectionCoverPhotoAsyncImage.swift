@@ -8,21 +8,33 @@
 import SwiftUI
 import Kingfisher
 
+/// Profile collection cover photo - thin wrapper around UnifiedCollectionImageView
 struct ProfileCollectionCoverPhotoAsyncImage: View {
     let urls: PhotoUrls?
     let side: CGFloat
     let quality: ImageQuality
-    
+    let uploadStatus: UploadStatus?
+    let itemId: String?
+    let onRefresh: (() -> Void)?
+
+    init(urls: PhotoUrls?, side: CGFloat, quality: ImageQuality, uploadStatus: UploadStatus? = nil, itemId: String? = nil, onRefresh: (() -> Void)? = nil) {
+        self.urls = urls
+        self.side = side
+        self.quality = quality
+        self.uploadStatus = uploadStatus
+        self.itemId = itemId
+        self.onRefresh = onRefresh
+    }
+
     var body: some View {
-        GenericAsyncImage(urls: urls, quality: quality, performanceMode: true) { image in
-            image
-                .resizable()
-                .scaledToFill()
-                .frame(side)
-                .roundCorners(8)
-        } placeholder: {
-            ProfileCollectionPlaceholder(side: side)
-        }
+        UnifiedCollectionImageView(
+            urls: urls,
+            uploadStatus: uploadStatus,
+            itemId: itemId,
+            quality: quality,
+            sizing: .side(side),
+            performanceMode: true
+        )
     }
 }
 

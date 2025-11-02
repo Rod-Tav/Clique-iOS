@@ -183,6 +183,8 @@ struct PhotoProcessingHelper {
                     viewModel.livePhotoAssetReferences.append(result.assetReference)
                     // Store pre-transcoded video URL (critical for presigned URL signature matching)
                     viewModel.transcodedVideoUrls.append(result.transcodedVideoUrl)
+                    // Store asset identifier for ALL photos (for device photo caching during PENDING state)
+                    viewModel.allAssetIdentifiers.append(result.assetIdentifier)
 
                     // Track extraction errors for user notification
                     if let error = result.extractionError, let assetId = result.assetIdentifier {
@@ -264,10 +266,15 @@ struct PhotoProcessingHelper {
                         // Load image data using PHImageManager
                         let (_, image) = try await loadImageFromAsset(asset)
 
-                        // Extract timezone offset from EXIF metadata
-                        let timezoneOffset = await PHAssetMetadataHelper.extractTimezoneOffset(from: asset)
+                        // Extract BOTH creation date AND timezone from EXIF
+                        // CRITICAL: Uses EXIF DateTimeOriginal (local time) not PHAsset.creationDate (UTC)
+                        let result = await PHAssetMetadataHelper.extractCreationDateAndTimezone(from: asset)
+                        let creationDate = result?.date ?? asset.creationDate ?? Date()
+                        let timezoneOffset = result?.timezoneOffset
 
-                        return (index, asset, image, asset.creationDate ?? Date(), timezoneOffset, isLivePhoto, nil)
+                        print("📅 [PROCESSING] Asset \(index): date=\(creationDate), timezone=\(timezoneOffset ?? "nil")")
+
+                        return (index, asset, image, creationDate, timezoneOffset, isLivePhoto, nil)
                     } catch {
                         print("Failed to load asset at index \(index): \(error)")
                         return (index, asset, nil, asset.creationDate ?? Date(), nil, false, error)

@@ -351,8 +351,8 @@ extension CollectionMainView {
             VStack(spacing: 2) {
                 Text(collection.name)
                     .font(.callout.bold())
-                
-                Text("\(formatDateMMMMdd(collection.creation)) • \(formatNumber(collection.numFlicks)) Flicks")
+
+                Text("\(formatDateMMMMdd(collection.creation)) • \(formatNumber(collection.displayFlickCount(currentUserId: userStore.currentUserId))) Flicks")
                     .font(.caption)
             }
             .multilineTextAlignment(.center)
@@ -426,13 +426,14 @@ extension CollectionMainView {
                         HStack(spacing: 2) {
                             HStack(spacing: 4) {
                                 IconImage("calendar", color: Color.theme.iconSecondary, size: 16)
-                                
+
                                 Text(formatDateMMMMddYYYY(collection.creation))
                                     .font(.caption)
                                     .textSecondary()
                             }
-                            
-                            Text("• \(formatNumber(collection.numFlicks)) \(collection.numFlicks == 1 ? "Flick" : "Flicks")")
+
+                            let displayCount = collection.displayFlickCount(currentUserId: userStore.currentUserId)
+                            Text("• \(formatNumber(displayCount)) \(displayCount == 1 ? "Flick" : "Flicks")")
                                 .font(.caption)
                                 .textSecondary()
                         }
@@ -492,7 +493,7 @@ extension CollectionMainView {
     }
     
     @ViewBuilder private func ImageCell(_ image: CollectionImage) -> some View {
-        CollectionPreviewAsyncImage(urls: image.imageUrl, quality: .low, isLivePhoto: image.isLivePhoto, isVideo: image.isVideo)
+        CollectionPreviewAsyncImage(urls: image.imageUrl, quality: .low, isLivePhoto: image.isLivePhoto, isVideo: image.isVideo, uploadStatus: image.uploadStatus, itemId: image.id, onRefresh: refreshAll)
             .overlayCollectionPreviewStats(
                 likes: image.numLikes,
                 comments: image.numComments,

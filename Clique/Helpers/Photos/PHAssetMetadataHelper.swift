@@ -9,17 +9,26 @@ import Photos
 import UIKit
 import ImageIO
 
-/// Helper for extracting metadata from PHAsset, particularly timezone information.
+/// Helper for extracting metadata from PHAsset, particularly timezone information and creation dates.
 ///
-/// Reads EXIF data from photo library assets to get the original timezone
-/// where the photo was taken.
+/// Reads EXIF data from photo library assets to get the original timezone and creation date
+/// in the timezone where the photo was taken.
 struct PHAssetMetadataHelper {
 
-    /// Extracts timezone offset from a PHAsset's EXIF metadata.
+    /// Extracts both timezone offset AND creation date from a PHAsset.
     ///
-    /// - Parameter asset: The PHAsset to extract timezone from
-    /// - Returns: Timezone offset string (e.g., "-0400", "+0530") or nil if not available
-    static func extractTimezoneOffset(from asset: PHAsset) async -> String? {
+    /// CRITICAL: Uses EXIF DateTimeOriginal (local time) instead of PHAsset.creationDate (UTC).
+    /// Apple Photos displays the local time from EXIF, not UTC time.
+    ///
+    /// Tries in order:
+    /// 1. PHAsset.location with GPS reverse geocoding (most reliable, persists through iCloud sync)
+    /// 2. EXIF OffsetTimeOriginal/OffsetTime/OffsetTimeDigitized fields
+    /// 3. GPS data from image EXIF metadata
+    /// 4. Returns DateTimeOriginal with nil timezone if all methods fail
+    ///
+    /// - Parameter asset: The PHAsset to extract metadata from
+    /// - Returns: Tuple of (creationDate in local time, timezone offset or nil)
+    static func extractCreationDateAndTimezone(from asset: PHAsset) async -> (date: Date, timezoneOffset: String?)? {
         // Request image data to access EXIF metadata
         let options = PHImageRequestOptions()
         options.isSynchronous = false
@@ -31,29 +40,45 @@ struct PHAssetMetadataHelper {
                 guard let data = data,
                       let imageSource = CGImageSourceCreateWithData(data as CFData, nil),
                       let metadata = CGImageSourceCopyPropertiesAtIndex(imageSource, 0, nil) as? [String: Any] else {
-                    continuation.resume(returning: nil)
+                    print("❌ [METADATA] Failed to extract image metadata")
+                    // Fallback to PHAsset.creationDate if EXIF not available
+                    continuation.resume(returning: (asset.creationDate ?? Date(), nil))
                     return
                 }
 
-                // Extract timezone from EXIF data
-                if let exif = metadata[kCGImagePropertyExifDictionary as String] as? [String: Any] {
-                    print("📸 [TIMEZONE] Found EXIF data, checking for OffsetTimeOriginal...")
-                    // Try OffsetTimeOriginal first (most accurate)
-                    if let offset = exif["OffsetTimeOriginal"] as? String {
-                        // Clean format: "-04:00" → "-0400"
-                        let cleanOffset = offset.replacingOccurrences(of: ":", with: "")
-                        print("✅ [TIMEZONE] Extracted from EXIF: \(cleanOffset) (original: \(offset))")
-                        continuation.resume(returning: cleanOffset)
-                        return
-                    } else {
-                        print("⚠️ [TIMEZONE] OffsetTimeOriginal not found in EXIF")
-                    }
-                } else {
-                    print("⚠️ [TIMEZONE] No EXIF data found in image metadata")
+                // Extract EXIF data
+                guard let exif = metadata[kCGImagePropertyExifDictionary as String] as? [String: Any] else {
+                    print("⚠️ [METADATA] No EXIF data found, using PHAsset.creationDate")
+                    continuation.resume(returning: (asset.creationDate ?? Date(), nil))
+                    return
                 }
 
-                // If no offset in EXIF, try to infer from GPS
-                if let gps = metadata[kCGImagePropertyGPSDictionary as String] as? [String: Any],
+                // Extract DateTimeOriginal (local time when photo was taken)
+                guard let dateTimeOriginal = exif["DateTimeOriginal"] as? String else {
+                    print("⚠️ [METADATA] No DateTimeOriginal in EXIF, using PHAsset.creationDate")
+                    continuation.resume(returning: (asset.creationDate ?? Date(), nil))
+                    return
+                }
+
+                print("📸 [METADATA] Found DateTimeOriginal: \(dateTimeOriginal)")
+                print("📸 [METADATA] All EXIF keys: \(exif.keys.joined(separator: ", "))")
+
+                // Try to extract timezone offset
+                // PRIORITY 1: Try EXIF OffsetTimeOriginal (most reliable, directly from camera)
+                var timezoneOffset: String? = nil
+                let timezoneKeys = ["OffsetTimeOriginal", "OffsetTime", "OffsetTimeDigitized"]
+                for key in timezoneKeys {
+                    if let offset = exif[key] as? String {
+                        let cleanOffset = offset.replacingOccurrences(of: ":", with: "")
+                        print("✅ [TIMEZONE] Extracted from EXIF[\(key)]: \(cleanOffset)")
+                        timezoneOffset = cleanOffset
+                        break
+                    }
+                }
+
+                // PRIORITY 2: Try GPS from EXIF metadata
+                if timezoneOffset == nil,
+                   let gps = metadata[kCGImagePropertyGPSDictionary as String] as? [String: Any],
                    let latitude = gps[kCGImagePropertyGPSLatitude as String] as? Double,
                    let longitude = gps[kCGImagePropertyGPSLongitude as String] as? Double,
                    let latRef = gps[kCGImagePropertyGPSLatitudeRef as String] as? String,
@@ -63,7 +88,6 @@ struct PHAssetMetadataHelper {
                     let lon = (lonRef == "E") ? longitude : -longitude
                     let location = CLLocation(latitude: lat, longitude: lon)
 
-                    // Use geocoding to get timezone
                     print("🌍 [TIMEZONE] Trying GPS-based timezone inference...")
                     CLGeocoder().reverseGeocodeLocation(location) { placemarks, error in
                         if let timeZone = placemarks?.first?.timeZone,
@@ -71,20 +95,51 @@ struct PHAssetMetadataHelper {
                             let offsetSeconds = timeZone.secondsFromGMT(for: date)
                             let offsetString = formatTimezoneOffset(offsetSeconds)
                             print("✅ [TIMEZONE] Extracted from GPS: \(offsetString)")
-                            continuation.resume(returning: offsetString)
+
+                            // Parse DateTimeOriginal with timezone
+                            let localDate = Self.parseDateTimeOriginal(dateTimeOriginal, withTimezoneOffset: offsetString)
+                            continuation.resume(returning: (localDate ?? asset.creationDate ?? Date(), offsetString))
                         } else {
-                            print("❌ [TIMEZONE] GPS geocoding failed: \(error?.localizedDescription ?? "unknown")")
-                            continuation.resume(returning: nil)
+                            print("❌ [TIMEZONE] GPS geocoding failed")
+                            // Parse without timezone
+                            let localDate = Self.parseDateTimeOriginal(dateTimeOriginal, withTimezoneOffset: nil)
+                            continuation.resume(returning: (localDate ?? asset.creationDate ?? Date(), nil))
                         }
                     }
                     return
                 }
 
-                // No timezone information found
-                print("❌ [TIMEZONE] No timezone information found (no EXIF offset, no GPS)")
-                continuation.resume(returning: nil)
+                // Parse DateTimeOriginal with timezone (if found)
+                let localDate = Self.parseDateTimeOriginal(dateTimeOriginal, withTimezoneOffset: timezoneOffset)
+                print("📅 [METADATA] Parsed date: \(localDate?.description ?? "nil"), timezone: \(timezoneOffset ?? "nil")")
+                continuation.resume(returning: (localDate ?? asset.creationDate ?? Date(), timezoneOffset))
             }
         }
+    }
+
+    /// Parses EXIF DateTimeOriginal string to Date
+    /// Format: "2025:10:21 20:05:49"
+    ///
+    /// CRITICAL: Parses time in the original timezone to get correct absolute time.
+    /// EXIF DateTimeOriginal is local time, so we parse it in the original timezone
+    /// to get a Date object representing the correct UTC instant.
+    /// Example: "20:05:49" with "-0400" → Date representing "00:05:49 UTC" (8:05 PM EDT)
+    private static func parseDateTimeOriginal(_ dateTimeOriginal: String, withTimezoneOffset offset: String?) -> Date? {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy:MM:dd HH:mm:ss"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+
+        // Parse in the original timezone to get correct absolute time
+        if let offset = offset, let timezone = TimeZone(offsetString: offset) {
+            formatter.timeZone = timezone
+            print("📅 [PARSE] Parsing DateTimeOriginal in original timezone \(offset)")
+        } else {
+            // Fallback to UTC if timezone unknown
+            formatter.timeZone = TimeZone(secondsFromGMT: 0)
+            print("📅 [PARSE] Parsing DateTimeOriginal as UTC (no timezone info)")
+        }
+
+        return formatter.date(from: dateTimeOriginal)
     }
 
     /// Formats seconds offset to ISO 8601 timezone string

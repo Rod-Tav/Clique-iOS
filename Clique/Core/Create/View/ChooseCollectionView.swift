@@ -12,14 +12,15 @@ import Toasts
 struct ChooseCollectionView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.presentToast) private var presentToast
-    
+
+    @Environment(UserStore.self) private var userStore
     @Environment(CliqueStore.self) private var cliqueStore
     @Environment(CollectionStore.self) private var collectionStore
     @Environment(CollectionImageStore.self) private var collectionImageStore
-    
+
     @Environment(AppCoordinator.self) private var appCoordinator
     @Environment(TabViewCoordinator.self) private var tabViewCoordinator
-    
+
     @Environment(CreateViewModel.self) private var viewModel
     
     @State private var collectionsPgVM: UserCollectionsPaginationViewModel
@@ -38,7 +39,7 @@ struct ChooseCollectionView: View {
                 .font(.callout.weight(.semibold))
                 .foregroundStyle(Color.theme.textPrimary)
             
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(spacing: 16) {
                 CliqueButton(
                     type: .primary,
                     leadingIcon: "plus",
@@ -133,17 +134,18 @@ struct ChooseCollectionView: View {
                     Text(collection.name)
                         .font(.footnote.bold())
                         .foregroundStyle(Color.theme.textPrimary)
-                    
+
                     HStack(spacing: 8) {
                         CollectionStat(icon: "calendar", text: formatDateMdyy(collection.creation))
-                        
-                        CollectionStat(icon: "images-posts", text: String(collection.numFlicks))
+
+                        CollectionStat(icon: "images-posts", text: String(collection.displayFlickCount(currentUserId: userStore.currentUserId)))
                     }
                 }
             }
-            .maxWidth(.leading)
             .contentShape(.rect)
-        }.noHighlight()
+        }
+        .noHighlight()
+        .maxWidth(.leading)
     }
     
     @ViewBuilder private func CollectionStat(icon: String, text: String) -> some View {

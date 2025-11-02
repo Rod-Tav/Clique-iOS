@@ -10,22 +10,23 @@ import SwiftUI
 struct UploadProgressView: View {
     @Environment(CollectionStore.self) private var collectionStore
     @Environment(CollectionImageStore.self) private var collectionImageStore
-    
+
     @Environment(TabViewCoordinator.self) private var tabViewCoordinator
-    
+
     let collectionId: String
     var totalFlicks: Int
-    var successfulFlicks: Int
+    var successfulFlicks: Double
     var failedFlicks: Int
-    
+
     @Binding var showUploading: Bool
-    
+
     var showNav: Bool = false
-    
+
     var showRetry: Bool = false
     var retryAction: () -> Void
-    
+
     @State private var tapped: Bool = false
+    @State private var isSwiping: Bool = false
     
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -35,51 +36,61 @@ struct UploadProgressView: View {
                 navAction()
             } label: {
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(showNav ? Color.theme.buttonCTA : .gray)
+                    .fill(showNav ? Color.theme.buttonCTA : Color.theme.surfacesBackgroundPrimary.opacity(0.9))
                     .contentShape(.rect)
             }
-            .disabled(!showNav)
+            .disabled(!showNav || isSwiping)
 
             VStack(alignment: .leading) {
+                if showNav {
+                    Spacer()
+                }
+
                 HStack {
                     if showNav {
                         HStack(spacing: 4) {
+                            if !showRetry {
+                                Spacer()
+                            }
+
                             Text("Tap to go to collection")
                                 .foregroundStyle(Color.theme.buttonContent)
                                 .multilineTextAlignment(.leading)
                                 .font(.callout)
-                            
+
                             if !showRetry {
                                 Spacer()
                             }
-                            
+
                             IconImage("chevron-right", color: .theme.buttonContent, size: 16)
                         }
                         .allowsHitTesting(false)
                     } else if totalFlicks == 0 {
                         HStack(spacing: 8) {
                             CliqueProgressView(size: 20)
-                            
+
                             Text("Processing images for upload...")
+                                .textPrimary()
                                 .font(.callout)
-                                .foregroundStyle(Color.theme.shadesWhite95)
                         }
                     } else {
-                        Text("Uploading \(successfulFlicks) / \(totalFlicks)...")
-                            .foregroundStyle(Color.theme.shadesWhite95)
+                        // Display integer count for text, but use fractional progress for bar
+                        let displayCount = Int(successfulFlicks.rounded(.down))
+                        Text("Uploading \(displayCount) / \(totalFlicks)...")
+                            .textPrimary()
                             .font(.callout.bold())
                     }
-                    
+
                     if showRetry {
                         Spacer()
-                        
+
                         Button {
                             print("retry tapped")
                             retryAction()
                         } label: {
                             VStack(alignment: .trailing) {
                                 IconImage("refresh", color: .buttonContent, size: 20)
-                                
+
                                 Text("Tap to retry \(failedFlicks) failed flicks")
                                     .foregroundStyle(.buttonContent)
                                     .font(.callout)
@@ -90,9 +101,11 @@ struct UploadProgressView: View {
                 }
                 .padding(8)
 
-                Spacer()
+                if showNav {
+                    Spacer()
+                } else {
+                    Spacer()
 
-                if !showNav {
                     Capsule()
                         .fill(Color.theme.cliquePink)
                         .frame(width: max(0, CGFloat(Double(successfulFlicks) / Double(totalFlicks) * (UIScreen.width - 16))), height: 3)
@@ -101,7 +114,7 @@ struct UploadProgressView: View {
             }
         }
         .frame(height: 48)
-        .swipeDownToDismiss(isPresented: $showUploading)
+        .swipeDownToDismiss(isPresented: $showUploading, isSwiping: $isSwiping)
     }
     
     private func navAction() {

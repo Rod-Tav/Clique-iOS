@@ -93,36 +93,23 @@ struct DateMediaTypeLabel: View {
         }
         .foregroundStyle(textColor)
         .task(id: image.id) {
-            print("🕐 [DISPLAY] DateMediaTypeLabel for image \(image.id)")
-            print("   Media type: \(image.mediaType.rawValue)")
-            print("   Has API timezone: \(image.cachedTimezoneOffset != nil)")
-            print("   Video URL: \(image.videoUrls?.videoUrl(for: .medium)?.absoluteString ?? "nil")")
-
             // Priority 1: Use timezone from API response (already in model)
             if let apiTimezone = image.cachedTimezoneOffset {
-                print("✅ [DISPLAY] Using API timezone: \(apiTimezone)")
                 timezoneOffset = apiTimezone
             }
             // Priority 2: Check store cache (from previous video extraction)
             else if let cached = collectionImageStore.getCachedTimezoneOffset(for: image.id) {
-                print("✅ [DISPLAY] Using cached timezone: \(cached)")
                 timezoneOffset = cached
             }
             // Priority 3: For Live Photos/videos, extract from video metadata as fallback
             else if (image.isLivePhoto || image.isVideo), let url = image.videoUrls?.videoUrl(for: .medium) {
-                print("🎥 [DISPLAY] Attempting video metadata extraction...")
                 if let offset = await VideoMetadataHelper.extractTimezoneOffset(from: url) {
-                    print("✅ [DISPLAY] Extracted timezone from video: \(offset)")
                     timezoneOffset = offset
                     // Cache for future use
                     await MainActor.run {
                         collectionImageStore.cacheTimezoneOffset(for: image.id, offset: offset)
                     }
-                } else {
-                    print("❌ [DISPLAY] Failed to extract timezone from video")
                 }
-            } else {
-                print("⚠️ [DISPLAY] No timezone extraction possible - not a video/live photo or no URL")
             }
 
             // Fetch video duration if not already available (for videos only)

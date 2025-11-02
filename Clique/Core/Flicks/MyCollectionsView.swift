@@ -238,9 +238,9 @@ extension MyCollectionsView {
                     // TODO: DRY(?)
                     CollectionPreviewWithGridBg(width: 64) {
                         if let coverPhoto = collection.coverPhoto {
-                            ProfileCollectionCoverPhotoAsyncImage(urls: coverPhoto, side: 64, quality: .medium)
+                            ProfileCollectionCoverPhotoAsyncImage(urls: coverPhoto, side: 64, quality: .low)
                         } else if let mostLikedImage = collection.mostLikedImage, let urls = collectionImageStore.images[mostLikedImage]?.imageUrl {
-                            ProfileCollectionCoverPhotoAsyncImage(urls: urls, side: 64, quality: .medium)
+                            ProfileCollectionCoverPhotoAsyncImage(urls: urls, side: 64, quality: .low)
                         } else {
                             ProfileCollectionPlaceholder(side: 64)
                         }
@@ -253,11 +253,11 @@ extension MyCollectionsView {
                             .lineLimit(1)
                             .font(.footnote.bold())
                             .textPrimary()
-                        
+
                         HStack(spacing: 8) {
                             Pill(icon: "calendar", text: formatDateMdyy(collection.creation))
-                            
-                            Pill(icon: "images-posts", text: formatNumber(collection.numFlicks))
+
+                            Pill(icon: "images-posts", text: formatNumber(collection.displayFlickCount(currentUserId: userStore.currentUserId)))
                         }
                     }
                 }
