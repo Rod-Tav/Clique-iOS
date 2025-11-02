@@ -75,9 +75,16 @@ import Foundation
 
         // Update images array when backend provides data
         // Some API endpoints return collections without images (e.g., profile collection list)
-        // Only update if: (1) backend returned images, OR (2) explicitly clearing with forceUpdateURL
         if !collection.images.isEmpty || forceUpdateURL {
-            existingCollection.images = collection.images
+            // Preserve local PENDING images that aren't in the backend response yet
+            // During refresh, backend might not include PENDING images, but we want to keep showing them
+            let localPendingImages = existingCollection.images.filter { localImage in
+                localImage.uploadStatus == .PENDING &&
+                !collection.images.contains(where: { $0.id == localImage.id })
+            }
+
+            // Merge: backend images + preserved local PENDING images
+            existingCollection.images = collection.images + localPendingImages
         }
         
         if collection.mostLikedImage != nil {
