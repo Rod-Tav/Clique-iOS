@@ -56,23 +56,27 @@ import Foundation
         if existingCollection.cliqueId != collection.cliqueId {
             existingCollection.cliqueId = collection.cliqueId
         }
-        // Only update numFlicks if it increases, or if it's reasonable based on current images
-        // This prevents backend returning 0 from overwriting optimistic updates during pending uploads
-        if collection.numFlicks > existingCollection.numFlicks {
-            existingCollection.numFlicks = collection.numFlicks
-        } else if collection.numFlicks >= existingCollection.images.count {
-            // Backend says it's less, but at least as many as images we have - trust it
+
+        // Update numFlicks from backend, but protect against the 0 edge case during uploads
+        // Backend returns 0 when no flicks are processed yet, but we might have PENDING uploads
+        if collection.numFlicks == 0 && !existingCollection.images.isEmpty {
+            // Keep existing numFlicks if backend says 0 but we have images locally
+            // displayFlickCount() will handle the actual count with PENDING items
+        } else {
+            // Trust backend's numFlicks in all other cases
             existingCollection.numFlicks = collection.numFlicks
         }
-        // Otherwise keep existing numFlicks (protects pending uploads)
         if forceUpdateURL || shouldUpdatePhotoUrls(existingCollection.coverPhoto, collection.coverPhoto) {
             existingCollection.coverPhoto = collection.coverPhoto
         }
         if existingCollection.visibility != collection.visibility {
             existingCollection.visibility = collection.visibility
         }
-        // TODO: better handling because images could be deleted. currently when collections are loaded on user profile they don't have images which is why this is here (so feed items keep their images)
-        if existingCollection.images.count < collection.images.count {
+
+        // Update images array when backend provides data
+        // Some API endpoints return collections without images (e.g., profile collection list)
+        // Only update if: (1) backend returned images, OR (2) explicitly clearing with forceUpdateURL
+        if !collection.images.isEmpty || forceUpdateURL {
             existingCollection.images = collection.images
         }
         
@@ -90,13 +94,6 @@ import Foundation
     
     func updateCollections(_ newCollections: [ClCollection], forceUpdateURLs: Bool = false, _ collectionImageStore: CollectionImageStore) {
         newCollections.forEach { updateCollection($0, forceUpdateURL: forceUpdateURLs, collectionImageStore) }
-    }
-    
-    /// Optimistically increment numFlicks for a collection (used when starting uploads)
-    func incrementFlickCount(collectionId: String, by count: Int) {
-        guard var collection = collections[collectionId] else { return }
-        collection.numFlicks += count
-        collections[collectionId] = collection
     }
 
     func reset() {
