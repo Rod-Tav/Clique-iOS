@@ -8,6 +8,12 @@
 import SwiftUI
 import PhotosUI
 
+enum UploadStatus: String, Codable {
+    case PENDING
+    case FAILED
+    case COMPLETED
+}
+
 struct CollectionImage: Identifiable, Hashable, Codable {
     let id: String
     var owner: User?
@@ -23,6 +29,9 @@ struct CollectionImage: Identifiable, Hashable, Codable {
 
     // Media type indicator
     var mediaType: MediaType = .PHOTO
+
+    // Upload/processing status
+    var uploadStatus: UploadStatus? = nil
 
     var date: Date
     var numLikes: Int = 0
@@ -51,7 +60,7 @@ struct CollectionImage: Identifiable, Hashable, Codable {
 
 extension CollectionImage {
     enum CodingKeys: String, CodingKey {
-        case id, owner, imageUrl, videoUrls, videoId, videoDuration, mediaType
+        case id, owner, imageUrl, videoUrls, videoId, videoDuration, mediaType, uploadStatus
         case date, numLikes, numComments, numTaggedMembers, hasLiked
         // intentionally exclude `uiImage` and `cachedTimezoneOffset` (runtime only)
     }
@@ -85,6 +94,35 @@ struct ClCollection: Identifiable, Hashable, Codable {
         let livePhotos = images.filter { $0.mediaType == .LIVE }.count
         let videos = images.filter { $0.mediaType == .VIDEO }.count
         return (photos, livePhotos, videos)
+    }
+
+    /// Returns the display flick count including the current user's pending uploads.
+    /// Uses the backend numFlicks count as the base and adds any pending uploads by the current user for optimistic UI.
+    /// - Parameter currentUserId: The ID of the currently authenticated user
+    /// - Returns: Total flick count including current user's pending uploads
+    func displayFlickCount(currentUserId: String?) -> Int {
+        // Count current user's pending uploads (optimistic UI)
+        let pendingCount: Int
+        if let currentUserId {
+            pendingCount = images.filter {
+                $0.uploadStatus == .PENDING && $0.owner?.id == currentUserId
+            }.count
+        } else {
+            pendingCount = 0
+        }
+
+        let displayCount = numFlicks + pendingCount
+
+        // Special check: if we're about to show 0 but we have images locally, do a final fallback check
+        if displayCount == 0 && !images.isEmpty {
+            // Count all non-failed images as a fallback (includes pending, completed, or status-less)
+            let nonFailedImages = images.filter { $0.uploadStatus != .FAILED }.count
+            if nonFailedImages > 0 {
+                return nonFailedImages
+            }
+        }
+
+        return displayCount
     }
 }
 

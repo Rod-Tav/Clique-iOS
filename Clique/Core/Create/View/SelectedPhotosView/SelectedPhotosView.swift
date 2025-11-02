@@ -225,6 +225,7 @@ struct SelectedPhotosView: View {
                                         get: { dragOffsets[asset] ?? .zero },
                                         set: { dragOffsets[asset] = $0 }
                                     ),
+                                    isCurrentlyVisible: asset == scrollPosition,
                                     viewModel: viewModel,
                                     collectionStore: collectionStore,
                                     onCollectionTap: {
@@ -436,6 +437,7 @@ struct PhotoGalleryItem: View {
     let geometry: GeometryProxy
     @Binding var zoomScale: CGFloat
     @Binding var dragOffset: CGSize
+    let isCurrentlyVisible: Bool
     let viewModel: CreateViewModel
     let collectionStore: CollectionStore
     let onCollectionTap: () -> Void
@@ -478,12 +480,14 @@ struct PhotoGalleryItem: View {
                     )
                     .frame(maxWidth: geometry.size.width)
                     .frame(maxHeight: geometry.size.height)
+                    .id(asset.localIdentifier) // Force recreation when same asset is selected again
                 } else if isVideo {
                     // Use VideoPreviewView for videos
                     VideoPreviewView(
                         asset: asset,
                         thumbnail: context.thumbnailCache[asset],
-                        contentMode: .fit
+                        contentMode: .fit,
+                        isVisible: isCurrentlyVisible
                     )
                     .frame(maxWidth: geometry.size.width)
                     .frame(maxHeight: geometry.size.height)

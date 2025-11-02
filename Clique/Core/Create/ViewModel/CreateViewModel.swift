@@ -47,6 +47,9 @@ enum CreateFlowDestination: Hashable {
     /// Pre-transcoded video URLs (parallel to preparedImageVariants, nil for regular photos)
     /// Videos are transcoded during processing to get accurate file sizes for presigned URL generation
     var transcodedVideoUrls: [URL?] = []
+    /// Asset identifiers for ALL photos (parallel to preparedImageVariants)
+    /// Used for caching device photos to show during PENDING upload status
+    var allAssetIdentifiers: [String?] = []
 
     var collectionToGoTo: ClCollection?
 
@@ -106,7 +109,8 @@ enum CreateFlowDestination: Hashable {
                     "photoDatePairs": photoDatePairs,
                     "variants": preparedImageVariants,
                     "livePhotoAssets": livePhotoAssetReferences,
-                    "transcodedVideoUrls": transcodedVideoUrls
+                    "transcodedVideoUrls": transcodedVideoUrls,
+                    "allAssetIdentifiers": allAssetIdentifiers
                 ]
             )
            
@@ -117,7 +121,9 @@ enum CreateFlowDestination: Hashable {
     }
     
     func getCollectionObj(cuid: String, flicks: [CollectionImage]) -> ClCollection {
-        return ClCollection(id: UUID().uuidString, name: newCollectionName.trim(), description: newCollectionCaption.trim(), userId: cuid, cliqueId: newCollectionClique!.id, creation: Date(), images: flicks, visibility: newCollectionVisibility, numFlicks: selectedImages.count)
+        // Set numFlicks to 0 for new collections - backend will set the correct count after processing
+        // This prevents double-counting with pending uploads in displayFlickCount()
+        return ClCollection(id: UUID().uuidString, name: newCollectionName.trim(), description: newCollectionCaption.trim(), userId: cuid, cliqueId: newCollectionClique!.id, creation: Date(), images: flicks, visibility: newCollectionVisibility, numFlicks: 0)
     }
     
     func removeAsset(_ asset: PHAsset) {
@@ -199,6 +205,7 @@ enum CreateFlowDestination: Hashable {
         preparedImageVariants = []
         livePhotoAssetReferences = []
         transcodedVideoUrls = []
+        allAssetIdentifiers = []
 
         collectionToGoTo = nil
         shouldProcessAndUploadForNewCollection = false

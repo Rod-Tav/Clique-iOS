@@ -56,9 +56,15 @@ import Foundation
         if existingCollection.cliqueId != collection.cliqueId {
             existingCollection.cliqueId = collection.cliqueId
         }
-        if existingCollection.numFlicks != collection.numFlicks {
+        // Only update numFlicks if it increases, or if it's reasonable based on current images
+        // This prevents backend returning 0 from overwriting optimistic updates during pending uploads
+        if collection.numFlicks > existingCollection.numFlicks {
+            existingCollection.numFlicks = collection.numFlicks
+        } else if collection.numFlicks >= existingCollection.images.count {
+            // Backend says it's less, but at least as many as images we have - trust it
             existingCollection.numFlicks = collection.numFlicks
         }
+        // Otherwise keep existing numFlicks (protects pending uploads)
         if forceUpdateURL || shouldUpdatePhotoUrls(existingCollection.coverPhoto, collection.coverPhoto) {
             existingCollection.coverPhoto = collection.coverPhoto
         }
@@ -86,6 +92,13 @@ import Foundation
         newCollections.forEach { updateCollection($0, forceUpdateURL: forceUpdateURLs, collectionImageStore) }
     }
     
+    /// Optimistically increment numFlicks for a collection (used when starting uploads)
+    func incrementFlickCount(collectionId: String, by count: Int) {
+        guard var collection = collections[collectionId] else { return }
+        collection.numFlicks += count
+        collections[collectionId] = collection
+    }
+
     func reset() {
         collections = [String: ClCollection]()
     }

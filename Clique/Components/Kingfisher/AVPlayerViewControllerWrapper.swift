@@ -13,7 +13,7 @@ import AVKit
 /// Provides a consistent video playback experience across the app with:
 /// - Native iOS playback controls (play/pause, scrubber, volume, fullscreen)
 /// - Picture-in-Picture support
-/// - Automatic appearance adaptation
+/// - Transparent background (shows parent view background)
 ///
 /// ## Usage
 /// ```swift
@@ -27,6 +27,10 @@ struct AVPlayerViewControllerWrapper: UIViewControllerRepresentable {
         controller.player = player
         controller.showsPlaybackControls = true
         controller.allowsPictureInPicturePlayback = true
+
+        // Use transparent background to let parent view background show through
+        controller.view.backgroundColor = .clear
+
         return controller
     }
 

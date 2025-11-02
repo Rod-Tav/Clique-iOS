@@ -8,13 +8,13 @@
 import Photos
 
 @Observable final class TabViewModel {
-    var successfulImages: Int = 0
+    var successfulImages: Double = 0.0
     var totalImages: Int = 0
-    
+
     var triggerNavToCollection: Bool = false
-    
+
     var collectionId: String = ""
-    
+
     var uploadFailed: Bool = false
     var retryImages: [PreparedImageVariant]? = nil
     var retryLivePhotoAssets: [(assetId: String, asset: PHAsset)?]? = nil
@@ -22,9 +22,9 @@ import Photos
     var retryUrlItems: [Components.Schemas.UrlCollectionItem]? = nil
     var retryPhotoDatePairs: [Components.Schemas.PhotoVideoDate]? = nil
     var retryCollectionId: String? = nil
-    
+
     func reset() {
-        successfulImages = 0
+        successfulImages = 0.0
         totalImages = retryImages == nil ? 0 : retryImages!.count
     }
     
@@ -44,6 +44,7 @@ import Photos
         preparedImages: [PreparedImageVariant],
         livePhotoAssets: [(assetId: String, asset: PHAsset)?],
         transcodedVideoUrls: [URL?],
+        allAssetIdentifiers: [String?],
         collection: ClCollection,
         _ collectionStore: CollectionStore,
         _ collectionImageStore: CollectionImageStore
@@ -57,10 +58,16 @@ import Photos
                 cliqueId: collection.cliqueId,
                 privacySetting: mapFromVisibility(collection.visibility)
             ))))
-            
+
             collectionId = createdCollection.collection!.collectionData!.collectionDataId!
         } else {
             collectionId = collection.id
+
+            // Only increment for existing collections to prevent showing 0 during upload
+            // New collections already have numFlicks set correctly from CreateViewModel
+            await MainActor.run {
+                collectionStore.incrementFlickCount(collectionId: collectionId, by: photoDatePairs.count)
+            }
         }
 
         // Log what we're sending to backend
@@ -77,8 +84,24 @@ import Photos
         let collectionWithPutLinks = try await CollectionService.uploadPhotosToCollection(
             .init(body: .json(.init(collectionId: collectionId, photos: photoDatePairs)))
         )
-        
+
         let urlItems = collectionWithPutLinks.collection!.collectionItems!
+
+        // Store mapping between collection item IDs and device asset identifiers
+        // This enables showing device photos immediately while backend processes quality variants
+        // Uses allAssetIdentifiers to cache ALL photo types (regular, live, video) - not just live photos/videos
+        for (index, urlItem) in urlItems.enumerated() {
+            if let collectionItemId = urlItem.collectionItem?.collectionItemId,
+               index < allAssetIdentifiers.count,
+               let assetId = allAssetIdentifiers[index] {
+                let mediaType = photoDatePairs[index].mediaType ?? .PHOTO
+                await PendingImageCache.shared.store(
+                    collectionItemId: collectionItemId,
+                    assetIdentifier: assetId,
+                    mediaType: MediaType(from: mediaType) ?? .PHOTO
+                )
+            }
+        }
 
         // Only get original quality URL - backend handles quality conversion
         let urls: [String?] = urlItems.map { $0.urls?.url }
@@ -117,6 +140,7 @@ import Photos
             transcodedVideoUrls: transcodedVideoUrls,
             videoUrls: videoUrls,
             videoContentTypes: videoContentTypes,
+            totalItems: preparedImages.count,
             onProgress: { completed, total in
                 self.successfulImages = completed
                 self.totalImages = total
@@ -196,6 +220,7 @@ import Photos
             transcodedVideoUrls: retryTranscodedVideoUrls,
             videoUrls: videoUrls,
             videoContentTypes: videoContentTypes,
+            totalItems: retryImages.count,
             onProgress: { completed, total in
                 self.successfulImages = completed
                 self.totalImages = total

@@ -19,6 +19,7 @@ import Photos
 /// - **High-Quality Loading**: Loads full-quality video from device
 /// - **Fallback Support**: Shows thumbnail while loading
 /// - **Content Mode**: Configurable aspect ratio (fit/fill)
+/// - **Transparent Background**: Clear background to show parent view
 ///
 /// ## Usage
 /// ```swift
@@ -35,24 +36,25 @@ struct VideoPreviewView: View {
     let thumbnail: UIImage?
     /// Content mode for the video
     let contentMode: SwiftUI.ContentMode
+    /// Whether this video is currently visible (controls playback)
+    let isVisible: Bool
 
     @State private var player: AVPlayer?
     @State private var isLoading: Bool = true
     @State private var loadingError: Error?
+
+    init(asset: PHAsset, thumbnail: UIImage?, contentMode: SwiftUI.ContentMode, isVisible: Bool = true) {
+        self.asset = asset
+        self.thumbnail = thumbnail
+        self.contentMode = contentMode
+        self.isVisible = isVisible
+    }
 
     var body: some View {
         Group {
             if let player = player {
                 // Video loaded successfully - use AVPlayerViewController with visible controls
                 AVPlayerViewControllerWrapper(player: player)
-                    .onAppear {
-                        // Auto-play video when view appears
-                        player.play()
-                    }
-                    .onDisappear {
-                        // Pause video when view disappears
-                        player.pause()
-                    }
             } else if let thumbnail = thumbnail {
                 // Show thumbnail while loading
                 Image(uiImage: thumbnail)
@@ -79,6 +81,18 @@ struct VideoPreviewView: View {
         }
         .task {
             await loadVideo()
+        }
+        .onChange(of: isVisible) { _, newValue in
+            // Control playback based on visibility
+            if newValue {
+                player?.play()
+            } else {
+                player?.pause()
+            }
+        }
+        .onDisappear {
+            // Always pause when view is removed from hierarchy
+            player?.pause()
         }
     }
 
