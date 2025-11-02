@@ -298,5 +298,11 @@ enum CreateFlowMode {
         selectTab(.create)
         self.shouldOpenLibrary = shouldOpenLibrary
         createFlowInitialCollection = collection
+
+        // Set flow mode to library when shouldOpenLibrary is true
+        // This ensures LibraryCreateFlow is rendered even when coming from blank state
+        if shouldOpenLibrary {
+            createFlowMode = .library
+        }
     }
 }
