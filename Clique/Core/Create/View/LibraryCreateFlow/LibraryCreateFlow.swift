@@ -86,7 +86,8 @@ struct LibraryCreateFlow: View {
                 .bottomSheetModifiers()
                 .presentationDetents([.fraction(0.999)])
         }
-        .onChange(of: tabViewCoordinator.createFlowInitialCollection) { _, newValue in
+        .onChange(of: tabViewCoordinator.createFlowInitialCollection, initial: true) { _, newValue in
+            // Handle collection context (fires on initial value and changes)
             guard let newValue else { return }
             viewModel.collectionToGoTo = newValue
             viewModel.selectedCollectionId = newValue.id

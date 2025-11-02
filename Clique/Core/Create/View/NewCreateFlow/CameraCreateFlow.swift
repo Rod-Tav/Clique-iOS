@@ -108,12 +108,14 @@ struct CameraCreateFlow: View {
                 }
             }
         }
-        .onChange(of: tabViewCoordinator.createFlowInitialClique) { _, newValue in
+        .onChange(of: tabViewCoordinator.createFlowInitialClique, initial: true) { _, newValue in
+            // Handle clique context (fires on initial value and changes)
             guard let newValue else { return }
             viewModel.newCollectionClique = newValue
             tabViewCoordinator.createFlowInitialClique = nil
         }
-        .onChange(of: tabViewCoordinator.createFlowInitialCollection) { _, newValue in
+        .onChange(of: tabViewCoordinator.createFlowInitialCollection, initial: true) { _, newValue in
+            // Handle collection context (fires on initial value and changes)
             guard let newValue else { return }
             viewModel.collectionToGoTo = newValue
             viewModel.selectedCollectionId = newValue.id
