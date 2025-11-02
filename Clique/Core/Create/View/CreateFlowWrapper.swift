@@ -15,6 +15,10 @@ struct CreateFlowWrapper: View {
     var body: some View {
         Group {
             switch tabViewCoordinator.createFlowMode {
+            case .none:
+                // Show nothing until user selects camera or library from menu
+                // This prevents eager camera initialization
+                Color.clear
             case .camera:
                 CameraCreateFlow()
                     .environment(viewModel)

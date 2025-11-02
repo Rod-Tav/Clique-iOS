@@ -13,6 +13,8 @@ import SwiftUINavigationTransitions
 /// The create flow can be initiated from different sources, affecting
 /// the initial screen presented to the user.
 enum CreateFlowMode {
+    /// No mode selected - prevents eager camera initialization
+    case none
     /// Start with camera interface for taking new photos
     case camera
     /// Start with photo library for selecting existing photos
@@ -79,9 +81,9 @@ enum CreateFlowMode {
     var flicksShowGrid: Bool = true
     
     // MARK: - Create Flow State
-    
-    /// Current mode for the create flow (camera or library)
-    var createFlowMode: CreateFlowMode = .camera
+
+    /// Current mode for the create flow (none, camera, or library)
+    var createFlowMode: CreateFlowMode = .none
     
     // MARK: - Tab Bar State
     

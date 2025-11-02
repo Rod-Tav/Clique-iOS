@@ -69,12 +69,22 @@ struct CameraCreateFlow: View {
             }
             .background(Color.theme.dark)
         }
-        .onReceive(of: .cameraReset) { _ in 
+        .onReceive(of: .cameraReset) { _ in
             model.camera.stop()
             model.capturedImage = nil
         }
         .task {
             await model.camera.start()
+        }
+        .onChange(of: tabViewCoordinator.createFlowMode) { oldMode, newMode in
+            // Stop camera when switching away from camera mode to prevent orientation observers from running
+            if oldMode == .camera && newMode != .camera {
+                model.camera.stop()
+            }
+        }
+        .onDisappear {
+            // Ensure camera stops when view disappears (tab switch, dismissal, etc.)
+            model.camera.stop()
         }
         .sheet(isPresented: $showChooseCollectionSheet) {
             if let uid = userStore.currentUserId {
