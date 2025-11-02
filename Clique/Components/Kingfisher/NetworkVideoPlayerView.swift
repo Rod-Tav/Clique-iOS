@@ -38,12 +38,14 @@ struct NetworkVideoPlayerView: View {
     let isVisible: Bool
     let width: CGFloat?
     let showControls: Bool
+    let savedPosition: CMTime?
+    let onPositionSave: ((CMTime) -> Void)?
 
     @State private var player: AVPlayer?
     @State private var loopObserver: NSObjectProtocol?
     @State private var isPaused: Bool = false
 
-    init(thumbnailUrl: MediaUrls?, videoUrl: MediaUrls?, quality: ImageQuality, forceQuality: Bool = false, isVisible: Bool = true, width: CGFloat? = nil, showControls: Bool = true) {
+    init(thumbnailUrl: MediaUrls?, videoUrl: MediaUrls?, quality: ImageQuality, forceQuality: Bool = false, isVisible: Bool = true, width: CGFloat? = nil, showControls: Bool = true, savedPosition: CMTime? = nil, onPositionSave: ((CMTime) -> Void)? = nil) {
         self.thumbnailUrl = thumbnailUrl
         self.videoUrl = videoUrl
         self.quality = quality
@@ -51,6 +53,8 @@ struct NetworkVideoPlayerView: View {
         self.isVisible = isVisible
         self.width = width
         self.showControls = showControls
+        self.savedPosition = savedPosition
+        self.onPositionSave = onPositionSave
     }
 
     var body: some View {
@@ -159,6 +163,11 @@ struct NetworkVideoPlayerView: View {
                     setupLoopObserver(for: currentItem, player: player!)
                 }
 
+                // Restore saved playback position if available
+                if let savedPosition = savedPosition, savedPosition.seconds > 0 {
+                    player?.seek(to: savedPosition, toleranceBefore: .zero, toleranceAfter: .zero)
+                }
+
                 // Start playing immediately if visible
                 if isVisible {
                     configureAudioSession()
@@ -172,9 +181,17 @@ struct NetworkVideoPlayerView: View {
                 player?.play()
             } else {
                 player?.pause()
+                // Save current playback position when becoming invisible
+                if let currentTime = player?.currentTime(), currentTime.seconds > 0 {
+                    onPositionSave?(currentTime)
+                }
             }
         }
         .onDisappear {
+            // Save position before view disappears
+            if let currentTime = player?.currentTime(), currentTime.seconds > 0 {
+                onPositionSave?(currentTime)
+            }
             // Only pause on disappear, don't cleanup
             // This preserves playback position when scrolling between videos
             player?.pause()

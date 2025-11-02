@@ -43,6 +43,9 @@ struct NetworkLivePhotoPlayerView: View {
     // Haptic feedback generator
     private let impactFeedback = UIImpactFeedbackGenerator(style: .light)
 
+    // Minimum hold duration to trigger live photo playback (in seconds)
+    private static let minimumHoldDuration: TimeInterval = 0.15
+
     @State private var pressTimer: Timer?
     @State private var touchStartTime: Date?
     @State private var touchStartLocation: CGPoint?
@@ -114,7 +117,7 @@ struct NetworkLivePhotoPlayerView: View {
                         .contentShape(Rectangle())
                         .gesture(
                             LivePhotoInteractionGesture(
-                                minimumPressDuration: 0.35,
+                                minimumPressDuration: Self.minimumHoldDuration,
                                 allowableMovement: 15,
                                 onPressChanged: { location in
                                     // Monitor movement during press
@@ -136,7 +139,7 @@ struct NetworkLivePhotoPlayerView: View {
                                     // Press started - record time, location and start timer
                                     touchStartTime = Date()
                                     touchStartLocation = location
-                                    pressTimer = Timer.scheduledTimer(withTimeInterval: 0.35, repeats: false) { _ in
+                                    pressTimer = Timer.scheduledTimer(withTimeInterval: Self.minimumHoldDuration, repeats: false) { _ in
                                         if !isPlaying {
                                             startPlayback()
                                         }
@@ -167,8 +170,8 @@ struct NetworkLivePhotoPlayerView: View {
                                         touchStartTime = Date()
                                         touchStartLocation = value.location
 
-                                        // Start timer - if touch lasts 350ms without movement, start playback
-                                        pressTimer = Timer.scheduledTimer(withTimeInterval: 0.35, repeats: false) { _ in
+                                        // Start timer - if touch lasts minimum duration without movement, start playback
+                                        pressTimer = Timer.scheduledTimer(withTimeInterval: Self.minimumHoldDuration, repeats: false) { _ in
                                             if !isPlaying {
                                                 startPlayback()
                                             }

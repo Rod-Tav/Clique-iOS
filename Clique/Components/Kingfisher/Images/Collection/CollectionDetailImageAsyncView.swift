@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Kingfisher
+import AVFoundation
 
 struct CollectionDetailImageAsyncView: View {
     let image: CollectionImage
@@ -14,15 +15,19 @@ struct CollectionDetailImageAsyncView: View {
     let forceQuality: Bool
     let isVisible: Bool
     let onRefresh: (() -> Void)?
+    let savedPosition: CMTime?
+    let onPositionSave: ((CMTime) -> Void)?
 
     @State private var videoIsVisible: Bool
 
-    init(image: CollectionImage, quality: ImageQuality, forceQuality: Bool = false, isVisible: Bool = true, onRefresh: (() -> Void)? = nil) {
+    init(image: CollectionImage, quality: ImageQuality, forceQuality: Bool = false, isVisible: Bool = true, onRefresh: (() -> Void)? = nil, savedPosition: CMTime? = nil, onPositionSave: ((CMTime) -> Void)? = nil) {
         self.image = image
         self.quality = quality
         self.forceQuality = forceQuality
         self.isVisible = isVisible
         self.onRefresh = onRefresh
+        self.savedPosition = savedPosition
+        self.onPositionSave = onPositionSave
         self._videoIsVisible = State(initialValue: isVisible)
     }
 
@@ -55,7 +60,9 @@ struct CollectionDetailImageAsyncView: View {
                     videoUrl: image.videoUrls,
                     quality: quality,
                     forceQuality: forceQuality,
-                    isVisible: videoIsVisible
+                    isVisible: videoIsVisible,
+                    savedPosition: savedPosition,
+                    onPositionSave: onPositionSave
                 )
             } else {
                 // Regular static image

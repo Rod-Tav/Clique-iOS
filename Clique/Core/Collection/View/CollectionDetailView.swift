@@ -9,6 +9,7 @@ import SwiftUI
 import Toasts
 import Kingfisher
 import AdvancedList
+import AVFoundation
 
 struct CollectionDetailView: View {
     @AppStorage("hasSwipedUpToOpenComments") private var hasSwipedUpToOpenComments: Bool = false
@@ -56,7 +57,10 @@ struct CollectionDetailView: View {
     @State private var shouldFadeOut: Bool = false
     @State private var isButtonDisabled: Bool = false
     @State private var selfTaggedImages = [String]() // image ids
-    
+
+    /// Video playback position preservation
+    @State private var videoPlaybackPositions: [String: CMTime] = [:]
+
     private var selectedImageId: String? {
         clCoordinator.selectedImageId
     }
@@ -592,7 +596,11 @@ extension CollectionDetailView {
             quality: videoQualityPreference.imageQuality,
             forceQuality: videoQualityPreference != .auto,
             isVisible: selectedImageId == image.id,
-            onRefresh: refreshCollection
+            onRefresh: refreshCollection,
+            savedPosition: videoPlaybackPositions[image.id],
+            onPositionSave: { time in
+                videoPlaybackPositions[image.id] = time
+            }
         )
             .contentShape(.rect)
             .id(image.id)
