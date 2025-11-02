@@ -44,7 +44,7 @@ struct NetworkLivePhotoPlayerView: View {
     private let impactFeedback = UIImpactFeedbackGenerator(style: .light)
 
     // Minimum hold duration to trigger live photo playback (in seconds)
-    private static let minimumHoldDuration: TimeInterval = 0.15
+    private let minimumHoldDuration: TimeInterval = 0.15
 
     @State private var pressTimer: Timer?
     @State private var touchStartTime: Date?
@@ -117,7 +117,7 @@ struct NetworkLivePhotoPlayerView: View {
                         .contentShape(Rectangle())
                         .gesture(
                             LivePhotoInteractionGesture(
-                                minimumPressDuration: Self.minimumHoldDuration,
+                                minimumPressDuration: minimumHoldDuration,
                                 allowableMovement: 15,
                                 onPressChanged: { location in
                                     // Monitor movement during press
@@ -139,7 +139,7 @@ struct NetworkLivePhotoPlayerView: View {
                                     // Press started - record time, location and start timer
                                     touchStartTime = Date()
                                     touchStartLocation = location
-                                    pressTimer = Timer.scheduledTimer(withTimeInterval: Self.minimumHoldDuration, repeats: false) { _ in
+                                    pressTimer = Timer.scheduledTimer(withTimeInterval: minimumHoldDuration, repeats: false) { _ in
                                         if !isPlaying {
                                             startPlayback()
                                         }
@@ -171,7 +171,7 @@ struct NetworkLivePhotoPlayerView: View {
                                         touchStartLocation = value.location
 
                                         // Start timer - if touch lasts minimum duration without movement, start playback
-                                        pressTimer = Timer.scheduledTimer(withTimeInterval: Self.minimumHoldDuration, repeats: false) { _ in
+                                        pressTimer = Timer.scheduledTimer(withTimeInterval: minimumHoldDuration, repeats: false) { _ in
                                             if !isPlaying {
                                                 startPlayback()
                                             }
