@@ -44,7 +44,7 @@ struct NetworkLivePhotoPlayerView: View {
     private let impactFeedback = UIImpactFeedbackGenerator(style: .light)
 
     // Minimum hold duration to trigger live photo playback (in seconds)
-    private let minimumHoldDuration: TimeInterval = 0.15
+    private let minimumHoldDuration: TimeInterval = 0.10
 
     @State private var pressTimer: Timer?
     @State private var touchStartTime: Date?

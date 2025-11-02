@@ -321,6 +321,7 @@ struct FlicksFeedView: View {
             
             if paginationState == .loading {
                 CliqueProgressView()
+                    .padding()
             }
         }
         .refreshable {

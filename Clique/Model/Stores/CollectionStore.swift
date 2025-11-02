@@ -77,13 +77,17 @@ import Foundation
         // Some API endpoints return collections without images (e.g., profile collection list)
         if !collection.images.isEmpty || forceUpdateURL {
             // Preserve local PENDING images that aren't in the backend response yet
-            // During refresh, backend might not include PENDING images, but we want to keep showing them
+            // Key insight: We filter by ID, so when backend processes a PENDING image:
+            //   - Backend returns same ID with COMPLETED status
+            //   - Filter excludes it (ID exists in backend response)
+            //   - Backend version replaces local PENDING version
+            //   - This automatically cleans up PENDING → COMPLETED transitions
             let localPendingImages = existingCollection.images.filter { localImage in
                 localImage.uploadStatus == .PENDING &&
                 !collection.images.contains(where: { $0.id == localImage.id })
             }
 
-            // Merge: backend images + preserved local PENDING images
+            // Merge: backend images + preserved PENDING still processing
             existingCollection.images = collection.images + localPendingImages
         }
         
