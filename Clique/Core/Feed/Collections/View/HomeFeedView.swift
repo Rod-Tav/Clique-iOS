@@ -114,21 +114,24 @@ struct HomeFeedView: View {
         .refreshable {
             guard paginationState == .idle else { return }
             homeFeedPgVM.refreshing = true
-            
+
             // Clear cache for home feed before refreshing
             await CacheControl.shared.refreshHomeFeed()
-            
-            trigger(.refreshCollectionCells, object: homeFeedPgVM.items.compactMap(\.collection?.id))
-            
-            DispatchQueue.main.async { // no idea
+
+            // Run updates in background to not block UI
+            DispatchQueue.main.async {
                 Task {
                     async let updateFeed: () = await updateHomeFeed(.refresh)
                     async let updateCliques: () = await updateCliques(.refresh)
-                    
+
                     _ = await (updateFeed, updateCliques)
+
+                    // AFTER updates complete, trigger collection cells to refresh with NEW data
+                    // This prevents cells from fetching stale/transitional data during transition
+                    trigger(.refreshCollectionCells, object: homeFeedPgVM.items.compactMap(\.collection?.id))
                 }
             }
-            
+
             homeFeedPgVM.refreshing = false
         }
         .onReceive(of: .refreshHomeFeed) { _ in

@@ -85,6 +85,10 @@ import Photos
 
         let urlItems = collectionWithPutLinks.collection!.collectionItems!
 
+        // Map backend PENDING items to CollectionImages
+        // We'll add them to CollectionStore AFTER upload completes
+        let pendingImages = urlItems.map { mapToCollectionImage($0) }
+
         // Store mapping between collection item IDs and device asset identifiers
         // This enables showing device photos immediately while backend processes quality variants
         // Uses allAssetIdentifiers to cache ALL photo types (regular, live, video) - not just live photos/videos
@@ -165,6 +169,38 @@ import Photos
                         } catch {
                             print("⚠️ Failed to trigger backend processing: \(error)")
                             // Non-critical - processing will eventually happen via other mechanisms
+                        }
+
+                        // NOW add PENDING images to CollectionStore after upload completes
+                        // This updates the count after backend processing has started
+                        await MainActor.run {
+                            if var existingCollection = collectionStore.collections[collectionId] {
+                                // Existing collection: append PENDING images (with deduplication)
+                                // Only add images whose IDs don't already exist in the collection
+                                let existingIds = Set(existingCollection.images.map { $0.id })
+                                let newPendingImages = pendingImages.filter { !existingIds.contains($0.id) }
+
+                                if !newPendingImages.isEmpty {
+                                    existingCollection.images.append(contentsOf: newPendingImages)
+                                    collectionStore.collections[collectionId] = existingCollection
+                                    collectionImageStore.updateImages(newPendingImages)
+                                }
+                            } else if makingNew {
+                                // New collection: create it with PENDING images
+                                let newCollection = ClCollection(
+                                    id: collectionId,
+                                    name: collection.name,
+                                    description: collection.description,
+                                    userId: collection.userId,
+                                    cliqueId: collection.cliqueId,
+                                    creation: collection.creation,
+                                    images: pendingImages,
+                                    visibility: collection.visibility,
+                                    numFlicks: 0
+                                )
+                                collectionStore.collections[collectionId] = newCollection
+                                collectionImageStore.updateImages(pendingImages)
+                            }
                         }
 
                         self.reset()
