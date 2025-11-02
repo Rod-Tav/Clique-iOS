@@ -63,11 +63,9 @@ import Photos
         } else {
             collectionId = collection.id
 
-            // Only increment for existing collections to prevent showing 0 during upload
-            // New collections already have numFlicks set correctly from CreateViewModel
-            await MainActor.run {
-                collectionStore.incrementFlickCount(collectionId: collectionId, by: photoDatePairs.count)
-            }
+            // Don't optimistically increment numFlicks here - backend returns PENDING images
+            // in the images array, and displayFlickCount() already counts them.
+            // Incrementing here causes double-counting: numFlicks + pendingCount
         }
 
         // Log what we're sending to backend
