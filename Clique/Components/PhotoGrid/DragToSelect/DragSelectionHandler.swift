@@ -23,19 +23,22 @@ import UIKit
 @Observable final class DragSelectionHandler {
     /// Properties tracking the current drag selection state
     var dragSelectionProperties = DragSelectionProperties()
-    
+
     /// Properties for auto-scrolling behavior when dragging near edges
     var scrollProperties = DragScrollProperties()
-    
+
     /// Maps each asset to its frame location in the view for hit testing
     var assetLocations: [PHAsset: CGRect] = [:]
-    
+
     /// Reference to the pan gesture recognizer being handled
     var panGesture: UIPanGestureRecognizer?
-    
+
+    /// Whether drag selection is currently active
+    var isDragSelectionActive: Bool = false
+
     /// Array of all assets that can be selected
     private var assets: [PHAsset] = []
-    
+
     /// Weak reference to the view model managing selection state
     private weak var viewModel: CreateViewModel?
         
@@ -72,15 +75,16 @@ import UIKit
     /// Processes ongoing drag gesture changes to update selection.
     private func onDragGestureChange(_ gesture: UIPanGestureRecognizer) {
         let position = gesture.location(in: gesture.view)
-        
+
         // Check if we need to auto-scroll
         scrollProperties.direction = scrollProperties.topRegion.contains(position) ? .down :
                                    scrollProperties.bottomRegion.contains(position) ? .up : .none
-        
+
         // Find which asset the gesture is over
         if let (index, asset) = findAssetAtPosition(position) {
             if dragSelectionProperties.startIndex == nil {
                 // Starting a new drag selection
+                isDragSelectionActive = true
                 dragSelectionProperties.startIndex = index
                 dragSelectionProperties.previousSelectedAssets = viewModel?.selectedAssets ?? []
                 dragSelectionProperties.isDeletingSelection = viewModel?.selectedAssets.contains(asset) ?? false
@@ -118,14 +122,15 @@ import UIKit
         if !dragSelectionProperties.toBeRemovedAssets.isEmpty {
             viewModel?.selectedAssets = (viewModel?.selectedAssets ?? []).subtracting(dragSelectionProperties.toBeRemovedAssets)
         }
-        
+
         // Reset drag selection properties
+        isDragSelectionActive = false
         dragSelectionProperties.previousSelectedAssets = viewModel?.selectedAssets ?? []
         dragSelectionProperties.startIndex = nil
         dragSelectionProperties.endIndex = nil
         dragSelectionProperties.isDeletingSelection = false
         dragSelectionProperties.toBeRemovedAssets = []
-        
+
         resetScrollTimer()
     }
     
@@ -135,14 +140,15 @@ import UIKit
         if !dragSelectionProperties.toBeRemovedAssets.isEmpty {
             viewModel?.selectedAssets = (viewModel?.selectedAssets ?? []).subtracting(dragSelectionProperties.toBeRemovedAssets)
         }
-        
+
         // Reset drag selection properties
+        isDragSelectionActive = false
         dragSelectionProperties.previousSelectedAssets = viewModel?.selectedAssets ?? []
         dragSelectionProperties.startIndex = nil
         dragSelectionProperties.endIndex = nil
         dragSelectionProperties.isDeletingSelection = false
         dragSelectionProperties.toBeRemovedAssets = []
-        
+
         // Reset scroll direction
         scrollProperties.direction = .none
     }
