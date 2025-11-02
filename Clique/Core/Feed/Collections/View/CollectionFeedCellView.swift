@@ -32,13 +32,13 @@ struct CollectionFeedCellView: View {
     @State private var imagesPgVM: CollectionImagesPaginationViewModel
     
     @State private var scrollPosition: String?
-    
+
     @State private var showReportCover: Bool = false
     @State private var showCliqueMembers: Bool = false
     @State private var showDetailView: Bool = false
-    
+
     @State private var refreshTask: Task<Void, Never>?
-    
+
     let collectionId: String
     var author: User?
     var relevantUser: User?
@@ -462,20 +462,20 @@ extension CollectionFeedCellView {
     private func refreshAsync() async {
         // Check if already refreshing
         guard !imagesPgVM.isRefreshing else { return }
-        
+
         do {
             await CacheControl.shared.refreshCollection(collectionId)
-          
+
             var updatedCollection = try await CollectionService.getCollectionById(.init(path: .init(collectionDataId: collectionId), query: .init(page: 0, size: 10, sort: mapFromSortOption(.likesDesc))))
-            
+
             if imagesPgVM.sortOption == .likesDesc {
                 updatedCollection.mostLikedImage = updatedCollection.images.first?.id
             }
-            
+
             await updateImages(.refresh)
-            
+
             collectionStore.updateCollection(updatedCollection, forceUpdateURL: true, collectionImageStore)
-            
+
             // TODO: refresh comments (is it done somewhere else?)
 //                await updateComments(.refresh)
         } catch {
