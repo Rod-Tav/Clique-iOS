@@ -13,18 +13,9 @@ struct CollectionFeedCellAsyncImage: View {
     let urls: PhotoUrls?
     let width: CGFloat
     let quality: ImageQuality
-    let uploadStatus: UploadStatus?
-    let itemId: String?
-    let onRefresh: (() -> Void)?
-
-    init(urls: PhotoUrls?, width: CGFloat, quality: ImageQuality, uploadStatus: UploadStatus? = nil, itemId: String? = nil, onRefresh: (() -> Void)? = nil) {
-        self.urls = urls
-        self.width = width
-        self.quality = quality
-        self.uploadStatus = uploadStatus
-        self.itemId = itemId
-        self.onRefresh = onRefresh
-    }
+    let uploadStatus: UploadStatus? = nil
+    let itemId: String? = nil
+    let onRefresh: (() -> Void)? = nil
 
     var body: some View {
         UnifiedCollectionImageView(

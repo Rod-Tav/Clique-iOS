@@ -27,38 +27,18 @@ import Photos
 /// ```
 struct UnifiedCollectionImageView: View {
     let urls: PhotoUrls?
-    let uploadStatus: UploadStatus?
-    let itemId: String?
+    let uploadStatus: UploadStatus? = nil
+    let itemId: String? = nil
     let quality: ImageQuality
-    let sizing: ImageSizing
-    let isLivePhoto: Bool
-    let isVideo: Bool
-    let performanceMode: Bool
+    let sizing: ImageSizing = .aspectFill
+    let isLivePhoto: Bool = false
+    let isVideo: Bool = false
+    let performanceMode: Bool = true
 
     @State private var deviceAsset: PHAsset?
     @State private var deviceMediaType: MediaType?
     @State private var isLoadingDevice: Bool = false
     @State private var deviceLoadFailed: Bool = false
-
-    init(
-        urls: PhotoUrls?,
-        uploadStatus: UploadStatus? = nil,
-        itemId: String? = nil,
-        quality: ImageQuality,
-        sizing: ImageSizing = .aspectFill,
-        isLivePhoto: Bool = false,
-        isVideo: Bool = false,
-        performanceMode: Bool = true
-    ) {
-        self.urls = urls
-        self.uploadStatus = uploadStatus
-        self.itemId = itemId
-        self.quality = quality
-        self.sizing = sizing
-        self.isLivePhoto = isLivePhoto
-        self.isVideo = isVideo
-        self.performanceMode = performanceMode
-    }
 
     var body: some View {
         Group {

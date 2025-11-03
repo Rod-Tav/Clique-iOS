@@ -13,21 +13,10 @@ struct CollectionBottomCarouselAsyncView: View {
     let width: CGFloat
     let height: CGFloat
     let quality: ImageQuality
-    let uploadStatus: UploadStatus?
-    let itemId: String?
-    let isLivePhoto: Bool
-    let isVideo: Bool
-
-    init(urls: PhotoUrls?, width: CGFloat, height: CGFloat, quality: ImageQuality, uploadStatus: UploadStatus? = nil, itemId: String? = nil, isLivePhoto: Bool = false, isVideo: Bool = false) {
-        self.urls = urls
-        self.width = width
-        self.height = height
-        self.quality = quality
-        self.uploadStatus = uploadStatus
-        self.itemId = itemId
-        self.isLivePhoto = isLivePhoto
-        self.isVideo = isVideo
-    }
+    var uploadStatus: UploadStatus? = nil
+    var itemId: String? = nil
+    var isLivePhoto: Bool = false
+    var isVideo: Bool = false
 
     var body: some View {
         Group {
