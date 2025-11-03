@@ -285,6 +285,6 @@ struct NotificationListCellView: View {
 
 
 #Preview {
-    var mockNotification = UserNotification.MOCK_NOTIFICATIONS[6]
+    let mockNotification = UserNotification.MOCK_NOTIFICATIONS[6]
     NotificationListCellView(notification: mockNotification)
 }
