@@ -416,7 +416,7 @@ extension CollectionDetailView {
                                 .font(.callout.bold())
 
                             if !fromGallery {
-                                IconImage(name: "chevron-right", color: .theme.white, size: 16)
+                                IconImage(name: "chevron-right", color: Color.theme.white, size: 16)
                             }
                         }
                     }
