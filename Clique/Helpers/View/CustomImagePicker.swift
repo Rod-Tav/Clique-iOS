@@ -129,7 +129,7 @@ struct CropView: View {
     
     var body: some View {
         Group {
-            if let image {
+            if image != nil {
                 ImageView()
                     .overlay(alignment: .bottomTrailing) {
                         HStack(spacing: 16) {

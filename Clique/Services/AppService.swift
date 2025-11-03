@@ -105,7 +105,6 @@ class AppService {
                 print("⚠️ Notifications not determined, requesting (only expected during Welcome screen).")
                 hasRegisteredForPush = false
                 requestPushNotificationPermissions()
-                break
             @unknown default:
                 break
             }
