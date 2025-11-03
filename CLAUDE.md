@@ -334,14 +334,15 @@ struct IconImage: View {
 
 #### When to ADD init (custom logic required):
 ```swift
-// ✅ Init needed - has default parameter values
+// ✅ CORRECT - Default parameter values (NO init needed, use var)
 struct DateLabel: View {
     let date: Date
-    let format: DateFormat = .full  // Default on property
-    let textColor: Color = .white   // Default on property
+    var format: DateFormat = .full  // var with default (Swift auto-generates init param)
+    var textColor: Color = .white   // var with default (Swift auto-generates init param)
 
     var body: some View { /* ... */ }
 }
+// Usage: DateLabel(date: myDate) or DateLabel(date: myDate, format: .short)
 
 // ✅ Init needed - custom initialization logic
 struct MyView: View {
@@ -366,10 +367,19 @@ struct Container<Content: View>: View {
 
 #### Key Rules:
 1. **Structs with only stored properties** → NO init (Swift auto-generates)
-2. **Default parameter values** → Add defaults to property declarations, NOT init
+2. **Default parameter values** → Use `var` with default on property (NOT `let`), NO init needed
 3. **@State/@Binding initialization** → Keep init (requires custom logic)
 4. **@ViewBuilder closures** → Keep init (requires escaping closure handling)
 5. **Custom logic/validation** → Keep init (transformation, computed values, etc.)
+
+**CRITICAL**: Properties with default values MUST use `var` not `let` for Swift to generate init parameters:
+```swift
+// ✅ CORRECT - var allows Swift to generate optional init parameter
+var uploadStatus: UploadStatus? = nil
+
+// ❌ WRONG - let with default makes property non-overridable, no init parameter generated
+let uploadStatus: UploadStatus? = nil
+```
 
 ### Complex View Decomposition
 For complex views with multiple sections, use computed properties:

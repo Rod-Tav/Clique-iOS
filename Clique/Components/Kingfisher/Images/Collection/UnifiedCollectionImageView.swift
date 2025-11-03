@@ -27,13 +27,13 @@ import Photos
 /// ```
 struct UnifiedCollectionImageView: View {
     let urls: PhotoUrls?
-    let uploadStatus: UploadStatus? = nil
-    let itemId: String? = nil
+    var uploadStatus: UploadStatus? = nil
+    var itemId: String? = nil
     let quality: ImageQuality
-    let sizing: ImageSizing = .aspectFill
-    let isLivePhoto: Bool = false
-    let isVideo: Bool = false
-    let performanceMode: Bool = true
+    var sizing: ImageSizing = .aspectFill
+    var isLivePhoto: Bool = false
+    var isVideo: Bool = false
+    var performanceMode: Bool = true
 
     @State private var deviceAsset: PHAsset?
     @State private var deviceMediaType: MediaType?

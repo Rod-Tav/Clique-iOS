@@ -13,9 +13,9 @@ struct ProfileCollectionCoverPhotoAsyncImage: View {
     let urls: PhotoUrls?
     let side: CGFloat
     let quality: ImageQuality
-    let uploadStatus: UploadStatus? = nil
-    let itemId: String? = nil
-    let onRefresh: (() -> Void)? = nil
+    var uploadStatus: UploadStatus? = nil
+    var itemId: String? = nil
+    var onRefresh: (() -> Void)? = nil
 
     var body: some View {
         UnifiedCollectionImageView(
