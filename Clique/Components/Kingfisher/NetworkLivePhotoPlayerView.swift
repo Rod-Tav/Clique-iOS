@@ -210,46 +210,6 @@ struct NetworkLivePhotoPlayerView: View {
         }
     }
 
-    private func handleTouchChanged(location: CGPoint, translation: CGSize) {
-        // First touch - record start time and location
-        if touchStartTime == nil {
-            touchStartTime = Date()
-            touchStartLocation = location
-
-            // Start timer to trigger playback after 0.05s
-            pressTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: false) { _ in
-                if !isPlaying {
-                    startPlayback()
-                }
-            }
-        }
-
-        // Check if user has moved significantly (scrolling/paging)
-        let horizontalMove = abs(translation.width)
-        let verticalMove = abs(translation.height)
-
-        // Cancel playback if too much movement
-        if horizontalMove > 15 || verticalMove > 20 {
-            pressTimer?.invalidate()
-            pressTimer = nil
-            if isPlaying {
-                stopPlayback()
-            }
-        }
-    }
-
-    private func handleTouchEnded() {
-        // Clean up
-        pressTimer?.invalidate()
-        pressTimer = nil
-        touchStartTime = nil
-
-        // Stop playback if active
-        if isPlaying {
-            stopPlayback()
-        }
-    }
-
     /// Preload video in background for instant playback
     private func preloadVideo() async {
         guard let videoURL = videoUrl?.videoUrl(for: quality) else { return }
