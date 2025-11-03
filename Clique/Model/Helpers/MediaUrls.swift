@@ -1,5 +1,5 @@
 //
-//  PhotoUrls.swift (transitioning to MediaUrls)
+//  MediaUrls.swift
 //  Clique
 //
 //  Created by Rod Tavangar on 3/10/25.

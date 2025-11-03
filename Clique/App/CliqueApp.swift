@@ -64,7 +64,9 @@ struct CliqueApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
     /// User's preferred theme setting (light/dark/system)
     @AppStorage("userTheme") private var userTheme: Theme = .systemDefault
-    
+    /// Scene phase for tracking app lifecycle (active/background/inactive)
+    @Environment(\.scenePhase) private var scenePhase
+
     /// Global coordinator for cross-feature triggers and state
     @State private var appCoordinator = AppCoordinator()
     
@@ -95,8 +97,8 @@ struct CliqueApp: App {
         registerBackgroundTasks()
         KingfisherConfig.configure()
 
-        // Initialize network monitoring early for video quality selection
-        _ = NetworkMonitor.shared
+        // Start network monitoring for adaptive video quality selection
+        NetworkMonitor.shared.start()
     }
     
     /// The main scene containing the app's UI hierarchy.
@@ -130,10 +132,13 @@ struct CliqueApp: App {
                 .environment(commentStore)
                 .onAppear {
                     handleForegroundEntry()
-
-                    // Clean up expired pending image cache entries
-                    Task {
-                        await PendingImageCache.shared.cleanup()
+                }
+                .onChange(of: scenePhase) { _, newPhase in
+                    if newPhase == .active {
+                        // Clean up expired pending image cache entries when app becomes active
+                        Task {
+                            await PendingImageCache.shared.cleanup()
+                        }
                     }
                 }
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in

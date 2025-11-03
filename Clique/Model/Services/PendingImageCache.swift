@@ -60,6 +60,12 @@ final class PendingImageCache: ObservableObject {
     /// Time-to-live for cache entries (24 hours)
     private let ttl: TimeInterval = 24 * 60 * 60
 
+    /// Maximum number of cache entries (prevents unbounded growth)
+    ///
+    /// At ~150 bytes per entry, 1000 entries = ~150KB (well under AppStorage 4MB limit).
+    /// When limit is reached, oldest entries are evicted (LRU policy).
+    private let maxEntries = 1000
+
     /// In-memory cache for fast lookups during app session
     private var memoryCache: [String: CachedAssetInfo] = [:]
 
@@ -87,6 +93,11 @@ final class PendingImageCache: ObservableObject {
             timestamp: Date(),
             mediaType: mediaType
         )
+
+        // Evict oldest entry if at capacity (LRU policy)
+        if memoryCache.count >= maxEntries {
+            evictOldestEntry()
+        }
 
         // Update memory cache
         memoryCache[collectionItemId] = info
@@ -151,6 +162,20 @@ final class PendingImageCache: ObservableObject {
             saveToPersistentStorage()
             print("🧹 [PENDING-CACHE] Cleanup: removed \(removedCount) expired entries")
         }
+    }
+
+    // MARK: - Private Methods
+
+    /// Evicts the oldest cache entry (LRU policy)
+    ///
+    /// Called when cache reaches max capacity to prevent unbounded growth.
+    private func evictOldestEntry() {
+        guard let oldestKey = memoryCache.min(by: { $0.value.timestamp < $1.value.timestamp })?.key else {
+            return
+        }
+
+        memoryCache.removeValue(forKey: oldestKey)
+        print("🗑️ [PENDING-CACHE] Evicted oldest entry: itemId=\(oldestKey)")
     }
 
     // MARK: - Private Persistence Methods
