@@ -313,6 +313,64 @@ Group related state, especially "show" booleans:
 @State var showLikedMembers: Bool = false
 ```
 
+### Init Methods - Swift 6 Best Practices
+**IMPORTANT**: Do NOT write unnecessary init methods for structs. Swift 6 automatically synthesizes memberwise initializers.
+
+#### When to OMIT init (let Swift handle it):
+```swift
+// ✅ CORRECT - No init needed
+struct IconImage: View {
+    let name: String
+    let color: Color
+    let size: CGFloat
+
+    var body: some View {
+        Image(name).icon(color: color, size: size)
+    }
+}
+
+// Usage: IconImage(name: "arrow-left", color: .theme.white, size: 24)
+```
+
+#### When to ADD init (custom logic required):
+```swift
+// ✅ Init needed - has default parameter values
+struct DateLabel: View {
+    let date: Date
+    let format: DateFormat = .full  // Default on property
+    let textColor: Color = .white   // Default on property
+
+    var body: some View { /* ... */ }
+}
+
+// ✅ Init needed - custom initialization logic
+struct MyView: View {
+    let userId: String
+    @State private var viewModel: UserViewModel
+
+    init(userId: String) {
+        self.userId = userId
+        self._viewModel = State(initialValue: UserViewModel(userId: userId))
+    }
+}
+
+// ✅ Init needed - @ViewBuilder closures
+struct Container<Content: View>: View {
+    let content: Content
+
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
+}
+```
+
+#### Key Rules:
+1. **Structs with only stored properties** → NO init (Swift auto-generates)
+2. **Default parameter values** → Add defaults to property declarations, NOT init
+3. **@State/@Binding initialization** → Keep init (requires custom logic)
+4. **@ViewBuilder closures** → Keep init (requires escaping closure handling)
+5. **Custom logic/validation** → Keep init (transformation, computed values, etc.)
+
 ### Complex View Decomposition
 For complex views with multiple sections, use computed properties:
 ```swift
