@@ -160,25 +160,21 @@ struct PhotoGridCell: View {
     /// Video badge indicator (bottom-right corner with duration)
     private var videoBadge: some View {
         VStack {
-            Spacer()
+            HStack(spacing: 4) {
+                Image(systemName: "play.fill")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.white)
 
-            HStack {
-                Spacer()
-
-                HStack(spacing: 4) {
-                    Image(systemName: "play.fill")
-                        .font(.system(size: 10, weight: .semibold))
+                if let duration = videoDuration {
+                    Text(duration)
+                        .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(.white)
-
-                    if let duration = videoDuration {
-                        Text(duration)
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(.white)
-                    }
                 }
-                .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
-                .padding(6)
             }
+            .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
+            .padding(6)
+            .maxWidth(.trailing)
         }
+        .frameBottom()
     }
 }

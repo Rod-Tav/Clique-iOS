@@ -390,44 +390,38 @@ struct CarouselThumbnail: View {
     /// Video badge indicator (bottom-right corner with duration)
     private var videoBadge: some View {
         VStack {
-            Spacer()
+            HStack(spacing: 2) {
+                Image(systemName: "play.fill")
+                    .font(.system(size: 6, weight: .semibold))
+                    .foregroundStyle(.white)
 
-            HStack {
-                Spacer()
-
-                HStack(spacing: 2) {
-                    Image(systemName: "play.fill")
-                        .font(.system(size: 6, weight: .semibold))
+                if let duration = videoDuration {
+                    Text(duration)
+                        .font(.system(size: 8, weight: .semibold))
                         .foregroundStyle(.white)
-
-                    if let duration = videoDuration {
-                        Text(duration)
-                            .font(.system(size: 8, weight: .semibold))
-                            .foregroundStyle(.white)
-                    }
                 }
-                .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
-                .padding(3)
             }
+            .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
+            .padding(3)
+            .maxWidth(.trailing)
         }
+        .frameBottom()
         .frame(width: 60, height: 60)
     }
 
     /// Live Photo badge indicator (bottom-left corner)
     private var livePhotoBadge: some View {
         VStack {
-            Spacer()
-
             HStack {
                 Image(systemName: "livephoto")
                     .font(.system(size: 8, weight: .semibold))
                     .foregroundStyle(.white)
                     .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
                     .padding(3)
-
-                Spacer()
             }
+            .maxWidth(.leading)
         }
+        .frameBottom()
         .frame(width: 60, height: 60)
     }
 }
