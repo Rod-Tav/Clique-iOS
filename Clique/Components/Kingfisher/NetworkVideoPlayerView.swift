@@ -34,28 +34,16 @@ struct NetworkVideoPlayerView: View {
     let thumbnailUrl: MediaUrls?
     let videoUrl: MediaUrls?
     let quality: ImageQuality
-    let forceQuality: Bool
-    let isVisible: Bool
-    let width: CGFloat?
-    let showControls: Bool
-    let savedPosition: CMTime?
-    let onPositionSave: ((CMTime) -> Void)?
+    var forceQuality: Bool = false
+    var isVisible: Bool = true
+    var width: CGFloat? = nil
+    var showControls: Bool = true
+    var savedPosition: CMTime? = nil
+    var onPositionSave: ((CMTime) -> Void)? = nil
 
     @State private var player: AVPlayer?
     @State private var loopObserver: NSObjectProtocol?
     @State private var isPaused: Bool = false
-
-    init(thumbnailUrl: MediaUrls?, videoUrl: MediaUrls?, quality: ImageQuality, forceQuality: Bool = false, isVisible: Bool = true, width: CGFloat? = nil, showControls: Bool = true, savedPosition: CMTime? = nil, onPositionSave: ((CMTime) -> Void)? = nil) {
-        self.thumbnailUrl = thumbnailUrl
-        self.videoUrl = videoUrl
-        self.quality = quality
-        self.forceQuality = forceQuality
-        self.isVisible = isVisible
-        self.width = width
-        self.showControls = showControls
-        self.savedPosition = savedPosition
-        self.onPositionSave = onPositionSave
-    }
 
     var body: some View {
         ZStack {

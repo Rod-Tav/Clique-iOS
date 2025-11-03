@@ -37,18 +37,11 @@ struct VideoPreviewView: View {
     /// Content mode for the video
     let contentMode: SwiftUI.ContentMode
     /// Whether this video is currently visible (controls playback)
-    let isVisible: Bool
+    var isVisible: Bool = true
 
     @State private var player: AVPlayer?
     @State private var isLoading: Bool = true
     @State private var loadingError: Error?
-
-    init(asset: PHAsset, thumbnail: UIImage?, contentMode: SwiftUI.ContentMode, isVisible: Bool = true) {
-        self.asset = asset
-        self.thumbnail = thumbnail
-        self.contentMode = contentMode
-        self.isVisible = isVisible
-    }
 
     var body: some View {
         Group {

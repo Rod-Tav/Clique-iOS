@@ -31,8 +31,8 @@ struct NetworkLivePhotoPlayerView: View {
     let imageUrl: MediaUrls?
     let videoUrl: MediaUrls?
     let quality: ImageQuality
-    let width: CGFloat?
-    let isInteractive: Bool
+    var width: CGFloat? = nil
+    var isInteractive: Bool = true
 
     @State private var player: AVPlayer?
     @State private var isPlaying = false
@@ -49,14 +49,6 @@ struct NetworkLivePhotoPlayerView: View {
     @State private var pressTimer: Timer?
     @State private var touchStartTime: Date?
     @State private var touchStartLocation: CGPoint?
-
-    init(imageUrl: MediaUrls?, videoUrl: MediaUrls?, quality: ImageQuality, width: CGFloat? = nil, isInteractive: Bool = true) {
-        self.imageUrl = imageUrl
-        self.videoUrl = videoUrl
-        self.quality = quality
-        self.width = width
-        self.isInteractive = isInteractive
-    }
 
     var body: some View {
         ZStack {

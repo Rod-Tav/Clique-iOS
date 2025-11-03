@@ -196,6 +196,12 @@ extension View {
             .frame(maxHeight: .infinity, alignment: .top)
     }
     
+    /// Sets max height to infinity with bottom alignment
+    func frameBottom() -> some View {
+        self
+            .frame(maxHeight: .infinity, alignment: .bottom)
+    }
+    
     func infiniteFrame() -> some View {
         self
             .frame(maxWidth: .infinity, maxHeight: .infinity)
