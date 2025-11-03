@@ -17,6 +17,8 @@ private class DateFormatterCache {
     private var cache: [String: DateFormatter] = [:]
     private let queue = DispatchQueue(label: "com.clique.dateformatter.cache")
 
+    private init() {}
+
     func formatter(for format: String, timeZone: TimeZone = .current, locale: Locale = Locale(identifier: "en_US_POSIX")) -> DateFormatter {
         return queue.sync {
             if let cached = cache[format] {

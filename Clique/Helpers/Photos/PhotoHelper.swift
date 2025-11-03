@@ -581,16 +581,16 @@ actor UploadCounter {
 // MARK: - PhotoUploader Singleton
 
 final class PhotoUploader: NSObject, URLSessionTaskDelegate {
-    
+
     static let shared = PhotoUploader()
-    
+
     private struct Handlers {
         let progress: (Double) -> Void
     }
-    
+
     private let syncQueue = DispatchQueue(label: "PhotoUploader.Sync")
     private var callbacks: [Int : Handlers] = [:]
-    
+
     private lazy var session: URLSession = {
         let cfg = URLSessionConfiguration.default
         cfg.waitsForConnectivity = true
@@ -598,7 +598,11 @@ final class PhotoUploader: NSObject, URLSessionTaskDelegate {
         cfg.timeoutIntervalForRequest = 60
         return URLSession(configuration: cfg, delegate: self, delegateQueue: nil)
     }()
-    
+
+    private override init() {
+        super.init()
+    }
+
     /// Uploads `data` to S3 with exponential‑back‑off and a Swift‑Concurrency timeout.
     /// Progress is streamed via the URLSession delegate; the `completion` closure is
     /// invoked on success or after the final failed attempt.

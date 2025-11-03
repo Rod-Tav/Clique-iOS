@@ -145,18 +145,16 @@ struct PhotoGridCell: View {
     /// Live Photo badge indicator (bottom-left corner)
     private var livePhotoBadge: some View {
         VStack {
-            Spacer()
-
             HStack {
                 Image(systemName: "livephoto")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(.white)
                     .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
                     .padding(6)
-
-                Spacer()
             }
+            .maxWidth(.leading)
         }
+        .frameBottom()
     }
 
     /// Video badge indicator (bottom-right corner with duration)
