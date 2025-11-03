@@ -9,70 +9,119 @@ import Foundation
 import UIKit
 import CryptoKit
 import Network
+import Photos  // For PHAsset in just-in-time video extraction
 
-/// Prepares image data and compression variants for upload
-func prepareUIImage(_ uiImage: UIImage?) -> (photoData: Components.Schemas.PhotoDataNoPath, imageVariants: (high: PreparedImageVariant, medium: PreparedImageVariant, low: PreparedImageVariant))? {
+/// Prepares image data for upload (original quality only - backend handles quality variants)
+func prepareUIImage(_ uiImage: UIImage?) -> (photoData: Components.Schemas.PhotoDataNoPath, imageVariant: PreparedImageVariant)? {
     guard let uiImage else { return nil }
-    
+
     /// Helper function to generate UploadPhotoParams and keep Data
-    func createUploadPhotoParams(from image: UIImage, targetWidth: CGFloat?, quality: CGFloat) -> PreparedImageVariant? {
-        // If targetWidth is provided, resize; otherwise use original
-        let processedImage: UIImage
-        if let width = targetWidth {
-            guard let resized = image.resized(toWidth: width) else { return nil }
-            processedImage = resized
-        } else {
-            processedImage = image
-        }
-        
-        // Compress to JPEG
-        guard let imageData = processedImage.jpegData(compressionQuality: quality) else { return nil }
-        
+    func createUploadPhotoParams(from image: UIImage, quality: CGFloat) -> PreparedImageVariant? {
+        // Use original image (no resizing - backend handles quality variants)
+        guard let imageData = image.jpegData(compressionQuality: quality) else { return nil }
+
         // Create MD5 hash for integrity check
         let hash = Insecure.MD5.hash(data: imageData)
         let hashData = Data(hash)
         let base64String = hashData.base64EncodedString()
         let numBytes = imageData.count
-        
+
         let params = Components.Schemas.UploadPhotoParams(
             contentType: "image/jpeg",
             contentLength: Int64(numBytes),
             contentMd5: base64String
         )
-        
+
         return PreparedImageVariant(data: imageData, params: params)
     }
-    
-    // High: original resolution, medium and low are resized
-    guard let high = createUploadPhotoParams(from: uiImage, targetWidth: nil, quality: 0.3),
-          let medium = createUploadPhotoParams(from: uiImage, targetWidth: 600, quality: 0.1),
-          let low = createUploadPhotoParams(from: uiImage, targetWidth: 200, quality: 0.2) else {
+
+    // Only create original quality (1.0 = no compression) - backend handles quality conversion
+    guard let original = createUploadPhotoParams(from: uiImage, quality: 1.0) else {
         return nil
     }
-    
-    // Optional debug prints
-    print("High Quality: \(high.params.contentLength ?? 0), \(high.params.contentMd5 ?? "")")
-    print("Medium Quality: \(medium.params.contentLength ?? 0), \(medium.params.contentMd5 ?? "")")
-    print("Low Quality: \(low.params.contentLength ?? 0), \(low.params.contentMd5 ?? "")")
-    
+
+    print("Original Quality: \(original.params.contentLength ?? 0) bytes, MD5: \(original.params.contentMd5 ?? "")")
+
+    // Send same params for all three - backend requires all three (even though it will handle quality conversion)
     let photoData = Components.Schemas.PhotoDataNoPath(
-        basePhoto: high.params,
-        medQualityPhoto: medium.params,
-        lowQualityPhoto: low.params
+        basePhoto: original.params,
+        medQualityPhoto: original.params,
+        lowQualityPhoto: original.params
     )
-    
-    return (photoData, (high: high, medium: medium, low: low))
+
+    return (photoData, original)
 }
 
 actor FailedVariantTracker {
     private var failed: [Int: Set<ImageQuality>] = [:]
-    
+
     func insert(_ index: Int, quality: ImageQuality) {
         failed[index, default: []].insert(quality)
     }
-    
+
     func isEmpty() -> Bool {
         failed.isEmpty
+    }
+}
+
+/// Tracks completion of media items (each item may have photo + video components)
+/// Uses fractional progress to show partial completion (e.g., 0.5 when photo done, 1.0 when both done)
+actor ItemCompletionTracker {
+    private var completedPhotos: Set<Int> = []
+    private var completedVideos: Set<Int> = []
+    private var itemsWithVideo: Set<Int> = [] // Track which items have videos
+    private let totalItems: Int
+
+    init(totalItems: Int) {
+        self.totalItems = totalItems
+    }
+
+    /// Register that an item has a video component
+    func registerItemWithVideo(index: Int) {
+        itemsWithVideo.insert(index)
+    }
+
+    /// Mark photo component as complete for an item index
+    /// Returns fractional progress (current completion / total items)
+    func markPhotoComplete(index: Int) -> Double {
+        completedPhotos.insert(index)
+        return calculateProgress()
+    }
+
+    /// Mark video component as complete for an item index
+    /// Returns fractional progress (current completion / total items)
+    func markVideoComplete(index: Int) -> Double {
+        completedVideos.insert(index)
+        return calculateProgress()
+    }
+
+    /// Calculate fractional progress
+    /// Each item contributes 1.0 to total. Items with videos: photo=0.5, video=0.5
+    private func calculateProgress() -> Double {
+        var progress: Double = 0.0
+
+        for index in 0..<totalItems {
+            let hasVideo = itemsWithVideo.contains(index)
+            let photoComplete = completedPhotos.contains(index)
+            let videoComplete = completedVideos.contains(index)
+
+            if hasVideo {
+                // Item has video: photo and video each worth 0.5
+                if photoComplete {
+                    progress += 0.5
+                }
+                if videoComplete {
+                    progress += 0.5
+                }
+            } else {
+                // Item is photo-only: photo worth 1.0
+                if photoComplete {
+                    progress += 1.0
+                }
+            }
+        }
+
+        return progress
     }
 }
 
@@ -108,10 +157,10 @@ enum ImageQuality: String {
 // MARK: - Photo Helper
 
 struct PhotoHelper {
-    static func createPhotoDatePairs(images: [UIImage], dates: [Date]) -> [Components.Schemas.PhotoDatePair] {
+    static func createPhotoDatePairs(images: [UIImage], dates: [Date]) -> [Components.Schemas.PhotoVideoDate] {
         return zip(images, dates).map { image, date in
-            let photoDataNoPath = prepareUIImage(image)
-            return mapToPhotoDatePair(photo: photoDataNoPath?.photoData, date: date)
+            let prepared = prepareUIImage(image)
+            return mapToPhotoDatePair(photo: prepared?.photoData, date: date)
         }
     }
     
@@ -166,18 +215,19 @@ struct PhotoHelper {
             completion(.failure(PhotoUploadError.invalidUrl))
             return
         }
-        
+
         let hash = Insecure.MD5.hash(data: data)
         let hashData = Data(hash)
         let base64String = hashData.base64EncodedString()
         let numBytes = data.count
-        
+
         var request = URLRequest(url: uploadUrl)
         request.httpMethod = "PUT"
         request.setValue("image/jpeg", forHTTPHeaderField: "Content-Type")
         request.setValue("\(numBytes)", forHTTPHeaderField: "Content-Length")
         request.setValue(base64String, forHTTPHeaderField: "Content-MD5")
-        
+        request.setValue("AES256", forHTTPHeaderField: "x-amz-server-side-encryption")
+
         PhotoUploader.shared.uploadImage(request: request,
                                          data: data,
                                          progressHandler: progressHandler,
@@ -292,62 +342,226 @@ struct PhotoHelper {
         throw lastError ?? URLError(.timedOut)
     }
     
+    /// Upload images with optional video components (for Live Photos)
+    /// - Parameters:
+    ///   - preparedImages: Array of prepared image variants (original quality only)
+    ///   - urls: Array of photo URLs (original quality only - backend handles conversion)
+    ///   - livePhotoAssets: Optional array of PHAsset references for Live Photos (video extracted just-in-time)
+    ///   - videoUrls: Optional array of video URLs for uploading video components
+    ///   - totalItems: Total number of media items (for display - not upload task count)
+    ///   - onProgress: Progress callback (fractional progress [0.0-totalItems], total items)
+    ///   - failedUpload: Failure callback (index, quality)
+    ///   - onCompletion: Completion callback (success)
     static func uploadImages(
-        preparedImages: [(high: PreparedImageVariant, med: PreparedImageVariant, low: PreparedImageVariant)],
-        urls: [(high: String?, med: String?, low: String?)],
-        onProgress: @escaping (Int, Int) -> Void,
+        preparedImages: [PreparedImageVariant],
+        urls: [String?],
+        livePhotoAssets: [(assetId: String, asset: PHAsset)?]? = nil,
+        transcodedVideoUrls: [URL?]? = nil,
+        videoUrls: [String?]? = nil,
+        videoContentTypes: [String?]? = nil,
+        totalItems: Int,
+        onProgress: @escaping (Double, Int) -> Void,
         failedUpload: @escaping (Int, ImageQuality) -> Void,
         onCompletion: @escaping (Bool) -> Void
     ) async {
-        let totalUploads = urls.flatMap { [$0.high, $0.med, $0.low] }.compactMap { $0 }.count
+        // Calculate total uploads (1 photo per image + optional video)
+        // This is for internal tracking - we report totalItems to the user
+        var totalUploads = urls.compactMap { $0 }.count
+
+        // Add video uploads to total count
+        if let videoUrls = videoUrls {
+            totalUploads += videoUrls.compactMap { $0 }.count
+        }
+
         let counter = UploadCounter()
-        
+        let itemCompletionTracker = ItemCompletionTracker(totalItems: totalItems)
         let semaphore = AsyncSemaphore(value: 6)
-        
         let failedTracker = FailedVariantTracker()
-        
+
+        // Register which items have videos before starting uploads
+        if let transcodedVideoUrls = transcodedVideoUrls {
+            for (index, videoUrl) in transcodedVideoUrls.enumerated() {
+                if videoUrl != nil {
+                    await itemCompletionTracker.registerItemWithVideo(index: index)
+                }
+            }
+        }
+
         await withTaskGroup(of: Void.self) { taskGroup in
-            
+
             func addUploadTask(data: Data, url: String, index: Int, quality: ImageQuality) {
                 taskGroup.addTask {
                     await semaphore.wait()
-                    
+
                     do {
                         try await uploadImageDataWithRetry(data, to: url)
-                        let newCount = await counter.increment()
+                        let _ = await counter.increment()
+
+                        // Mark photo as complete for this item and report fractional progress
+                        let fractionalProgress = await itemCompletionTracker.markPhotoComplete(index: index)
                         await MainActor.run {
-                            onProgress(newCount, totalUploads)
+                            onProgress(fractionalProgress, totalItems)
                         }
                     } catch {
                         await failedTracker.insert(index, quality: quality)
                         failedUpload(index, quality)
                         print("❌ Upload failed for \(quality.rawValue.uppercased()) quality at index \(index): \(error.localizedDescription)")
                     }
-                    
+
                     await semaphore.signal()
                 }
             }
-            
-            for (index, imageVariants) in preparedImages.enumerated() {
-                let (highData, medData, lowData) = (imageVariants.high, imageVariants.med, imageVariants.low)
-                let (highUrl, medUrl, lowUrl) = urls[index]
-                
-                if let highUrl {
-                    addUploadTask(data: highData.data, url: highUrl, index: index, quality: .high)
+
+            func addVideoUploadTask(videoFileUrl: URL, url: String, index: Int, contentType: String) {
+                taskGroup.addTask {
+                    await semaphore.wait()
+
+                    do {
+                        // Use prepared video file (MOV or MP4)
+                        print("⏳ Uploading video at index \(index)...")
+
+                        // Stream upload directly from file (no memory spike)
+                        try await uploadVideoFromFile(videoFileUrl, to: url, contentType: contentType)
+                        let _ = await counter.increment()
+
+                        // Mark video as complete for this item and report fractional progress
+                        let fractionalProgress = await itemCompletionTracker.markVideoComplete(index: index)
+                        await MainActor.run {
+                            onProgress(fractionalProgress, totalItems)
+                        }
+                        print("✅ Video uploaded for index \(index)")
+                    } catch {
+                        await failedTracker.insert(index, quality: .high) // Mark as failed
+                        failedUpload(index, .high) // Use .high to indicate video failure
+                        print("❌ Video upload failed at index \(index): \(error.localizedDescription)")
+                    }
+
+                    await semaphore.signal()
                 }
-                if let medUrl {
-                    addUploadTask(data: medData.data, url: medUrl, index: index, quality: .medium)
-                }
-                if let lowUrl {
-                    addUploadTask(data: lowData.data, url: lowUrl, index: index, quality: .low)
+            }
+
+            // Upload original quality only (backend handles quality conversion)
+            for (index, imageVariant) in preparedImages.enumerated() {
+                guard index < urls.count, let url = urls[index] else { continue }
+                addUploadTask(data: imageVariant.data, url: url, index: index, quality: .high)
+            }
+
+            // Upload video components (for Live Photos and standalone videos) - use prepared videos
+            if let transcodedVideoUrls = transcodedVideoUrls, let videoUrls = videoUrls {
+                for (index, videoFileUrl) in transcodedVideoUrls.enumerated() {
+                    guard let videoFileUrl = videoFileUrl,
+                          index < videoUrls.count,
+                          let uploadUrl = videoUrls[index] else { continue }
+
+                    // Get content-type for this video (default to video/mp4 for backward compatibility)
+                    let contentType = (videoContentTypes?[safe: index] ?? nil) ?? "video/mp4"
+
+                    addVideoUploadTask(videoFileUrl: videoFileUrl, url: uploadUrl, index: index, contentType: contentType)
                 }
             }
         }
-        
+
         let allSucceeded = await failedTracker.isEmpty()
         await MainActor.run {
             onCompletion(allSucceeded)
         }
+    }
+
+    /// Calculate MD5 hash of file by streaming (memory efficient)
+    private static func calculateMD5(of fileURL: URL) throws -> String {
+        let bufferSize = 1024 * 1024 // 1MB buffer
+        let file = try FileHandle(forReadingFrom: fileURL)
+        defer { try? file.close() }
+
+        var hasher = Insecure.MD5()
+
+        while autoreleasepool(invoking: {
+            let data = file.readData(ofLength: bufferSize)
+            if data.isEmpty { return false }
+            hasher.update(data: data)
+            return true
+        }) { }
+
+        let digest = hasher.finalize()
+        return Data(digest).base64EncodedString()
+    }
+
+    /// Upload video from file URL to S3 with streaming (memory efficient)
+    /// - Parameters:
+    ///   - fileURL: Local file URL containing video data
+    ///   - url: S3 presigned URL
+    ///   - contentType: The content-type to use for upload (e.g., "video/quicktime", "video/mp4")
+    /// - Important: Streams from disk - does NOT load entire file into memory
+    private static func uploadVideoFromFile(_ fileURL: URL, to url: String, contentType: String) async throws {
+        guard let uploadUrl = URL(string: url) else {
+            throw PhotoUploadError.invalidUrl
+        }
+
+        let fileSize = try FileManager.default.attributesOfItem(atPath: fileURL.path)[.size] as? Int ?? 0
+
+        var request = URLRequest(url: uploadUrl)
+        request.httpMethod = "PUT"
+        request.setValue(contentType, forHTTPHeaderField: "Content-Type")
+        request.setValue("\(fileSize)", forHTTPHeaderField: "Content-Length")
+        // Note: No Content-MD5 for videos - backend doesn't include it in presigned URL signature
+        request.setValue("AES256", forHTTPHeaderField: "x-amz-server-side-encryption")
+
+        print("📤 Video upload request:")
+        print("   Content-Type: \(contentType)")
+        print("   Content-Length: \(fileSize)")
+        print("   File: \(fileURL.lastPathComponent)")
+
+        // Stream upload from file (memory efficient)
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            var resumed = false
+
+            let session = URLSession.shared
+            let uploadTask = session.uploadTask(with: request, fromFile: fileURL) { data, response, error in
+                guard !resumed else { return }
+                resumed = true
+
+                if let error = error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    print("❌ Video upload: No HTTP response")
+                    continuation.resume(throwing: PhotoUploadError.uploadFailed)
+                    return
+                }
+
+                guard (200...299).contains(httpResponse.statusCode) else {
+                    print("❌ Video upload failed: HTTP \(httpResponse.statusCode)")
+                    if let data = data, let body = String(data: data, encoding: .utf8) {
+                        print("   Response body: \(body)")
+                    }
+                    continuation.resume(throwing: PhotoUploadError.uploadFailed)
+                    return
+                }
+
+                continuation.resume(returning: ())
+            }
+
+            uploadTask.resume()
+
+            // Failsafe timeout (longer for video uploads)
+            DispatchQueue.global().asyncAfter(deadline: .now() + 120) {
+                guard !resumed else { return }
+                resumed = true
+                uploadTask.cancel()
+                continuation.resume(throwing: URLError(.timedOut))
+            }
+        }
+    }
+}
+
+// MARK: - Array Extension
+
+extension Array {
+    /// Safe array subscript that returns nil if index is out of bounds
+    subscript(safe index: Int) -> Element? {
+        return indices.contains(index) ? self[index] : nil
     }
 }
 
@@ -367,16 +581,16 @@ actor UploadCounter {
 // MARK: - PhotoUploader Singleton
 
 final class PhotoUploader: NSObject, URLSessionTaskDelegate {
-    
+
     static let shared = PhotoUploader()
-    
+
     private struct Handlers {
         let progress: (Double) -> Void
     }
-    
+
     private let syncQueue = DispatchQueue(label: "PhotoUploader.Sync")
     private var callbacks: [Int : Handlers] = [:]
-    
+
     private lazy var session: URLSession = {
         let cfg = URLSessionConfiguration.default
         cfg.waitsForConnectivity = true
@@ -384,7 +598,11 @@ final class PhotoUploader: NSObject, URLSessionTaskDelegate {
         cfg.timeoutIntervalForRequest = 60
         return URLSession(configuration: cfg, delegate: self, delegateQueue: nil)
     }()
-    
+
+    private override init() {
+        super.init()
+    }
+
     /// Uploads `data` to S3 with exponential‑back‑off and a Swift‑Concurrency timeout.
     /// Progress is streamed via the URLSession delegate; the `completion` closure is
     /// invoked on success or after the final failed attempt.
@@ -398,40 +616,22 @@ final class PhotoUploader: NSObject, URLSessionTaskDelegate {
     ) {
         Task.detached { [weak self] in
             guard let self else { return }
-            
-            let maxAttempts = 3
-            var delay: TimeInterval = 0.5
-            var lastError: Error?
-            
-            for attempt in 1...maxAttempts {
-                do {
-                    let timeout = Self.dynamicTimeout(for: data)
-                    
-                    try await self.withTimeout(seconds: timeout) {
-                        try await self.performSingleUpload(
-                            request: request,
-                            data: data,
-                            progressHandler: progressHandler
-                        )
-                    }
-                    
-                    completion(.success(()))          // ✅ success
-                    return
-                } catch {
-                    lastError = error
-                    print("⚠️ Upload attempt \(attempt) failed: \(error.localizedDescription)")
-                    
-                    guard attempt < maxAttempts else { break }
-                    
-                    let jitter = Double.random(in: 0.75...1.25)
-                    let sleepTime = delay * jitter
-                    print("⏳ Retrying upload attempt \(attempt + 1) in \(String(format: "%.2f", sleepTime)) seconds")
-                    try await Task.sleep(nanoseconds: UInt64(sleepTime * 1_000_000_000))
-                    delay *= 2
+
+            do {
+                let timeout = Self.dynamicTimeout(for: data)
+
+                try await self.withTimeout(seconds: timeout) {
+                    try await self.performSingleUpload(
+                        request: request,
+                        data: data,
+                        progressHandler: progressHandler
+                    )
                 }
+
+                completion(.success(()))
+            } catch {
+                completion(.failure(error))
             }
-            
-            completion(.failure(lastError ?? URLError(.timedOut)))
         }
     }
     
@@ -471,13 +671,19 @@ final class PhotoUploader: NSObject, URLSessionTaskDelegate {
             uploadTask = self.session.uploadTask(with: request, from: data) { [weak self] _, response, error in
                 let duration = Date().timeIntervalSince(startTime)
                 print("📊 Upload duration for task \(uploadTask.taskIdentifier): \(duration) seconds")
-                
+
                 if let error = error {
                     cont.resume(throwing: error)
-                } else if let http = response as? HTTPURLResponse,
-                          (200...299).contains(http.statusCode) {
-                    cont.resume(returning: ())
+                } else if let http = response as? HTTPURLResponse {
+                    if (200...299).contains(http.statusCode) {
+                        cont.resume(returning: ())
+                    } else {
+                        print("❌ S3 Upload failed with status code: \(http.statusCode)")
+                        print("❌ Response headers: \(http.allHeaderFields)")
+                        cont.resume(throwing: PhotoUploadError.uploadFailed)
+                    }
                 } else {
+                    print("❌ No HTTP response received")
                     cont.resume(throwing: PhotoUploadError.uploadFailed)
                 }
                 

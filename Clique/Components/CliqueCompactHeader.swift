@@ -27,7 +27,7 @@ struct CliqueCompactHeader<SubLabel: View>: View {
     var body: some View {
         HStack(spacing: 0) {
             HStack(spacing: 12) {
-                CliquePill(cid, type: .feedCell)
+                CliquePill(cid: cid, type: .feedCell)
                 
                 //                    VStack(alignment: .leading, spacing: 0) {
                 //                        subLabel

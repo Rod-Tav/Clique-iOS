@@ -100,7 +100,7 @@ struct AuthFlowView: View {
                         }
                     }
                 } label: {
-                    IconImage((coordinator.path.isEmpty || coordinator.currentIconStep == 4) ? "x-icon" : "arrow-left", color: .theme.iconSecondary, size: 24)
+                    IconImage(name: (coordinator.path.isEmpty || coordinator.currentIconStep == 4) ? "x-icon" : "arrow-left", color: .theme.iconSecondary, size: 24)
                 }.buttonStyle(.noHighlight)
             },
             header: {

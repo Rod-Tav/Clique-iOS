@@ -86,7 +86,8 @@ struct LibraryCreateFlow: View {
                 .bottomSheetModifiers()
                 .presentationDetents([.fraction(0.999)])
         }
-        .onChange(of: tabViewCoordinator.createFlowInitialCollection) { _, newValue in
+        .onChange(of: tabViewCoordinator.createFlowInitialCollection, initial: true) { _, newValue in
+            // Handle collection context (fires on initial value and changes)
             guard let newValue else { return }
             viewModel.collectionToGoTo = newValue
             viewModel.selectedCollectionId = newValue.id
@@ -136,7 +137,7 @@ struct LibraryCreateFlow: View {
             }
         )
         .padding(.horizontal, 24)
-        .padding(.vertical, 12)
+        .padding(.vertical, 8)
     }
     
     @ViewBuilder private func TrailingIcon() -> some View {
@@ -147,7 +148,7 @@ struct LibraryCreateFlow: View {
             Button {
                 tabViewCoordinator.createFlowMode = .camera
             } label: {
-                IconImage("camera", color: .theme.iconPrimary, size: 24)
+                IconImage(name: "camera", color: .theme.iconPrimary, size: 24)
             }
         }
     }

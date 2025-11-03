@@ -10,7 +10,7 @@ import SwiftUI
 struct CollectionEditCoverPhotoAsyncImage: View {
     let urls: PhotoUrls?
     let quality: ImageQuality
-    
+
     var body: some View {
         GenericAsyncImage(urls: urls, quality: quality) { image in
             image

@@ -70,7 +70,7 @@ struct EditUserProfileView: View {
                         Image(uiImage: pfp)
                             .userPfp(size: 72)
                     } else {
-                        UserPfpAsyncView(pfp: user?.profilePic, size: 72, quality: .medium)
+                        UserPfpAsyncView(pfp: user?.profilePic, size: 72, quality: .low)
                     }
                     
                     SmallCTA(type: .secondary, text: "Edit") {
@@ -109,7 +109,7 @@ extension EditUserProfileView {
                 Button {
                     dismiss()
                 } label: {
-                    IconImage("x-icon", color: .theme.iconPrimary, size: 24)
+                    IconImage(name: "x-icon", color: .theme.iconPrimary, size: 24)
                 }
             },
             header: {
@@ -149,7 +149,7 @@ extension EditUserProfileView {
                     if savingLoading {
                         CliqueProgressView(size: 24)
                     } else {
-                        IconImage("check", color: canSave ? .theme.iconPrimary : .theme.iconTertiary, size: 24)
+                        IconImage(name: "check", color: canSave ? .theme.iconPrimary : .theme.iconTertiary, size: 24)
                     }
                 }
                 .disabled(!canSave)
@@ -224,12 +224,12 @@ extension EditUserProfileView {
                 
                 if focusField == .username, !viewModel.username.isEmpty, hasTriedUsername {
                     IconImage(
-                        isUsernameTaken ? "x-icon" : "check-circle-empty",
+                        name: isUsernameTaken ? "x-icon" : "check-circle-empty",
                         color: isUsernameTaken ? .theme.red : .theme.green, size: 20
                     )
                     .animation(.easeInOut, value: isUsernameTaken)
                 } else {
-                    IconImage("pen", color: .theme.iconSecondary, size: 16)
+                    IconImage(name: "pen", color: .theme.iconSecondary, size: 16)
                         .onTapGesture {
                             focusedField = focusField
                         }

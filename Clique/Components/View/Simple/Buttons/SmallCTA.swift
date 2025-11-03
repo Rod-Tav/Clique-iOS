@@ -50,7 +50,7 @@ struct SmallCTA: View {
         Button(action: action) {
             HStack(spacing: 4) {
                 if let leadingIcon {
-                    IconImage(leadingIcon, color: textColor ?? type.foregroundColor, size: 12)
+                    IconImage(name: leadingIcon, color: textColor ?? type.foregroundColor, size: 12)
                 }
                 
                 if text != "" {
@@ -64,8 +64,7 @@ struct SmallCTA: View {
             .padding(.horizontal, 8)
             .padding(.top, 5)
             .padding(.bottom, 4)
-            .background(buttonColor ?? type.buttonColor)
-            .clipShape(.capsule)
+            .glassButton(backgroundColor: buttonColor ?? type.buttonColor)
         }
     }
 }

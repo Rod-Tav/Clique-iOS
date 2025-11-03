@@ -8,11 +8,7 @@
 import SwiftUI
 
 struct HeaderTextStar: View {
-    private let title: String
-    
-    init(_ title: String) {
-        self.title = title
-    }
+    let title: String
     
     var body: some View {
         HStack(alignment: .top, spacing: 0) {
@@ -20,11 +16,7 @@ struct HeaderTextStar: View {
                 .font(Font.custom("NewakeDemo", size: 24))
                 .textPrimary()
             
-            IconImage("clique-star", color: Color.theme.cliquePink, size: 8)
+            IconImage(name: "clique-star", color: Color.theme.cliquePink, size: 8)
         }
     }
-}
-
-#Preview {
-    HeaderTextStar("Clique")
 }

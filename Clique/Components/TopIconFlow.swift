@@ -30,7 +30,7 @@ struct TopIconFlow: View {
                             currentStep -= 1
                         }
                     } label: {
-                        IconImage("arrow-left", color: .theme.iconSecondary, size: 24)
+                        IconImage(name: "arrow-left", color: .theme.iconSecondary, size: 24)
                     }
                 },
                 header: TopIcons,
@@ -63,7 +63,7 @@ struct TopIconFlow: View {
         HStack(spacing: 8) {
             ForEach(0..<steps.count, id: \.self) { index in
                 HStack(spacing: 8) {
-                    IconImage(steps[index].imageName, color: .theme.shadesWhite95, size: 12)
+                    IconImage(name: steps[index].imageName, color: .theme.shadesWhite95, size: 12)
                 }
                 .frame(24)
                 .background(index > currentStep ? Color.theme.surfacesElevatedPrimary : Color.theme.lightPink)

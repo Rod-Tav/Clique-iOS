@@ -42,7 +42,7 @@ struct NewCollectionDetailsView: View {
                     .foregroundStyle(Color.theme.textPrimary)
                 
                 if viewModel.newCollectionVisibility == .priv {
-                    IconImage("lock", color: .theme.textPrimary, size: 20)
+                    IconImage(name: "lock", color: .theme.textPrimary, size: 20)
                 }
             }
             
@@ -51,10 +51,10 @@ struct NewCollectionDetailsView: View {
             } label: {
                 Group {
                     if let cid = viewModel.newCollectionClique?.id {
-                        CliquePill(cid, type: .newCollection)
+                        CliquePill(cid: cid, type: .newCollection)
                     } else {
                         HStack(spacing: 8) {
-                            IconImage("plus", color: .theme.textSecondary, size: 16)
+                            IconImage(name: "plus", color: .theme.textSecondary, size: 16)
                                 .padding(6)
                                 .frame(28)
                                 .roundCorners(6)
@@ -115,7 +115,7 @@ struct NewCollectionDetailsView: View {
                     Button {
                         showVisbilitySheet = true
                     } label: {
-                        IconImage("help-circle", color: .theme.iconSecondary, size: 12)
+                        IconImage(name: "help-circle", color: .theme.iconSecondary, size: 12)
                     }
                 }
             }
@@ -131,7 +131,7 @@ struct NewCollectionDetailsView: View {
             CliqueButton(
                 type: .primary,
                 leadingIcon: "check",
-                text: viewModel.fromLibrary && viewModel.selectedImages.count > 1 ? "Upload Flicks" : "Upload Flick",
+                text: "Upload \(pluralizeWithCount(count: viewModel.selectedAssets.count, singular: "Flick"))",
                 textColor: buttonEnabled ? .theme.buttonContent : .theme.textSecondary,
                 fontWeight: .semibold,
                 buttonColor: buttonEnabled ? .theme.buttonCTA : .theme.surfacesElevatedPrimary,
@@ -173,7 +173,7 @@ struct NewCollectionDetailsView: View {
             viewModel.newCollectionVisibility = visibility
         } label: {
             HStack(spacing: 8) {
-                IconImage(visibility.icon, color: isSelected ? .theme.textPrimary : .theme.textSecondary, size: 20)
+                IconImage(name: visibility.icon, color: isSelected ? .theme.textPrimary : .theme.textSecondary, size: 20)
                 
                 Text(visibility.title)
                     .font(.callout.weight(.semibold))

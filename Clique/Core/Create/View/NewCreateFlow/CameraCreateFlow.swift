@@ -69,12 +69,22 @@ struct CameraCreateFlow: View {
             }
             .background(Color.theme.dark)
         }
-        .onReceive(of: .cameraReset) { _ in 
+        .onReceive(of: .cameraReset) { _ in
             model.camera.stop()
             model.capturedImage = nil
         }
         .task {
             await model.camera.start()
+        }
+        .onChange(of: tabViewCoordinator.createFlowMode) { oldMode, newMode in
+            // Stop camera when switching away from camera mode to prevent orientation observers from running
+            if oldMode == .camera && newMode != .camera {
+                model.camera.stop()
+            }
+        }
+        .onDisappear {
+            // Ensure camera stops when view disappears (tab switch, dismissal, etc.)
+            model.camera.stop()
         }
         .sheet(isPresented: $showChooseCollectionSheet) {
             if let uid = userStore.currentUserId {
@@ -98,12 +108,14 @@ struct CameraCreateFlow: View {
                 }
             }
         }
-        .onChange(of: tabViewCoordinator.createFlowInitialClique) { _, newValue in
+        .onChange(of: tabViewCoordinator.createFlowInitialClique, initial: true) { _, newValue in
+            // Handle clique context (fires on initial value and changes)
             guard let newValue else { return }
             viewModel.newCollectionClique = newValue
             tabViewCoordinator.createFlowInitialClique = nil
         }
-        .onChange(of: tabViewCoordinator.createFlowInitialCollection) { _, newValue in
+        .onChange(of: tabViewCoordinator.createFlowInitialCollection, initial: true) { _, newValue in
+            // Handle collection context (fires on initial value and changes)
             guard let newValue else { return }
             viewModel.collectionToGoTo = newValue
             viewModel.selectedCollectionId = newValue.id
@@ -140,12 +152,12 @@ struct CameraCreateFlow: View {
                                 model.camera.stop()
                             }
                         } label: {
-                            IconImage("arrow-left", color: .theme.shadesWhite95, size: 24)
+                            IconImage(name: "arrow-left", color: .theme.shadesWhite95, size: 24)
                         }
                         
                         if !viewModel.selectedImages.isEmpty {
                             HStack(spacing: 4) {
-                                IconImage("images-posts", color: .theme.shadesWhite95, size: 20)
+                                IconImage(name: "images-posts", color: .theme.shadesWhite95, size: 20)
                                 
                                 Text("\(viewModel.selectedImages.count)")
                                     .font(.caption.bold())
@@ -167,7 +179,7 @@ struct CameraCreateFlow: View {
                     Spacer().frame(24)
                 } else {
                     HStack(spacing: 4) {
-                        IconImage("images-posts", color: .theme.shadesWhite95, size: 20)
+                        IconImage(name: "images-posts", color: .theme.shadesWhite95, size: 20)
                         
                         Text("\(viewModel.selectedImages.count)")
                             .font(.caption.bold())
@@ -194,12 +206,12 @@ struct CameraCreateFlow: View {
                         viewModel.selectedImages = [capturedImage]
                         viewModel.selectedImagesDates = [Date()]
                         
-                        guard let (photoData, imageVariants) = prepareUIImage(capturedImage) else { return }
-                        
-                        let photoPair = Components.Schemas.PhotoDatePair(photo: photoData, dateCreated: convertFromDate(Date()))
-                        
+                        guard let (photoData, imageVariant) = prepareUIImage(capturedImage) else { return }
+
+                        let photoPair = Components.Schemas.PhotoVideoDate(photo: photoData, video: nil, mediaType: .PHOTO, dateCreated: convertFromDate(Date()))
+
                         viewModel.photoDatePairs.append(photoPair)
-                        viewModel.preparedImageVariants.append((high: imageVariants.high, med: imageVariants.medium, low: imageVariants.low))
+                        viewModel.preparedImageVariants.append(imageVariant)
                         
                         hasPressedShutter = false
                     }
@@ -213,7 +225,7 @@ struct CameraCreateFlow: View {
                             viewModel.preparedImageVariants.removeAll()
                         } label: {
                             HStack(spacing: 4) {
-                                IconImage("x-icon", color: .theme.iconPrimary, size: 12)
+                                IconImage(name: "x-icon", color: .theme.iconPrimary, size: 12)
                             }
                             .padding(6)
                             .background(Color.theme.surfacesPrimary)
@@ -223,7 +235,7 @@ struct CameraCreateFlow: View {
                     }
                     .overlay(alignment: .topLeading) {
                         if let cid = viewModel.selectedCollectionClique?.id {
-                            CliquePill(cid, type: .newCollection)
+                            CliquePill(cid: cid, type: .newCollection)
                                 .padding(16)
                         }
                     }
@@ -233,7 +245,7 @@ struct CameraCreateFlow: View {
                                 showChooseCollectionSheet = true
                             } label: {
                                 HStack(spacing: 6) {
-                                    IconImage("collections", color: .theme.textPrimary, size: 12)
+                                    IconImage(name: "collections", color: .theme.textPrimary, size: 12)
                                     
                                     if let name = collectionStore.collections[collectionId]?.name {
                                         Text(name)
@@ -242,7 +254,7 @@ struct CameraCreateFlow: View {
                                     }
                                     
                                     if viewModel.newCollectionVisibility == .priv {
-                                        IconImage("lock", color: .theme.textPrimary, size: 12)
+                                        IconImage(name: "lock", color: .theme.textPrimary, size: 12)
                                     }
                                 }
                                 .padding(.horizontal, 12)
@@ -344,7 +356,7 @@ struct CameraCreateFlow: View {
             Button {
                 tabViewCoordinator.createFlowMode = .library
             } label: {
-                IconImage("library", color: .theme.white, size: 32)
+                IconImage(name: "library", color: .theme.white, size: 32)
                     .padding(8)
                     .frame(48)
                     .background(Color.theme.shadesWhite15)
@@ -379,7 +391,7 @@ struct CameraCreateFlow: View {
                 model.switchCaptureDevice()
                 isFront.toggle()
             } label: {
-                IconImage("switch", color: .theme.white, size: 24)
+                IconImage(name: "switch", color: .theme.white, size: 24)
                     .padding(12)
                     .frame(48)
                     .background(Color.theme.shadesWhite15)
@@ -403,7 +415,7 @@ struct CameraCreateFlow: View {
             }
         } label: {
             IconImage(
-                model.flashMode == .off ? "no-flash" : "flash",
+                name: model.flashMode == .off ? "no-flash" : "flash",
                 color: model.flashMode == .auto ? .theme.gold : .theme.shadesWhite95,
                 size: 24
             )

@@ -164,10 +164,11 @@ struct GridCollectionPreviewImage: View {
     let urls: PhotoUrls?
 
     var body: some View {
-        GenericAsyncImage(urls: urls, quality: .medium, shouldFixSize: false, performanceMode: true) { image in
+        GenericAsyncImage(urls: urls, quality: .low, shouldFixSize: false, context: .grid, performanceMode: true) { image in
             image
                 .contentConfigure { img in
-                    img.collectionPreviewImageModifiers()
+                    img
+                        .collectionPreviewImageModifiers()
                 }
         } placeholder: {
             Rectangle()

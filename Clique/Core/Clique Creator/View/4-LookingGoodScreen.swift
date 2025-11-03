@@ -79,7 +79,7 @@
 //                                
 //                                Spacer()
 //                                
-//                                IconImage("x-icon", color: .theme.iconSecondary, size: 16)
+//                                IconImage(name: "x-icon", color: .theme.iconSecondary, size: 16)
 //                                    .onHighPriorityTap {
 //                                        viewModel.invitedMembers.removeAll(where: { $0.id == user.id })
 //                                    }

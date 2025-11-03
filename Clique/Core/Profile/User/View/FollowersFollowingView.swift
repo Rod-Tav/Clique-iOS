@@ -81,7 +81,7 @@ extension FollowersFollowingView {
                 Button {
                     dismiss()
                 } label: {
-                    IconImage("arrow-left", color: .theme.iconPrimary, size: 24)
+                    IconImage(name: "arrow-left", color: .theme.iconPrimary, size: 24)
                 }
             },
             header: {

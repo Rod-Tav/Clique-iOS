@@ -15,7 +15,7 @@ struct EmptyCTAView: View {
     var body: some View {
         VStack(spacing: 16) {
             VStack(spacing: 8) {
-                IconImage(icon, color: .primaryIcon, size: 32)
+                IconImage(name: icon, color: .primaryIcon, size: 32)
                 
                 Text(text)
                     .textPrimary()

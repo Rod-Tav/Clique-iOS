@@ -13,7 +13,7 @@ struct CliqueTextFieldModifier: ViewModifier {
             .font(.subheadline)
             .padding(12)
             .background(Color(.systemGray6))
-            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .roundCorners(10)
             .padding(.horizontal, 12)
             .padding(.top)
     }

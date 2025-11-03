@@ -89,7 +89,7 @@ extension View {
                         showPicker()
                     }
                     
-                    IconImage("x-icon", color: .theme.iconSecondary, size: 12)
+                    IconImage(name: "x-icon", color: .theme.iconSecondary, size: 12)
                         .padding(5)
                         .background {
                             Circle().fill(Color.theme.surfacesPrimary)
@@ -158,10 +158,10 @@ extension View {
             }
     }
     
-    func overlayCollectionPreviewStats(likes: Int, comments: Int, hasLiked: Bool) -> some View {
+    func overlayCollectionPreviewStats(likes: Int, comments: Int, hasLiked: Bool, isLivePhoto: Bool, isVideo: Bool, videoDuration: TimeInterval?, videoUrl: URL?, compact: Bool = false) -> some View {
         self
             .overlay(alignment: .bottomLeading) {
-                CollectionPreviewStatsView(likes: likes, comments: comments, hasLiked: hasLiked)
+                CollectionPreviewStatsView(likes: likes, comments: comments, hasLiked: hasLiked, isLivePhoto: isLivePhoto, isVideo: isVideo, videoDuration: videoDuration, videoUrl: videoUrl, compact: compact)
             }
     }
 }
@@ -194,6 +194,12 @@ extension View {
     func frameTop() -> some View {
         self
             .frame(maxHeight: .infinity, alignment: .top)
+    }
+    
+    /// Sets max height to infinity with bottom alignment
+    func frameBottom() -> some View {
+        self
+            .frame(maxHeight: .infinity, alignment: .bottom)
     }
     
     func infiniteFrame() -> some View {

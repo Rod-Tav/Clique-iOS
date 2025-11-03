@@ -65,7 +65,7 @@ struct ReviewPhotosView: View {
                 Button {
                     tabViewCoordinator.createNavigationPath.removeLast()
                 } label: {
-                    IconImage("arrow-left", color: .theme.iconPrimary, size: 24)
+                    IconImage(name: "arrow-left", color: .theme.iconPrimary, size: 24)
                 }
             },
             header: {
@@ -75,7 +75,7 @@ struct ReviewPhotosView: View {
             },
             trailingIcon: {
                 // Empty trailing icon to balance the header
-                IconImage("arrow-left", color: .theme.iconPrimary, size: 24)
+                IconImage(name: "arrow-left", color: .theme.iconPrimary, size: 24)
                     .opacity(0)
             }
         )
@@ -92,7 +92,7 @@ struct ReviewPhotosView: View {
                 .frame(maxHeight: UIScreen.height * 0.5)
                 .overlay(alignment: .topLeading) {
                     if let cid = viewModel.selectedCollectionClique?.id {
-                        CliquePill(cid, type: .newCollection)
+                        CliquePill(cid: cid, type: .newCollection)
                             .padding(16)
                     }
                 }
@@ -102,7 +102,7 @@ struct ReviewPhotosView: View {
                             showChooseCollectionSheet = true
                         } label: {
                             HStack(spacing: 6) {
-                                IconImage("collections", color: .theme.iconPrimary, size: 12)
+                                IconImage(name: "collections", color: .theme.iconPrimary, size: 12)
                                 
                                 if let name = collectionStore.collections[collectionId]?.name {
                                     Text(name)
@@ -111,7 +111,7 @@ struct ReviewPhotosView: View {
                                 }
                                 
                                 if viewModel.newCollectionVisibility == .priv {
-                                    IconImage("lock", color: .theme.iconPrimary, size: 12)
+                                    IconImage(name: "lock", color: .theme.iconPrimary, size: 12)
                                 }
                             }
                             .padding(.horizontal, 12)
@@ -134,7 +134,7 @@ struct ReviewPhotosView: View {
                         .resizable()
                         .scaledToFill()
                         .frame(width: 64, height: 86)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .roundCorners(8)
                         .overlay {
                             if currentImageIndex == index {
                                 RoundedRectangle(cornerRadius: 8)

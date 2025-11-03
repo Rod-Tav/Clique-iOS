@@ -22,7 +22,7 @@ struct CliqueCircularMembersView: View {
         HStack(spacing: type.spacing) {
             ForEach(0 ..< max, id: \.self) { i in
                 if i < members.count {
-                    UserPfpAsyncView(pfp: members[i].profilePic, size: type.size.width, quality: .low)
+                    UserPfpAsyncView(pfp: members[i].profilePic, size: type.size.width, quality: .low, context: .list)
                         .overlay( // border
                             Circle()
                                 .inset(by: type.inset)
@@ -31,11 +31,11 @@ struct CliqueCircularMembersView: View {
                         .zIndex(-Double(i))
                 }
             }
-            
+
             if limitExceeded {
                 ZStack {
                     if limit - 1 < members.count {
-                        UserPfpAsyncView(pfp: members[limit - 1].profilePic, size: type.size.width, quality: .low)
+                        UserPfpAsyncView(pfp: members[limit - 1].profilePic, size: type.size.width, quality: .low, context: .list)
                             .overlay(.black.opacity(0.6))
                             .overlay(
                                 Circle()

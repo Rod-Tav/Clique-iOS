@@ -8,6 +8,7 @@
 import SwiftUI
 import FirebaseAuth
 import Toasts
+import Kingfisher
 
 struct UserSettingsView: View {
     @AppStorage("userTheme") private var userTheme: Theme = .systemDefault
@@ -245,18 +246,28 @@ extension UserSettingsView {
                     // SIGNOUT
                     do {
                         try Auth.auth().signOut()
-                        
+
+                        // Clear persistent caches to prevent old user data from persisting
+                        Task {
+                            // Clear HTTP response cache (disk + memory)
+                            await CacheControl.shared.clearCache()
+
+                            // Clear image caches (disk + memory)
+                            ImageCache.default.clearMemoryCache()
+                            await ImageCache.default.clearDiskCache()
+                        }
+
                         AppService.userToken = ""
                         AuthService.hasMixpanelProfile = false
                         hasSwipedUpToOpenComments = false
                         RecentUsersManager.storedUsersData = Data()
-                        
+
                         userStore.reset()
                         cliqueStore.reset()
                         collectionStore.reset()
                         collectionImageStore.reset()
                         commentStore.reset()
-                        
+
                         authService.appViewType = .auth
                     } catch {
                         print("DEBUG: signout failed")
@@ -303,7 +314,11 @@ extension UserSettingsView {
         Button(action: { action?() }) {
             HStack(spacing: 0) {
                 HStack(spacing: 8) {
-                    IconImage(icon, color: color, size: 20)
+                    IconImage(
+                        name: icon,
+                        color: color,
+                        size: 20
+                    )
 
                     Text(settingText)
                         .font(.callout)
@@ -315,7 +330,7 @@ extension UserSettingsView {
                 trailingIcon()
             }
             .frame(maxWidth: .infinity, minHeight: 45, maxHeight: 45)
-            .contentShape(Rectangle())
+            .contentShape(.rect)
         }
         .if(action == nil) { view in
             view
@@ -327,7 +342,7 @@ extension UserSettingsView {
 // MARK: - Helpers
 extension UserSettingsView {
     @ViewBuilder private func TrailingIcon(_ name: String) -> some View {
-        IconImage(name, color: .theme.iconSecondary, size: 20)
+        IconImage(name: name, color: .theme.iconSecondary, size: 20)
     }
 }
 

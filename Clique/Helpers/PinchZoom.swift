@@ -186,10 +186,17 @@ fileprivate struct GestureOverlay: UIViewRepresentable {
         }
         
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+            // Allow pinch and pan to work together
             if gestureRecognizer.name == "PINCHPANGESTURE" && otherGestureRecognizer.name == "PINCHZOOMGESTURE" {
                 return true
             }
-            
+
+            // Allow SwiftUI gestures (no name) to work simultaneously
+            // This enables long press for Live Photos and other SwiftUI gestures
+            if otherGestureRecognizer.name == nil {
+                return true
+            }
+
             return false
         }
     }

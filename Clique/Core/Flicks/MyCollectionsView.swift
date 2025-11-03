@@ -68,7 +68,11 @@ struct MyCollectionsView: View {
                                 viewType = .compactList
                             }
                         } label: {
-                            IconImage(viewType.icon, color: .theme.iconPrimary, size: 16)
+                            IconImage(
+                                name: viewType.icon,
+                                color: .theme.iconPrimary,
+                                size: 16
+                            )
                         }.noHighlight()
                     }
                     .padding(.top, 12)
@@ -117,7 +121,7 @@ struct MyCollectionsView: View {
                         .font(Font.custom("NewakeDemo", size: 24))
                         .textPrimary()
                     
-                    IconImage("clique-star", color: Color.theme.cliquePink, size: 8)
+                    IconImage(name: "clique-star", color: Color.theme.cliquePink, size: 8)
                 }
             },
             trailingIcon: {
@@ -125,7 +129,7 @@ struct MyCollectionsView: View {
                     //                        Button {
                     //                            showAddFriendsSheet = true
                     //                        } label: {
-                    //                            IconImage("add-user", color: .theme.iconPrimary, size: 24)
+                    //                            IconImage(name: "add-user", color: .theme.iconPrimary, size: 24)
                     //                        }.buttonStyle(.noHighlight)
                     
                     Menu {
@@ -156,11 +160,11 @@ struct MyCollectionsView: View {
                                 .color(.theme.iconPrimary)
                         }
                     } label: {
-                        IconImage("plus", color: .theme.iconPrimary, size: 24)
+                        IconImage(name: "plus", color: .theme.iconPrimary, size: 24)
                     }
                     
                     NavigationLink(value: "Search") {
-                        IconImage("search", color: .theme.iconPrimary, size: 24)
+                        IconImage(name: "search", color: .theme.iconPrimary, size: 24)
                     }
                     
                     NavigationLink(value: "CurrentUser") {
@@ -238,26 +242,29 @@ extension MyCollectionsView {
                     // TODO: DRY(?)
                     CollectionPreviewWithGridBg(width: 64) {
                         if let coverPhoto = collection.coverPhoto {
-                            ProfileCollectionCoverPhotoAsyncImage(urls: coverPhoto, side: 64, quality: .medium)
+                            ProfileCollectionCoverPhotoAsyncImage(urls: coverPhoto, side: 64, quality: .low)
                         } else if let mostLikedImage = collection.mostLikedImage, let urls = collectionImageStore.images[mostLikedImage]?.imageUrl {
-                            ProfileCollectionCoverPhotoAsyncImage(urls: urls, side: 64, quality: .medium)
+                            ProfileCollectionCoverPhotoAsyncImage(urls: urls, side: 64, quality: .low)
                         } else {
                             ProfileCollectionPlaceholder(side: 64)
                         }
                     }
                     
                     VStack(alignment: .leading, spacing: 4) {
-                        CliquePill(collection.cliqueId, type: .collectionPreview)
+                        CliquePill(
+                            cid: collection.cliqueId,
+                            type: .collectionPreview
+                        )
                         
                         Text(collection.name)
                             .lineLimit(1)
                             .font(.footnote.bold())
                             .textPrimary()
-                        
+
                         HStack(spacing: 8) {
                             Pill(icon: "calendar", text: formatDateMdyy(collection.creation))
-                            
-                            Pill(icon: "images-posts", text: formatNumber(collection.numFlicks))
+
+                            Pill(icon: "images-posts", text: formatNumber(collection.displayFlickCount(currentUserId: userStore.currentUserId)))
                         }
                     }
                 }

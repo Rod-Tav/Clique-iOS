@@ -21,13 +21,13 @@ import SwiftUI
 /// ## Usage
 /// ```swift
 /// // Primary navigation icon
-/// IconImage("arrow-left", color: .theme.iconPrimary, size: 24)
+/// IconImage(name: "arrow-left", color: .theme.iconPrimary, size: 24)
 /// 
 /// // Secondary action icon
-/// IconImage("settings", color: .theme.iconSecondary, size: 20)
+/// IconImage(name: "settings", color: .theme.iconSecondary, size: 20)
 /// 
 /// // Custom colored icon
-/// IconImage("heart-filled", color: .theme.pink, size: 16)
+/// IconImage(name: "heart-filled", color: .theme.pink, size: 16)
 /// ```
 ///
 /// ## Best Practices
@@ -46,18 +46,6 @@ struct IconImage: View {
     /// Size of the icon in points
     let size: CGFloat
     
-    /// Creates an icon with the specified appearance.
-    ///
-    /// - Parameters:
-    ///   - name: The name of the icon asset in the app bundle
-    ///   - color: The color to apply (prefer `.theme.iconPrimary` or `.theme.iconSecondary`)
-    ///   - size: The size in points (use standard sizes: 16, 20, 24, 28)
-    init(_ name: String, color: Color, size: CGFloat) {
-        self.name = name
-        self.color = color
-        self.size = size
-    }
-    
     var body: some View {
         Image(name)
             .icon(color: color, size: size)
@@ -65,5 +53,5 @@ struct IconImage: View {
 }
 
 #Preview {
-    IconImage("arrow-left", color: .theme.pink, size: 20)
+    IconImage(name: "arrow-left", color: .theme.pink, size: 20)
 }
