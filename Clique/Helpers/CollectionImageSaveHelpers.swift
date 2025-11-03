@@ -16,13 +16,14 @@ struct CollectionImageSaveHelpers {
     /// - Parameters:
     ///   - image: The collection image to save
     ///   - collectionImageStore: Store for accessing cached timezone data
-    ///   - isSavingLivePhoto: Binding to track save state
     ///   - presentToast: Toast presentation closure
+    ///   - onStateChange: Optional closure called when save state changes
+    @MainActor
     static func saveLivePhoto(
         image: CollectionImage,
         collectionImageStore: CollectionImageStore,
-        isSavingLivePhoto: inout Bool,
-        presentToast: @escaping (Toast) -> Void
+        presentToast: @escaping (ToastValue) -> Void,
+        onStateChange: ((Bool) -> Void)? = nil
     ) async {
         guard let imageUrl = image.imageUrl?.highQualityUrl,
               let videoUrl = image.videoUrls?.highQualityUrl else { return }
@@ -48,7 +49,7 @@ struct CollectionImageSaveHelpers {
             print("   It will be saved in the device's current timezone")
         }
 
-        isSavingLivePhoto = true
+        onStateChange?(true)
 
         let saver = LivePhotoSaver()
         let success = await saver.saveLivePhoto(
@@ -65,16 +66,17 @@ struct CollectionImageSaveHelpers {
                 break
             case .completed:
                 presentToast(Toasts.savedLivePhoto)
-                isSavingLivePhoto = false
+                onStateChange?(false)
             case .failed:
                 // Fallback already happened, show video saved toast
                 presentToast(Toasts.savedVideo)
-                isSavingLivePhoto = false
+                onStateChange?(false)
             }
         }
 
-        if !success && !isSavingLivePhoto {
+        if !success {
             presentToast(Toasts.somethingWentWrong)
+            onStateChange?(false)
         }
     }
 
@@ -84,7 +86,7 @@ struct CollectionImageSaveHelpers {
     ///   - presentToast: Toast presentation closure
     static func saveVideo(
         image: CollectionImage,
-        presentToast: @escaping (Toast) -> Void
+        presentToast: @escaping (ToastValue) -> Void
     ) async {
         guard let videoUrl = image.videoUrls?.highQualityUrl else { return }
 
@@ -112,7 +114,7 @@ struct CollectionImageSaveHelpers {
     ///   - presentToast: Toast presentation closure
     static func saveImage(
         image: CollectionImage,
-        presentToast: @escaping (Toast) -> Void
+        presentToast: @escaping (ToastValue) -> Void
     ) async {
         guard let imageUrl = image.imageUrl,
               let url = imageUrl.highQualityUrl,
@@ -132,12 +134,13 @@ struct CollectionImageSaveHelpers {
     ///   - collectionImageStore: Image store for updating state
     ///   - presentToast: Toast presentation closure
     ///   - onSuccess: Optional closure called after successful deletion
+    @MainActor
     static func deleteCollectionItem(
         imageId: String,
         collectionId: String,
         collectionStore: CollectionStore,
         collectionImageStore: CollectionImageStore,
-        presentToast: @escaping (Toast) -> Void,
+        presentToast: @escaping (ToastValue) -> Void,
         onSuccess: (() -> Void)? = nil
     ) async {
         do {

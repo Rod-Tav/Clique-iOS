@@ -657,8 +657,10 @@ struct FlicksFeedView: View {
             await CollectionImageSaveHelpers.saveLivePhoto(
                 image: currentImage,
                 collectionImageStore: collectionImageStore,
-                isSavingLivePhoto: &isSavingLivePhoto,
-                presentToast: presentToast
+                presentToast: { toast in presentToast(toast) },
+                onStateChange: { isSaving in
+                    isSavingLivePhoto = isSaving
+                }
             )
         }
     }
@@ -670,7 +672,7 @@ struct FlicksFeedView: View {
         Task {
             await CollectionImageSaveHelpers.saveVideo(
                 image: currentImage,
-                presentToast: presentToast
+                presentToast: { toast in presentToast(toast) }
             )
         }
     }
@@ -682,7 +684,7 @@ struct FlicksFeedView: View {
         Task {
             await CollectionImageSaveHelpers.saveImage(
                 image: currentImage,
-                presentToast: presentToast
+                presentToast: { toast in presentToast(toast) }
             )
         }
     }
@@ -697,7 +699,7 @@ struct FlicksFeedView: View {
                 collectionId: currentCollection.id,
                 collectionStore: collectionStore,
                 collectionImageStore: collectionImageStore,
-                presentToast: presentToast,
+                presentToast: { toast in presentToast(toast) },
                 onSuccess: {
                     viewModel.items.removeAll(where: { $0.id == currentFlickId })
                 }

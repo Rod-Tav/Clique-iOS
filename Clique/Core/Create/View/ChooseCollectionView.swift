@@ -142,10 +142,10 @@ struct ChooseCollectionView: View {
                     }
                 }
             }
+            .maxWidth(.leading)
             .contentShape(.rect)
         }
         .noHighlight()
-        .maxWidth(.leading)
     }
     
     @ViewBuilder private func CollectionStat(icon: String, text: String) -> some View {

@@ -811,8 +811,10 @@ extension CollectionDetailView {
             await CollectionImageSaveHelpers.saveLivePhoto(
                 image: selectedImage,
                 collectionImageStore: collectionImageStore,
-                isSavingLivePhoto: &isSavingLivePhoto,
-                presentToast: presentToast
+                presentToast: { toast in presentToast(toast) },
+                onStateChange: { isSaving in
+                    isSavingLivePhoto = isSaving
+                }
             )
         }
     }
@@ -824,7 +826,7 @@ extension CollectionDetailView {
         Task {
             await CollectionImageSaveHelpers.saveVideo(
                 image: selectedImage,
-                presentToast: presentToast
+                presentToast: { toast in presentToast(toast) }
             )
         }
     }
@@ -836,7 +838,7 @@ extension CollectionDetailView {
         Task {
             await CollectionImageSaveHelpers.saveImage(
                 image: selectedImage,
-                presentToast: presentToast
+                presentToast: { toast in presentToast(toast) }
             )
         }
     }
@@ -851,7 +853,7 @@ extension CollectionDetailView {
                 collectionId: clCoordinator.collectionId,
                 collectionStore: collectionStore,
                 collectionImageStore: collectionImageStore,
-                presentToast: presentToast,
+                presentToast: { toast in presentToast(toast) },
                 onSuccess: {
                     closeImage()
                     imagesPgVM.items.removeAll(where: { $0.id == selectedImageId })
