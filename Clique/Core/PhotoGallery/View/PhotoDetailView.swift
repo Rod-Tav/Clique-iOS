@@ -125,7 +125,7 @@ struct PhotoDetailView: View {
                                 .foregroundStyle(.white.opacity(0.6))
                         }
                         .aspectRatio(1, contentMode: .fit)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .roundCorners(8)
                         .padding(.horizontal, 16)
                 }
                 .tag(photoId)
@@ -181,7 +181,7 @@ struct PhotoDetailView: View {
                     .foregroundStyle(.white.opacity(0.6))
             }
             .frame(width: size, height: size)
-            .clipShape(RoundedRectangle(cornerRadius: 4))
+            .roundCorners(4)
             .overlay {
                 if isSelected {
                     RoundedRectangle(cornerRadius: 4)

@@ -51,7 +51,14 @@ struct SingleFlickView: View {
         .commentSheet(imageId: flick.id, fromCollectionDetail: true, showCommentSheet: $showCommentSheet)
         .background {
             if let currentImage {
-                CollectionDetailBackgroundAsyncImage(urls: currentImage.imageUrl, quality: .low)
+                CollectionDetailBackgroundAsyncImage(
+                    urls: currentImage.imageUrl,
+                    quality: .low,
+                    uploadStatus: currentImage.uploadStatus,
+                    itemId: currentImage.id,
+                    isLivePhoto: currentImage.isLivePhoto,
+                    isVideo: currentImage.isVideo
+                )
                     .blur(radius: 12.5, opaque: true)
                     .overlay(Color.theme.surfacesImageBgDarkOverlay)
                     .overlay(.black.opacity(0.2))
@@ -80,7 +87,7 @@ struct SingleFlickView: View {
                 Button {
                     dismiss()
                 } label: {
-                    IconImage("x-icon", color: .theme.white, size: 24)
+                    IconImage(name: "x-icon", color: .theme.white, size: 24)
                 }.buttonStyle(.noHighlight)
             },
             header: { headerContent },
@@ -102,10 +109,10 @@ struct SingleFlickView: View {
                     HStack(spacing: 4) {
                         Text(collection.name)
                             .font(.callout.bold())
-                        
-                        IconImage("chevron-right", color: .theme.iconPrimary, size: 16)
+
+                        IconImage(name: "chevron-right", color: .theme.iconPrimary, size: 16)
                     }
-                    
+
                     Text("\(formatDateMMMMdYYYY(flick.date)) • \(formatDateHHmm(flick.date))")
                         .font(.caption)
                 }
@@ -120,7 +127,7 @@ struct SingleFlickView: View {
     // MARK: Flick View
     private var flickView: some View {
         ZoomContainer {
-            CollectionDetailImageAsyncView(urls: flick.imageUrl, quality: .high)
+            CollectionDetailImageAsyncView(image: flick, quality: .high)
                 .doubleTapToLike(hasLiked: currentImage?.hasLiked ?? false, likeAnimation: $likeAnimation) {
                     handleLikeTapped()
                 }
@@ -165,7 +172,7 @@ struct SingleFlickView: View {
                     }
                 )
                 .overlay {
-                    IconImage("heart-filled", color: .theme.red, size: 70)
+                    IconImage(name: "heart-filled", color: .theme.red, size: 70)
                         .likeAnimation($likeAnimation)
                 }
         }
@@ -208,7 +215,7 @@ struct SingleFlickView: View {
                             haptics(.medium)
                             handleLikeTapped()
                         } label: {
-                            IconImage("heart-filled", color: currentImage.hasLiked ? .theme.red : .theme.white, size: 28)
+                            IconImage(name: "heart-filled", color: currentImage.hasLiked ? .theme.red : .theme.white, size: 28)
                         }
                         
                         Button {
@@ -229,7 +236,7 @@ struct SingleFlickView: View {
                         showCommentSheet = true
                     } label: {
                         HStack(spacing: 4) {
-                            IconImage("comment-filled", color: .theme.white, size: 28)
+                            IconImage(name: "comment-filled", color: .theme.white, size: 28)
                             
                             Text(formatNumber(currentImage.numComments))
                                 .font(.footnote)

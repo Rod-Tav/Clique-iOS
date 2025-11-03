@@ -95,7 +95,7 @@ struct EditCliqueView: View {
                                     
                                     Spacer()
                                     
-                                    IconImage("x-icon", color: .theme.iconSecondary, size: 16)
+                                    IconImage(name: "x-icon", color: .theme.iconSecondary, size: 16)
                                         .onHighPriorityTap {
                                             viewModel.invitedMembers.removeAll(where: { $0.id == user.id })
                                         }
@@ -144,7 +144,7 @@ struct EditCliqueView: View {
                 Button {
                     dismiss()
                 } label: {
-                    IconImage("x-icon", color: .theme.iconPrimary, size: 24)
+                    IconImage(name: "x-icon", color: .theme.iconPrimary, size: 24)
                 }
             },
             header: {
@@ -171,7 +171,7 @@ struct EditCliqueView: View {
                     if savingLoading {
                         CliqueProgressView(size: 24)
                     } else {
-                        IconImage("check", color: canSave ? .theme.iconPrimary : .theme.iconTertiary, size: 24)
+                        IconImage(name: "check", color: canSave ? .theme.iconPrimary : .theme.iconTertiary, size: 24)
                     }
                 }
                 .disabled(!canSave)

@@ -119,7 +119,7 @@ struct PhotoGalleryView: View {
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
                 .background(Color.theme.textSecondary.opacity(0.1))
-                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .roundCorners(6)
             }
         }
         .padding(.horizontal, 16)
@@ -183,7 +183,7 @@ struct PhotoGalleryCell: View {
                     .foregroundStyle(.white.opacity(0.6))
             }
             .aspectRatio(1, contentMode: .fit)
-            .clipShape(RoundedRectangle(cornerRadius: coordinator.columnCount > 3 ? 2 : 4))
+            .roundCorners(coordinator.columnCount > 3 ? 2 : 4)
     }
 }
 

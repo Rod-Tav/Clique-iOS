@@ -20,7 +20,7 @@ struct PhotoGridCell: View {
     var isBeingRemoved: Bool = false
     /// Tap action callback
     let action: () -> Void
-    
+
     /// Calculated cell size for 3-column grid
     private var cellSize: CGFloat {
         (UIScreen.width - 4) / 3
@@ -38,7 +38,10 @@ struct PhotoGridCell: View {
                 } else {
                     loadingView
                 }
-                
+
+                // Media type badges
+                MediaTypeBadge(asset: asset, style: .grid)
+
                 if isSelected && !isBeingRemoved {
                     selectionOverlay
                 } else if isBeingRemoved {
@@ -93,26 +96,27 @@ struct PhotoGridCell: View {
     private var removalOverlay: some View {
         ZStack {
             Color.red.opacity(0.4)
-            
+
             VStack {
                 HStack {
                     Spacer()
-                    
+
                     ZStack {
                         Circle()
                             .fill(Color.red)
                             .frame(width: 24, height: 24)
-                        
+
                         Image(systemName: "minus")
                             .foregroundColor(.white)
                             .font(.system(size: 14, weight: .bold))
                     }
                     .padding(4)
                 }
-                
+
                 Spacer()
             }
         }
         .animation(.snappy(duration: 0.25, extraBounce: 0), value: isBeingRemoved)
     }
+
 }

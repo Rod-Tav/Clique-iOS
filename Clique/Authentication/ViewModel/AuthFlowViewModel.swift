@@ -38,13 +38,13 @@ enum AuthFlowType {
             throw ServiceError.somethingWentWrong
         }
         
-        // ✅ Step 1: Prepare multi-quality photo data and actual image data
+        // ✅ Step 1: Prepare photo data (original quality - backend handles quality conversion)
         let preparedPhoto = prepareUIImage(profilePic)
-        
+
         // Split into metadata and image data
         let photoDataNoPath = preparedPhoto?.photoData
-        let imageVariants = preparedPhoto?.imageVariants
-        
+        let imageVariant = preparedPhoto?.imageVariant
+
         // ✅ Step 2: Register user, receiving profile pic upload URLs
         let (registeredUser, joinNumber) = try await UserService.registerUser(.init(body: .json(.init(
             username: username.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -53,21 +53,17 @@ enum AuthFlowType {
             lastName: lastName.trimmingCharacters(in: .whitespacesAndNewlines),
             profilePic: photoDataNoPath
         ))))
-        
+
         self.registeredUser = registeredUser
         self.joinNumber = joinNumber
-        
-        // ✅ Step 3: Upload profile pic variants using exact prepared data
-        if let profilePicUrls = registeredUser.profilePic, let imageVariants {
-            async let highUpload: () = PhotoHelper.uploadImageData(imageVariants.high.data, to: profilePicUrls.highQualityUrl)
-            async let medUpload: () = PhotoHelper.uploadImageData(imageVariants.medium.data, to: profilePicUrls.medQualityUrl)
-            async let lowUpload: () = PhotoHelper.uploadImageData(imageVariants.low.data, to: profilePicUrls.lowQualityUrl)
-            
+
+        // ✅ Step 3: Upload profile pic (original quality only - backend handles quality conversion)
+        if let profilePicUrl = registeredUser.profilePic?.url, let imageVariant {
             do {
-                _ = try await (highUpload, medUpload, lowUpload)
-                print("🎉 All profile pic variants uploaded")
+                try await PhotoHelper.uploadImageData(imageVariant.data, to: profilePicUrl)
+                print("🎉 Profile pic uploaded")
             } catch {
-                print("❌ Failed to upload one or more profile pic variants: \(error.localizedDescription)")
+                print("❌ Failed to upload profile pic: \(error.localizedDescription)")
             }
         }
         

@@ -16,7 +16,7 @@ struct HeroImageAsyncView: View {
     let size: CGSize
     let animateView: Bool
     let onImageLoaded: (UIImage) -> Void
-    
+
     var body: some View {
         // High quality
         KFImage(urlFor(urls.highQualityUrl))

@@ -70,12 +70,15 @@ struct HomeFeedView: View {
         VStack(spacing: 0) {
             TopAppBar(
                 type: .medium,
-                leadingIcon: { },
-                header: { HeaderTextStar("Clique") },
+                leadingIcon: {
+                },
+                header: { HeaderTextStar(title: "Clique") },
                 trailingIcon: {
                     NavigationLink(value: "NotificationsCenter") {
-                        IconImage("inbox", color: .theme.iconPrimary, size: 24)
-                            .overlayTopRightNotification(when: tabViewCoordinator.hasNotification)
+                        IconImage(name: "inbox", color: .theme.iconPrimary, size: 24)
+                            .overlayTopRightNotification(
+                                when: tabViewCoordinator.hasNotification
+                            )
                     }
                 }
             )
@@ -114,21 +117,24 @@ struct HomeFeedView: View {
         .refreshable {
             guard paginationState == .idle else { return }
             homeFeedPgVM.refreshing = true
-            
+
             // Clear cache for home feed before refreshing
             await CacheControl.shared.refreshHomeFeed()
-            
-            trigger(.refreshCollectionCells, object: homeFeedPgVM.items.compactMap(\.collection?.id))
-            
-            DispatchQueue.main.async { // no idea
+
+            // Run updates in background to not block UI
+            DispatchQueue.main.async {
                 Task {
                     async let updateFeed: () = await updateHomeFeed(.refresh)
                     async let updateCliques: () = await updateCliques(.refresh)
-                    
+
                     _ = await (updateFeed, updateCliques)
+
+                    // AFTER updates complete, trigger collection cells to refresh with NEW data
+                    // This prevents cells from fetching stale/transitional data during transition
+                    trigger(.refreshCollectionCells, object: homeFeedPgVM.items.compactMap(\.collection?.id))
                 }
             }
-            
+
             homeFeedPgVM.refreshing = false
         }
         .onReceive(of: .refreshHomeFeed) { _ in
@@ -242,7 +248,7 @@ private extension HomeFeedView {
     var emptyStateView: some View {
         VStack(spacing: 16) {
             VStack(spacing: 8) {
-                IconImage("search", color: .primaryIcon, size: 32)
+                IconImage(name: "search", color: .primaryIcon, size: 32)
                 
                 Text("Clique is way more fun with friends. Let’s add some?")
                     .textPrimary()
@@ -366,7 +372,7 @@ extension HomeFeedView {
     @ViewBuilder private func CliqueCell(clique: Clique) -> some View {
         NavigationLink(value: clique) {
             VStack(spacing: 6) {
-                CliquePfpAsyncView(pfp: clique.cliquePic, type: .small, quality: .medium)
+                CliquePfpAsyncView(pfp: clique.cliquePic, type: .small, quality: .low)
                 
                 Text(clique.name)
                     .textPrimary()

@@ -70,19 +70,13 @@ enum CliquePillType {
 
 struct CliquePill: View {
     @Environment(CliqueStore.self) private var cliqueStore
-    
+
     let cid: String
     let type: CliquePillType
     var spacing: CGFloat? = 12
-    
+
     private var clique: Clique? {
         cliqueStore.cliques[cid]
-    }
-    
-    init(_ cid: String, type: CliquePillType, spacing: CGFloat? = 12) {
-        self.cid = cid
-        self.type = type
-        self.spacing = spacing
     }
     
     var body: some View {
@@ -103,8 +97,4 @@ struct CliquePill: View {
             }
         }
     }
-}
-
-#Preview {
-    CliquePill(Clique.MOCK_CLIQUES[0].id, type: .feedCell)
 }

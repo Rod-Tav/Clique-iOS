@@ -151,15 +151,24 @@ extension CliqueProfileView {
         if let clique {
             VStack(spacing: 0) {
                 ZStack(alignment: .bottom) {
-                    CollapsedBannerAsyncImage(banner: clique.cliqueBanner, quality: .high)
+                    CollapsedBannerAsyncImage(
+                        banner: clique.cliqueBanner,
+                        quality: .high
+                    )
                     
                     TopAppBar(
                         type: .small,
                         leadingIcon: {
-                            BackButton(color: .theme.white, size: 24)
+                            BackButton(
+                                color: .theme.white,
+                                size: 24
+                            )
                         },
                         header: {
-                            CliquePill(clique.id, type: .cliqueProfile)
+                            CliquePill(
+                                cid: clique.id,
+                                type: .cliqueProfile
+                            )
                         },
                         trailingIcon: {
                             EllipsisMenu()
@@ -197,7 +206,7 @@ extension CliqueProfileView {
                     }
                     
                     HStack(spacing: 0) {
-                        CliquePfpAsyncView(pfp: clique.cliquePic, type: .cliqueProfile, quality: .medium)
+                        CliquePfpAsyncView(pfp: clique.cliquePic, type: .cliqueProfile, quality: .low)
                             .onTapGesture {
                                 showCliquePfp = true
                             }
@@ -318,7 +327,7 @@ extension CliqueProfileView {
                 if let leaderId = clique.leader, let leader = userStore.users[leaderId] {
                     NavigationLink(value: leader) {
                         HStack(spacing: 2) {
-                            IconImage("crown-leader", color: Color.theme.iconSecondary, size: 14)
+                            IconImage(name: "crown-leader", color: Color.theme.iconSecondary, size: 14)
                             
                             Text("@\(leader.username)")
                                 .font(.caption)
@@ -328,7 +337,7 @@ extension CliqueProfileView {
                 }
                 
                 HStack(spacing: 4) {
-                    IconImage("calendar", color: Color.theme.iconSecondary, size: 14)
+                    IconImage(name: "calendar", color: Color.theme.iconSecondary, size: 14)
                     
                     Text("est. \(formatDateMMMMyyyy(clique.creation))")
                         .font(.caption)

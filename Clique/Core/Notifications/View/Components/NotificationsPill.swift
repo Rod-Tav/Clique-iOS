@@ -10,7 +10,7 @@ import SwiftUI
 struct NotificationsPill: View {
     var body: some View {
         HStack(spacing: 4) {
-            IconImage("dot", color: .theme.buttonContent, size: 12)
+            IconImage(name: "dot", color: .theme.buttonContent, size: 12)
             
             Text("7 new")
                 .font(.caption2.bold())

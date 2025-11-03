@@ -13,11 +13,11 @@ struct CliquePfpAsyncView: View {
     let type: CliquePfpViewType
     var hasBorder: Bool = true
     let quality: ImageQuality
-    var loadingBug: Bool = false
-    
+    var context: ImageLoadingContext = .detail
+
     var body: some View {
         if let pfp {
-            GenericAsyncImage(urls: pfp, quality: quality, loadingBug: loadingBug) { image in
+            GenericAsyncImage(urls: pfp, quality: quality, context: context) { image in
                 image
                     .contentConfigure { image in
                         CliquePfpView(pfp: image, type: type, hasBorder: hasBorder)

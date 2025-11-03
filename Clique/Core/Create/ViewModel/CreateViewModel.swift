@@ -28,15 +28,29 @@ enum CreateFlowDestination: Hashable {
     
     var selectedImages: [UIImage] = []
     var selectedImagesDates: [Date] = []
+    var selectedImagesTimezoneOffsets: [String?] = []  // Timezone offsets for each photo (e.g., "-0400", "+0530")
     var selectedAssets: Set<PHAsset> = []
     var processedAssets: Set<PHAsset> = []
-    // Maps PHAsset identifiers to their processed image and date
-    var processedImageData: [String: (image: UIImage, date: Date)] = [:]
+    // Maps PHAsset identifiers to their processed image, date, and timezone offset
+    var processedImageData: [String: (image: UIImage, date: Date, timezoneOffset: String?)] = [:]
+    // Tracks which assets are Live Photos (by localIdentifier)
+    var livePhotoAssets: Set<String> = []
+    // Tracks Live Photo extraction errors (by asset localIdentifier)
+    var livePhotoExtractionErrors: [String: Error] = [:]
     /// Prepared upload metadata
-    var photoDatePairs: [Components.Schemas.PhotoDatePair] = []
-    /// Prepared image variants for upload
-    var preparedImageVariants: [(high: PreparedImageVariant, med: PreparedImageVariant, low: PreparedImageVariant)] = []
-    
+    var photoDatePairs: [Components.Schemas.PhotoVideoDate] = []
+    /// Prepared image variants for upload (original quality only - backend handles quality conversion)
+    var preparedImageVariants: [PreparedImageVariant] = []
+    /// Asset references for Live Photos (parallel to preparedImageVariants, nil for regular photos)
+    /// Stores (assetId, asset) tuples to enable just-in-time video extraction during upload
+    var livePhotoAssetReferences: [(assetId: String, asset: PHAsset)?] = []
+    /// Pre-transcoded video URLs (parallel to preparedImageVariants, nil for regular photos)
+    /// Videos are transcoded during processing to get accurate file sizes for presigned URL generation
+    var transcodedVideoUrls: [URL?] = []
+    /// Asset identifiers for ALL photos (parallel to preparedImageVariants)
+    /// Used for caching device photos to show during PENDING upload status
+    var allAssetIdentifiers: [String?] = []
+
     var collectionToGoTo: ClCollection?
 
     /// Flag to coordinate photo processing between NewCollectionDetailsView and SelectedPhotosView.
@@ -93,7 +107,10 @@ enum CreateFlowDestination: Hashable {
                     "makingNew": makingNew,
                     "collection": collection,
                     "photoDatePairs": photoDatePairs,
-                    "variants": preparedImageVariants
+                    "variants": preparedImageVariants,
+                    "livePhotoAssets": livePhotoAssetReferences,
+                    "transcodedVideoUrls": transcodedVideoUrls,
+                    "allAssetIdentifiers": allAssetIdentifiers
                 ]
             )
            
@@ -104,17 +121,19 @@ enum CreateFlowDestination: Hashable {
     }
     
     func getCollectionObj(cuid: String, flicks: [CollectionImage]) -> ClCollection {
-        return ClCollection(id: UUID().uuidString, name: newCollectionName.trim(), description: newCollectionCaption.trim(), userId: cuid, cliqueId: newCollectionClique!.id, creation: Date(), images: flicks, visibility: newCollectionVisibility, numFlicks: selectedImages.count)
+        // Set numFlicks to 0 for new collections - backend will set the correct count after processing
+        // This prevents double-counting with pending uploads in displayFlickCount()
+        return ClCollection(id: UUID().uuidString, name: newCollectionName.trim(), description: newCollectionCaption.trim(), userId: cuid, cliqueId: newCollectionClique!.id, creation: Date(), images: flicks, visibility: newCollectionVisibility, numFlicks: 0)
     }
     
     func removeAsset(_ asset: PHAsset) {
         // Remove from selected assets
         selectedAssets.remove(asset)
-        
+
         // If it was processed, remove it from all collections
         if processedAssets.contains(asset),
            let imageData = processedImageData[asset.localIdentifier] {
-            
+
             // Find and remove from arrays
             if let index = selectedImages.firstIndex(where: { $0 === imageData.image }) {
                 selectedImages.remove(at: index)
@@ -123,15 +142,16 @@ enum CreateFlowDestination: Hashable {
                     selectedImagesDates.remove(at: index)
                 }
             }
-            
+
             // Clean up tracking data
             processedAssets.remove(asset)
             processedImageData.removeValue(forKey: asset.localIdentifier)
+            livePhotoAssets.remove(asset.localIdentifier)
         }
     }
     
     /// Add processed assets - handles both single and multiple assets efficiently
-    func addProcessedAssets(_ assets: [(asset: PHAsset, image: UIImage, date: Date)]) {
+    func addProcessedAssets(_ assets: [(asset: PHAsset, image: UIImage, date: Date, timezoneOffset: String?)]) {
         // Process each asset and directly append to arrays
         for item in assets {
             // Skip if already processed
@@ -139,11 +159,12 @@ enum CreateFlowDestination: Hashable {
 
             // Update tracking sets/dictionaries
             processedAssets.insert(item.asset)
-            processedImageData[item.asset.localIdentifier] = (image: item.image, date: item.date)
+            processedImageData[item.asset.localIdentifier] = (image: item.image, date: item.date, timezoneOffset: item.timezoneOffset)
 
             // Directly append to arrays - no rebuild needed!
             selectedImages.append(item.image)
             selectedImagesDates.append(item.date)
+            selectedImagesTimezoneOffsets.append(item.timezoneOffset)
         }
     }
 
@@ -152,8 +173,11 @@ enum CreateFlowDestination: Hashable {
         selectedAssets.removeAll()
         selectedImages.removeAll()
         selectedImagesDates.removeAll()
+        selectedImagesTimezoneOffsets.removeAll()
         processedAssets.removeAll()
         processedImageData.removeAll()
+        livePhotoAssets.removeAll()
+        livePhotoExtractionErrors.removeAll()
     }
 
     func reset() {
@@ -171,13 +195,24 @@ enum CreateFlowDestination: Hashable {
         
         selectedImages = []
         selectedImagesDates = []
+        selectedImagesTimezoneOffsets = []
         selectedAssets = []
         processedAssets = []
         processedImageData = [:]
+        livePhotoAssets = []
+        livePhotoExtractionErrors = [:]
         photoDatePairs = []
         preparedImageVariants = []
+        livePhotoAssetReferences = []
+        transcodedVideoUrls = []
+        allAssetIdentifiers = []
 
         collectionToGoTo = nil
         shouldProcessAndUploadForNewCollection = false
+    }
+
+    /// Check if an asset is a Live Photo
+    func isLivePhoto(_ asset: PHAsset) -> Bool {
+        return livePhotoAssets.contains(asset.localIdentifier)
     }
 }

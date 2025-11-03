@@ -13,7 +13,7 @@ struct Pill: View {
     
     var body: some View {
         HStack(spacing: 4) {
-            IconImage(icon, color: .theme.iconSecondary, size: 12)
+            IconImage(name: icon, color: .theme.iconSecondary, size: 12)
             
             Text(text)
                 .font(.caption2.bold())
@@ -25,21 +25,13 @@ struct Pill: View {
 struct CollectionPill: View {
     let collection: ClCollection
     
-    init(_ collection: ClCollection) {
-        self.collection = collection
-    }
-    
     var body: some View {
-        VisibilityPill(collection.visibility)
+        VisibilityPill(visibility: collection.visibility)
     }
 }
 
 struct VisibilityPill: View {
     let visibility: Visibility
-    
-    init(_ visibility: Visibility) {
-        self.visibility = visibility
-    }
     
     var body: some View {
         Pill(icon: visibility.icon, text: visibility.title)

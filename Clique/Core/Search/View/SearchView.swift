@@ -112,7 +112,7 @@ struct SearchView: View {
                 Button {
                     showAddFriendsSheet = true
                 } label: {
-                    IconImage("add-user", color: .theme.iconPrimary, size: 24)
+                    IconImage(name: "add-user", color: .theme.iconPrimary, size: 24)
                 }.buttonStyle(.noHighlight)
             }
         )
@@ -145,7 +145,7 @@ struct SearchView: View {
                                         Button {
                                             recentUsersManager.removeRecentUser(user)
                                         } label: {
-                                            IconImage("x-icon", color: .theme.iconSecondary, size: 16)
+                                            IconImage(name: "x-icon", color: .theme.iconSecondary, size: 16)
                                         }.buttonStyle(.noHighlight)
                                     }
                                     .contentShape(.rect)

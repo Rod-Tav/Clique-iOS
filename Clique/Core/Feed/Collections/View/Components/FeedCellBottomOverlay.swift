@@ -26,15 +26,18 @@ struct FeedCellBottomOverlay: View {
     let handleLikeTapped: () -> Void
     let handleLikeCountTapped: () -> Void
     let numComments: Int
-    
+    let showCommentsPaging: Bool
+
     var body: some View {
         HStack(spacing: 16) {
-            Comments()
-                .frame(height: 16)
-                .onTapGesture {
-                    showSheet = true
-                }
-            
+            if showCommentsPaging {
+                Comments()
+                    .frame(height: 16)
+                    .onTapGesture {
+                        showSheet = true
+                    }
+            }
+
 //            IconAndNumber(
 //                iconName: "heart-filled",
 //                iconColor: hasLiked ? Color.theme.red : Color.theme.white,
@@ -45,15 +48,15 @@ struct FeedCellBottomOverlay: View {
 //                    handleLikeTapped()
 //                }
 //            )
-            
+
             HStack(spacing: 4) {
                 Button {
                     haptics(.medium)
                     handleLikeTapped()
                 } label: {
-                    IconImage("heart-filled", color: hasLiked ? Color.theme.red : Color.theme.white, size: 20)
+                    IconImage(name: "heart-filled", color: hasLiked ? Color.theme.red : Color.theme.white, size: 20)
                 }.buttonStyle(.noHighlight)
-                
+
                 Button {
                     handleLikeCountTapped()
                 } label: {
@@ -62,7 +65,7 @@ struct FeedCellBottomOverlay: View {
                         .foregroundStyle(Color.theme.white)
                 }
             }
-            
+
             IconAndNumber(
                 iconName: "comment-filled",
                 iconColor: Color.theme.white,
@@ -74,7 +77,7 @@ struct FeedCellBottomOverlay: View {
                 }
             )
         }
-        .maxWidth(.leading)
+        .maxWidth(.trailing)
     }
     
     @ViewBuilder private func Comments() -> some View {
@@ -116,7 +119,7 @@ struct FeedCellBottomOverlay: View {
     
     @ViewBuilder private func CommentPreviewCell(_ comment: Comment) -> some View {
         HStack(spacing: 8) {
-            UserPfpAsyncView(pfp: comment.author.profilePic, size: 16, quality: .low)
+            UserPfpAsyncView(pfp: comment.author.profilePic, size: 16, quality: .low, context: .list)
             
             Text(comment.text)
                 .font(.caption)
@@ -173,7 +176,7 @@ struct FeedCellBottomOverlay: View {
             Button {
                 onTap()
             } label: {
-                IconImage(iconName, color: iconColor, size: iconSize)
+                IconImage(name: iconName, color: iconColor, size: iconSize)
             }.buttonStyle(.noHighlight)
             
             Text(formatNumber(count))

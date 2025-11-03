@@ -13,23 +13,27 @@ struct ViewSelectedButton: View {
     
     var body: some View {
         if !viewModel.selectedAssets.isEmpty {
-            Button {
+            CliqueButton(type: .primary, leadingIcon: "images-posts", text: "View Selected (\(viewModel.selectedAssets.count))", size: 20) {
                 showSelectedPhotosView = true
-            } label: {
-                HStack(spacing: 8) {
-                    IconImage("images-posts", color: .white, size: 20)
-                    Text("View Selected (\(viewModel.selectedAssets.count))")
-                        .font(.callout.bold())
-                        .foregroundColor(.white)
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 12)
-                .background(Color.theme.buttonCTA)
-                .clipShape(Capsule())
-                .shadow(radius: 8, y: 4)
             }
-            .transition(.move(edge: .bottom).combined(with: .opacity))
-            .animation(.spring(response: 0.3), value: viewModel.selectedAssets.count)
+            
+//            Button {
+//                showSelectedPhotosView = true
+//            } label: {
+//                HStack(spacing: 8) {
+//                    IconImage(name: "images-posts", color: .white, size: 20)
+//                    Text("View Selected (\(viewModel.selectedAssets.count))")
+//                        .font(.callout.bold())
+//                        .foregroundColor(.white)
+//                }
+//                .padding(.horizontal, 20)
+//                .padding(.vertical, 12)
+//                .background(Color.theme.buttonCTA)
+//                .clipShape(Capsule())
+//                .shadow(radius: 8, y: 4)
+//            }
+//            .transition(.move(edge: .bottom).combined(with: .opacity))
+//            .animation(.spring(response: 0.3), value: viewModel.selectedAssets.count)
         }
     }
 }
