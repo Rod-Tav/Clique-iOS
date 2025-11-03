@@ -256,6 +256,30 @@ let imageManager = PHCachingImageManager()
 @State private var localOnlyState: Bool = false
 ```
 
+### SwiftUI Modifier Preferences
+Use shorter, cleaner alternatives when available:
+
+**Content Shapes:**
+```swift
+// ✅ Preferred - shorter and cleaner
+.contentShape(.rect)
+
+// ❌ Avoid - verbose
+.contentShape(Rectangle())
+```
+
+**Rounded Corners:**
+```swift
+// ✅ Preferred - uses custom extension
+.roundCorners(8)
+.roundCorners(cornerRadius)  // Variable radius
+
+// ❌ Avoid - verbose
+.clipShape(RoundedRectangle(cornerRadius: 8))
+```
+
+The `.roundCorners()` modifier is a custom extension that provides the same functionality with cleaner syntax.
+
 ### View Organization Pattern
 Break complex views into computed properties, using functions only when parameters are needed:
 ```swift
