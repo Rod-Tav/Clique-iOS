@@ -21,25 +21,6 @@ struct PhotoGridCell: View {
     /// Tap action callback
     let action: () -> Void
 
-    /// Whether this asset is a Live Photo
-    private var isLivePhoto: Bool {
-        asset.mediaSubtypes.contains(.photoLive)
-    }
-
-    /// Whether this asset is a video
-    private var isVideo: Bool {
-        asset.mediaType == .video
-    }
-
-    /// Video duration formatted as string (e.g., "1:23")
-    private var videoDuration: String? {
-        guard isVideo else { return nil }
-        let duration = Int(asset.duration)
-        let minutes = duration / 60
-        let seconds = duration % 60
-        return String(format: "%d:%02d", minutes, seconds)
-    }
-    
     /// Calculated cell size for 3-column grid
     private var cellSize: CGFloat {
         (UIScreen.width - 4) / 3
@@ -59,9 +40,9 @@ struct PhotoGridCell: View {
                 }
 
                 // Media type badges
-                if isLivePhoto {
+                if asset.isLivePhoto {
                     livePhotoBadge
-                } else if isVideo {
+                } else if asset.isVideo {
                     videoBadge
                 }
 
@@ -165,7 +146,7 @@ struct PhotoGridCell: View {
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(.white)
 
-                if let duration = videoDuration {
+                if let duration = asset.formattedDuration {
                     Text(duration)
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(.white)

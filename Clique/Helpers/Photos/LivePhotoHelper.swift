@@ -41,7 +41,7 @@ struct LivePhotoHelper {
     /// - Parameter asset: The asset to check
     /// - Returns: True if the asset is a Live Photo
     static func isLivePhoto(_ asset: PHAsset) -> Bool {
-        return asset.mediaSubtypes.contains(.photoLive)
+        return asset.isLivePhoto
     }
 
     // MARK: - Video Extraction (No Conversion)
@@ -51,8 +51,8 @@ struct LivePhotoHelper {
     /// - Returns: (videoFileURL, metadata, contentType) - Original video file for upload
     /// - Important: Call this during processing phase to get accurate file size before backend presigned URL request
     static func extractVideoWithoutTranscoding(from asset: PHAsset) async throws -> (URL, VideoMetadata, String) {
-        let isLivePhoto = asset.mediaSubtypes.contains(.photoLive)
-        let isVideo = asset.mediaType == .video
+        let isLivePhoto = asset.isLivePhoto
+        let isVideo = asset.isVideo
 
         guard isLivePhoto || isVideo else {
             throw LivePhotoError.notALivePhoto

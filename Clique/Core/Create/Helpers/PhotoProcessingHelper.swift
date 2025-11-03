@@ -58,7 +58,7 @@ struct PhotoProcessingHelper {
                     // Check if this is a Live Photo
                     let isLivePhoto = matchingAsset.map { livePhotoIdentifiers.contains($0.localIdentifier) } ?? false
                     // Check if this is a standalone video
-                    let isVideo = matchingAsset?.mediaType == .video
+                    let isVideo = matchingAsset?.isVideo ?? false
 
                     // For Live Photos and standalone videos, extract video NOW (before backend call)
                     var videoFileSize: Int64?

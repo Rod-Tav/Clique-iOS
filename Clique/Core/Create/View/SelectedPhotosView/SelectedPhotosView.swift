@@ -63,9 +63,9 @@ struct SelectedPhotosView: View {
         guard currentIndex < selectedAssetsArray.count else { return nil }
         let asset = selectedAssetsArray[currentIndex]
 
-        if asset.mediaSubtypes.contains(.photoLive) {
+        if asset.isLivePhoto {
             return "LIVE"
-        } else if asset.mediaType == .video {
+        } else if asset.isVideo {
             return "VIDEO"
         }
         return nil
@@ -326,25 +326,6 @@ struct CarouselThumbnail: View {
     @Environment(PhotoPickerContext.self) var context
     @State private var carouselImage: UIImage?
 
-    /// Whether this asset is a video
-    private var isVideo: Bool {
-        asset.mediaType == .video
-    }
-
-    /// Whether this asset is a Live Photo
-    private var isLivePhoto: Bool {
-        asset.mediaSubtypes.contains(.photoLive)
-    }
-
-    /// Video duration formatted as string (e.g., "1:23")
-    private var videoDuration: String? {
-        guard isVideo else { return nil }
-        let duration = Int(asset.duration)
-        let minutes = duration / 60
-        let seconds = duration % 60
-        return String(format: "%d:%02d", minutes, seconds)
-    }
-
     var body: some View {
         Button(action: onTap) {
             ZStack {
@@ -361,9 +342,9 @@ struct CarouselThumbnail: View {
                 }
 
                 // Media type badges
-                if isVideo {
+                if asset.isVideo {
                     videoBadge
-                } else if isLivePhoto {
+                } else if asset.isLivePhoto {
                     livePhotoBadge
                 }
 
@@ -395,7 +376,7 @@ struct CarouselThumbnail: View {
                     .font(.system(size: 6, weight: .semibold))
                     .foregroundStyle(.white)
 
-                if let duration = videoDuration {
+                if let duration = asset.formattedDuration {
                     Text(duration)
                         .font(.system(size: 8, weight: .semibold))
                         .foregroundStyle(.white)
@@ -440,17 +421,17 @@ struct PhotoGalleryItem: View {
 
     /// Whether this asset is a Live Photo
     private var isLivePhoto: Bool {
-        asset.mediaSubtypes.contains(.photoLive)
+        asset.isLivePhoto
     }
 
     /// Whether this asset is a video
     private var isVideo: Bool {
-        asset.mediaType == .video
+        asset.isVideo
     }
 
     /// Video duration formatted as string (e.g., "1:23")
     private var videoDuration: String? {
-        guard isVideo else { return nil }
+        guard asset.isVideo else { return nil }
         let duration = Int(asset.duration)
         let minutes = duration / 60
         let seconds = duration % 60
@@ -461,7 +442,7 @@ struct PhotoGalleryItem: View {
         ZStack {
             PhotoZoomContainer(
                 maxScale: 5.0,
-                isInteractive: !isLivePhoto && !isVideo,
+                isInteractive: !asset.isLivePhoto && !isVideo,
                 scale: $zoomScale,
                 dragOffset: $dragOffset
             ) {
@@ -475,7 +456,7 @@ struct PhotoGalleryItem: View {
                     .frame(maxWidth: geometry.size.width)
                     .frame(maxHeight: geometry.size.height)
                     .id(asset.localIdentifier) // Force recreation when same asset is selected again
-                } else if isVideo {
+                } else if asset.isVideo {
                     // Use VideoPreviewView for videos
                     VideoPreviewView(
                         asset: asset,
