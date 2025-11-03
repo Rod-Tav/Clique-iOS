@@ -31,7 +31,7 @@ struct CreateCliqueView: View {
                     Button {
                         dismiss()
                     } label: {
-                        IconImage("x-icon", color: .theme.iconPrimary, size: 24)
+                        IconImage(name: "x-icon", color: .theme.iconPrimary, size: 24)
                     }.noHighlight()
                 },
                 header: { },
@@ -51,7 +51,7 @@ struct CreateCliqueView: View {
                         if isLoading {
                             CliqueProgressView(size: 24)
                         } else {
-                            IconImage("check", color: .theme.iconPrimary, size: 24)
+                            IconImage(name: "check", color: .theme.iconPrimary, size: 24)
                         }
                     }
                     .noHighlight()

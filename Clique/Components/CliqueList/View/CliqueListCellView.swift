@@ -93,7 +93,7 @@ struct CliqueListCellView: View {
                 Spacer()
                 
                 if let trailingIcon, !trailingIcon.isEmpty, let trailingIconColor {
-                    IconImage(trailingIcon, color: trailingIconColor, size: 16)
+                    IconImage(name: trailingIcon, color: trailingIconColor, size: 16)
                         .background {
                             if let bgColor = trailingIconBgColor {
                                 bgColor

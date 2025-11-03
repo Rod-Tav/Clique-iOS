@@ -284,7 +284,7 @@ struct FlicksFeedView: View {
                             }
                         }
                     } label: {
-                        IconImage("filter", color: .theme.white, size: 26)
+                        IconImage(name: "filter", color: .theme.white, size: 26)
                         
 //                        HStack(spacing: 4) {
 //                            Image(systemName: "square.grid.3x3")
@@ -300,7 +300,7 @@ struct FlicksFeedView: View {
                     }
                     
                     NavigationLink(value: "NotificationsCenter") {
-                        IconImage("inbox", color: .theme.iconPrimary, size: 26)
+                        IconImage(name: "inbox", color: .theme.iconPrimary, size: 26)
                             .overlayTopRightNotification(when: tabViewCoordinator.hasNotification)
                     }
                 }
@@ -610,11 +610,11 @@ struct FlicksFeedView: View {
                                         .foregroundStyle(Color.theme.shadesWhite95)
 
                                     if currentCollection.visibility == .priv {
-                                        IconImage("lock", color: .theme.shadesWhite95, size: 16)
+                                        IconImage(name: "lock", color: .theme.shadesWhite95, size: 16)
                                             .padding(.leading, 2)
                                     }
 
-                                    IconImage("chevron-right", color: .theme.shadesWhite95, size: 16)
+                                    IconImage(name: "chevron-right", color: .theme.shadesWhite95, size: 16)
                                 }
 
                                 // Date, time, and media type inline
@@ -683,7 +683,7 @@ struct FlicksFeedView: View {
                             haptics(.medium)
                             handleLikeTapped()
                         } label: {
-                            IconImage("heart-filled", color: currentImage.hasLiked ? .theme.red : .theme.white, size: 28)
+                            IconImage(name: "heart-filled", color: currentImage.hasLiked ? .theme.red : .theme.white, size: 28)
                         }
                         
                         Button {
@@ -704,7 +704,7 @@ struct FlicksFeedView: View {
                         showCommentSheet = true
                     } label: {
                         HStack(spacing: 4) {
-                            IconImage("comment-filled", color: .theme.white, size: 28)
+                            IconImage(name: "comment-filled", color: .theme.white, size: 28)
                             
                             Text(formatNumber(currentImage.numComments))
                                 .font(.footnote)
@@ -761,7 +761,7 @@ struct FlicksFeedView: View {
                 handleLikeTapped()
             }
             .overlay {
-                IconImage("heart-filled", color: .theme.red, size: 70)
+                IconImage(name: "heart-filled", color: .theme.red, size: 70)
                     .likeAnimation($likeAnimation)
             }
             .swipeUpToOpenCommentsTutorial()
@@ -797,7 +797,7 @@ extension FlicksFeedView {
     @ViewBuilder private func EmptyStateView() -> some View {
         VStack(spacing: 16) { // TODO: DRY
             VStack(spacing: 8) {
-                IconImage("search", color: .primaryIcon, size: 32)
+                IconImage(name: "search", color: .primaryIcon, size: 32)
                 
                 Text("Clique is way more fun with friends. Let’s add some?")
                     .textPrimary()

@@ -17,20 +17,6 @@ struct MediaUrls: Codable, Hashable, Sendable {
     /// Low quality/thumbnail URL (for grid views)
     var lowQualityUrl: String?
 
-    /// Initialize with URLs for each quality level
-    init(url: String? = nil, medQualityUrl: String? = nil, lowQualityUrl: String? = nil) {
-        self.url = url
-        self.medQualityUrl = medQualityUrl
-        self.lowQualityUrl = lowQualityUrl
-    }
-
-    /// Legacy initializer for backward compatibility
-    init(highQualityUrl: String? = nil, medQualityUrl: String? = nil, lowQualityUrl: String? = nil) {
-        self.url = highQualityUrl
-        self.medQualityUrl = medQualityUrl
-        self.lowQualityUrl = lowQualityUrl
-    }
-
     /// All quality levels in fallback order (high → medium → low)
     var urls: [String?] {
         [url, medQualityUrl, lowQualityUrl]

@@ -20,16 +20,6 @@ struct TwoStageImageLoader: View {
     @State private var isLoadingFull = false
     @State private var requestID: PHImageRequestID?
 
-    init(
-        asset: PHAsset,
-        thumbnail: UIImage?,
-        contentMode: ContentMode = .fit
-    ) {
-        self.asset = asset
-        self.thumbnail = thumbnail
-        self.contentMode = contentMode
-    }
-    
     var body: some View {
         ZStack {
             // Stage 1: Immediate thumbnail display

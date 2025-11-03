@@ -28,7 +28,7 @@ struct CollectionPreviewStatsView: View {
             if likes > 0 {
                 // Likes
                 HStack(spacing: 2) {
-                    IconImage("heart-filled", color: hasLiked ? .theme.red : .theme.white, size: 12)
+                    IconImage(name: "heart-filled", color: hasLiked ? .theme.red : .theme.white, size: 12)
                     
                     Text(formatNumber(likes))
                         .font(.caption2.bold())
@@ -40,7 +40,7 @@ struct CollectionPreviewStatsView: View {
             if comments > 0 {
                 // Comments
                 HStack(spacing: 2) {
-                    IconImage("comment-filled", color: .theme.white, size: 12)
+                    IconImage(name: "comment-filled", color: .theme.white, size: 12)
                     
                     Text(formatNumber(comments))
                         .font(.caption2.bold())

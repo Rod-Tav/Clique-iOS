@@ -16,23 +16,23 @@ struct EditCollectionSheet: View {
     @Environment(CollectionImageStore.self) private var collectionImageStore
     
     @State var viewModel: EditCollectionViewModel
-    
+
     var clique: Clique?
     var members: [User]
-    
+
     @State private var showVisibilityAlert: Bool = false
     @State private var showCoverPhotoPicker: Bool = false
     @State private var buttonLoading: Bool = false
-    
+
     @FocusState private var nameIsFocused: Bool
     @FocusState private var descriptionIsFocused: Bool
-    
+
     init(clique: Clique?, members: [User], collection: ClCollection) {
         self.clique = clique
         self.members = members
         self.viewModel = .init(collection: collection)
     }
-    
+
     var body: some View {
         @Bindable var bindableVM = viewModel
         
@@ -45,7 +45,7 @@ struct EditCollectionSheet: View {
                     CoverPhotoView()
                     
                     HStack(spacing: 0) {
-                        CliquePill(clique.id, type: .feedCell)
+                        CliquePill(cid: clique.id, type: .feedCell)
                         
                         Spacer()
                         
@@ -65,7 +65,7 @@ struct EditCollectionSheet: View {
                             }
                         
                         if viewModel.visibility == .priv {
-                            IconImage("lock", color: .theme.iconPrimary, size: 20)
+                            IconImage(name: "lock", color: .theme.iconPrimary, size: 20)
                         }
                     }
                     
@@ -92,7 +92,7 @@ struct EditCollectionSheet: View {
                             Button {
                                 showVisibilityAlert = true
                             } label: {
-                                IconImage("help-circle", color: .theme.textSecondary, size: 12)
+                                IconImage(name: "help-circle", color: .theme.textSecondary, size: 12)
                             }
                         }
                     }

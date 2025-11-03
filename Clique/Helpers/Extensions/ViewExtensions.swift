@@ -89,7 +89,7 @@ extension View {
                         showPicker()
                     }
                     
-                    IconImage("x-icon", color: .theme.iconSecondary, size: 12)
+                    IconImage(name: "x-icon", color: .theme.iconSecondary, size: 12)
                         .padding(5)
                         .background {
                             Circle().fill(Color.theme.surfacesPrimary)

@@ -42,7 +42,7 @@ struct NewCollectionDetailsView: View {
                     .foregroundStyle(Color.theme.textPrimary)
                 
                 if viewModel.newCollectionVisibility == .priv {
-                    IconImage("lock", color: .theme.textPrimary, size: 20)
+                    IconImage(name: "lock", color: .theme.textPrimary, size: 20)
                 }
             }
             
@@ -54,7 +54,7 @@ struct NewCollectionDetailsView: View {
                         CliquePill(cid, type: .newCollection)
                     } else {
                         HStack(spacing: 8) {
-                            IconImage("plus", color: .theme.textSecondary, size: 16)
+                            IconImage(name: "plus", color: .theme.textSecondary, size: 16)
                                 .padding(6)
                                 .frame(28)
                                 .roundCorners(6)
@@ -115,7 +115,7 @@ struct NewCollectionDetailsView: View {
                     Button {
                         showVisbilitySheet = true
                     } label: {
-                        IconImage("help-circle", color: .theme.iconSecondary, size: 12)
+                        IconImage(name: "help-circle", color: .theme.iconSecondary, size: 12)
                     }
                 }
             }

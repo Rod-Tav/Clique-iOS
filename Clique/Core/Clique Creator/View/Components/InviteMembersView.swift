@@ -141,7 +141,7 @@ extension InviteMembersView {
                                     
                                     Spacer()
                                     
-                                    IconImage("x-icon", color: .theme.iconSecondary, size: 16)
+                                    IconImage(name: "x-icon", color: .theme.iconSecondary, size: 16)
                                         .onHighPriorityTap {
                                             removeUser(user)
                                         }

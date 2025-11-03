@@ -33,7 +33,7 @@ struct UserListCellView: View {
                             .lineLimit(1)
                         
                         if isLeader {
-                            IconImage("crown-leader", color: Color.theme.buttonCTA, size: 12)
+                            IconImage(name: "crown-leader", color: Color.theme.buttonCTA, size: 12)
                         }
                     }
                     

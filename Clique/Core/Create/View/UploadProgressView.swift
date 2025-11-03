@@ -62,7 +62,7 @@ struct UploadProgressView: View {
                                 Spacer()
                             }
 
-                            IconImage("chevron-right", color: .theme.buttonContent, size: 16)
+                            IconImage(name: "chevron-right", color: .theme.buttonContent, size: 16)
                         }
                         .allowsHitTesting(false)
                     } else if totalFlicks == 0 {
@@ -89,7 +89,7 @@ struct UploadProgressView: View {
                             retryAction()
                         } label: {
                             VStack(alignment: .trailing) {
-                                IconImage("refresh", color: .buttonContent, size: 20)
+                                IconImage(name: "refresh", color: .buttonContent, size: 20)
 
                                 Text("Tap to retry \(failedFlicks) failed flicks")
                                     .foregroundStyle(.buttonContent)

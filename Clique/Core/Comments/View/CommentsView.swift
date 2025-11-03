@@ -169,7 +169,7 @@ extension CommentsView {
                         buttonColor: forceDarkTheme ? .theme.shadesWhite15 : .theme.surfacesElevatedPrimary
                     )
                     
-                    IconImage("x-icon", color: .theme.iconSecondary, size: 12)
+                    IconImage(name: "x-icon", color: .theme.iconSecondary, size: 12)
                         .padding(5)
                         .background {
                             Circle()
@@ -186,7 +186,7 @@ extension CommentsView {
                 if isCommentUploading {
                     CliqueProgressView(size: 16)
                 } else {
-                    IconImage("comment-filled", color: forceDarkTheme ? .theme.shadesWhite95 : .theme.iconSecondary, size: 16)
+                    IconImage(name: "comment-filled", color: forceDarkTheme ? .theme.shadesWhite95 : .theme.iconSecondary, size: 16)
                 }
                 
                 TextField(
@@ -219,7 +219,7 @@ extension CommentsView {
                     
                     Spacer()
                     
-                    TextButton("Done") {
+                    TextButton(text: "Done") {
                         submitComment()
                     }
                 }
@@ -276,7 +276,7 @@ extension CommentsView {
 extension CommentsView {
     @ViewBuilder private func EmptyStateView() -> some View {
         VStack(spacing: 8) {
-            IconImage("2-user", color: forceDarkTheme ? .theme.shadesWhite95 :.theme.iconPrimary, size: 32)
+            IconImage(name: "2-user", color: forceDarkTheme ? .theme.shadesWhite95 :.theme.iconPrimary, size: 32)
             
             Text("No one’s commented yet. Start the conversation!")
                 .foregroundStyle(forceDarkTheme ? .theme.shadesWhite95 : Color.theme.textPrimary)
@@ -293,7 +293,7 @@ extension CommentsView {
                     await updateComments(.refresh)
                 }
             } label: {
-                IconImage("refresh", color: forceDarkTheme ? .theme.shadesWhite95 :.theme.iconPrimary, size: 32)
+                IconImage(name: "refresh", color: forceDarkTheme ? .theme.shadesWhite95 :.theme.iconPrimary, size: 32)
             }
             
             Text("Something went wrong. Tap to refresh.")

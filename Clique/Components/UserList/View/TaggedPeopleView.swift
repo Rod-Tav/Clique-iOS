@@ -23,7 +23,7 @@ struct TaggedPeopleView: View {
             
             if false { // TODO: fetch, if no tagged users. separate loading/placeholder view
                 VStack(spacing: 8) {
-                    IconImage("camera", color: .theme.iconPrimary, size: 32)
+                    IconImage(name: "camera", color: .theme.iconPrimary, size: 32)
                     
                     Text("Hmmm. No one’s been tagged in this flick.")
                         .font(.footnote)

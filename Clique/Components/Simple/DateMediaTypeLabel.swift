@@ -29,22 +29,15 @@ struct DateMediaTypeLabel: View {
     @Environment(CollectionImageStore.self) private var collectionImageStore
 
     let image: CollectionImage
-    let dateFormat: DateFormat
-    let fontSize: FontSize
-    let textColor: Color
+    let dateFormat: DateFormat = .full
+    let fontSize: FontSize = .caption
+    let textColor: Color = .white
 
     @State private var fetchedDuration: TimeInterval?
     @State private var timezoneOffset: String?
 
     private var displayDuration: TimeInterval? {
         image.videoDuration ?? fetchedDuration
-    }
-
-    init(image: CollectionImage, dateFormat: DateFormat = .full, fontSize: FontSize = .caption, textColor: Color = .white) {
-        self.image = image
-        self.dateFormat = dateFormat
-        self.fontSize = fontSize
-        self.textColor = textColor
     }
 
     var body: some View {
@@ -151,40 +144,3 @@ struct DateMediaTypeLabel: View {
     }
 }
 
-#Preview {
-    VStack(spacing: 16) {
-        // Regular photo - full format
-        DateMediaTypeLabel(
-            image: CollectionImage(
-                id: "1",
-                mediaType: .PHOTO,
-                date: Date()
-            ),
-            dateFormat: .full
-        )
-
-        // Live photo - short format
-        DateMediaTypeLabel(
-            image: CollectionImage(
-                id: "2",
-                mediaType: .LIVE,
-                date: Date()
-            ),
-            dateFormat: .short,
-            fontSize: .caption2
-        )
-
-        // Video with duration
-        DateMediaTypeLabel(
-            image: CollectionImage(
-                id: "3",
-                videoDuration: 125.5,
-                mediaType: .VIDEO,
-                date: Date()
-            ),
-            dateFormat: .full
-        )
-    }
-    .padding()
-    .background(Color.gray.opacity(0.3))
-}

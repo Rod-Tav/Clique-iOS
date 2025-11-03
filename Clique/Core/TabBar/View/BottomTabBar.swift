@@ -227,7 +227,7 @@ struct BottomTabBar: View {
                 CliqueProgressView(size: 24)
             } else {
                 IconImage(
-                    tab.image,
+                    name: tab.image,
                     color: tabColor(tab, activeTab),
                     size: 24
                 )

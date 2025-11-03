@@ -148,7 +148,7 @@ struct LibraryCreateFlow: View {
             Button {
                 tabViewCoordinator.createFlowMode = .camera
             } label: {
-                IconImage("camera", color: .theme.iconPrimary, size: 24)
+                IconImage(name: "camera", color: .theme.iconPrimary, size: 24)
             }
         }
     }

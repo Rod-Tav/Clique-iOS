@@ -9,7 +9,7 @@ import SwiftUI
 
 struct TinyButton: View {
     var body: some View {
-        IconImage("ellipsis", color: .theme.iconSecondary, size: 20)
+        IconImage(name: "ellipsis", color: .theme.iconSecondary, size: 20)
             .padding(2)
             .background(Color.theme.buttonTertiary)
             .clipShape(.circle)

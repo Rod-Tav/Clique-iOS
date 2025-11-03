@@ -115,7 +115,7 @@ struct UserProfilePicWithSubIcon: View {
                         .stroke(Color.theme.strokeSecondary, lineWidth: 1)
                         .frame(18)
                     
-                    IconImage(type.pfpType ?? "dot", color: type.iconColor, size: 12)
+                    IconImage(name: type.pfpType ?? "dot", color: type.iconColor, size: 12)
                 }
                 .offset(x: size / 3, y: size / 3)
             }
@@ -154,7 +154,7 @@ struct CliquePicWithSubIcon: View {
                         .stroke(Color.theme.strokeSecondary, lineWidth: 1)
                         .frame(18)
                     
-                    IconImage(subIconType.pfpType ?? "dot", color: subIconType.iconColor, size: 12)
+                    IconImage(name: subIconType.pfpType ?? "dot", color: subIconType.iconColor, size: 12)
                 }
                 .offset(x: size / 3, y: size / 3)
             }

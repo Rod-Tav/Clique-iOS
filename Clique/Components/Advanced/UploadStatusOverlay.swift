@@ -18,12 +18,6 @@ struct UploadStatusOverlay: View {
     let onRetry: (() -> Void)?
     let onRefresh: (() -> Void)?
 
-    init(status: UploadStatus?, onRetry: (() -> Void)? = nil, onRefresh: (() -> Void)? = nil) {
-        self.status = status
-        self.onRetry = onRetry
-        self.onRefresh = onRefresh
-    }
-
     var body: some View {
         Group {
             switch status {
@@ -103,33 +97,4 @@ struct UploadStatusOverlay: View {
             }
         }
     }
-}
-
-// MARK: - Previews
-
-#Preview("Processing") {
-    Rectangle()
-        .fill(.gray)
-        .frame(width: 200, height: 200)
-        .overlay {
-            UploadStatusOverlay(status: .PENDING)
-        }
-}
-
-#Preview("Failed") {
-    Rectangle()
-        .fill(.gray)
-        .frame(width: 200, height: 200)
-        .overlay {
-            UploadStatusOverlay(status: .FAILED)
-        }
-}
-
-#Preview("Completed - No Overlay") {
-    Rectangle()
-        .fill(.gray)
-        .frame(width: 200, height: 200)
-        .overlay {
-            UploadStatusOverlay(status: .COMPLETED)
-        }
 }

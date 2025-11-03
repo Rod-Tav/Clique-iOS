@@ -75,7 +75,7 @@ struct FollowRequestsListView: View {
             }
             
             if !followRequestsVM.done {
-                TextButton("See More") {
+                TextButton(text: "See More") {
                     Task { await updateFollowRequests(.loadNextPage) }
                 }
             }

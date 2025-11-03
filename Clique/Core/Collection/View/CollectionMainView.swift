@@ -209,7 +209,7 @@ extension CollectionMainView {
                 }
             }
         } label: {
-            IconImage("sort", color: .theme.white, size: 24)
+            IconImage(name: "sort", color: .theme.white, size: 24)
                 .popoverTip(gallerySortTip)
                 .onTapGesture {
                     gallerySortTip.invalidate(reason: .actionPerformed)
@@ -390,7 +390,7 @@ extension CollectionMainView {
                         if let clique {
                             NavigationLink(value: clique) {
                                 HStack(spacing: 4) {
-                                    IconImage("3-user", color: .theme.iconSecondary, size: 14)
+                                    IconImage(name: "3-user", color: .theme.iconSecondary, size: 14)
                                     
                                     Text(clique.name)
                                         .font(.caption.bold())
@@ -406,7 +406,7 @@ extension CollectionMainView {
                                 .kerning(0.072)
                             
                             if collection.visibility.isPrivate {
-                                IconImage("lock", color: .theme.iconPrimary, size: 16)
+                                IconImage(name: "lock", color: .theme.iconPrimary, size: 16)
                             }
                             
                             if let cid = clique?.id, isInClique(cid: cid, cliqueStore) {
@@ -425,7 +425,7 @@ extension CollectionMainView {
                         
                         HStack(spacing: 2) {
                             HStack(spacing: 4) {
-                                IconImage("calendar", color: Color.theme.iconSecondary, size: 16)
+                                IconImage(name: "calendar", color: Color.theme.iconSecondary, size: 16)
 
                                 Text(formatDateMMMMddYYYY(collection.creation))
                                     .font(.caption)

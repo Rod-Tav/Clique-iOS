@@ -105,7 +105,7 @@ struct InboxView: View {
             Button {
                 dismiss()
             } label: {
-                IconImage("x-icon", color: .theme.iconPrimary, size: 24)
+                IconImage(name: "x-icon", color: .theme.iconPrimary, size: 24)
             }
 //            BackButton(color: Color.theme.iconPrimary, size: 24)
             
@@ -120,7 +120,7 @@ struct InboxView: View {
             Button {
                 refresh()
             } label: {
-                IconImage("refresh", color: .theme.iconPrimary, size: 24)
+                IconImage(name: "refresh", color: .theme.iconPrimary, size: 24)
             }
         }
         .maxWidth(.leading)
@@ -273,7 +273,7 @@ struct InboxView: View {
     @ViewBuilder private func EmptyInbox() -> some View {
         VStack(spacing: 16) {
             VStack(spacing: 8) {
-                IconImage("sun", color: .theme.iconPrimary, size: 32) // TODO: stroke
+                IconImage(name: "sun", color: .theme.iconPrimary, size: 32) // TODO: stroke
                 
                 Text("You're all caught up!")
                     .font(.footnote)

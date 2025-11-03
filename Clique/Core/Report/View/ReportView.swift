@@ -40,7 +40,7 @@ struct ReportView: View {
                 Button {
                     dismiss()
                 } label: {
-                    IconImage("x-icon", color: .theme.iconPrimary, size: 24)
+                    IconImage(name: "x-icon", color: .theme.iconPrimary, size: 24)
                 }.buttonStyle(.noHighlight)
             },
             header: {
@@ -81,7 +81,7 @@ struct ReportView: View {
                                 
                                 Spacer()
                                 
-                                IconImage("chevron-right", color: .theme.iconPrimary, size: 20)
+                                IconImage(name: "chevron-right", color: .theme.iconPrimary, size: 20)
                             }
                             .contentShape(Rectangle())
                             .padding(.vertical, 12)

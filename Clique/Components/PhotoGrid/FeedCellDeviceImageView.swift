@@ -109,11 +109,6 @@ struct FeedCellDeviceImageView: View {
     @State private var image: UIImage?
     @State private var requestID: PHImageRequestID?
 
-    init(asset: PHAsset, width: CGFloat) {
-        self.asset = asset
-        self.width = width
-    }
-
     var body: some View {
         Group {
             // Single-stage loading - match network image behavior

@@ -94,7 +94,7 @@ struct CollectionGridCell: View {
                     }
                     .overlay(alignment: .topTrailing) {
                         if collection.visibility == .priv {
-                            IconImage("lock", color: .theme.white, size: 16)
+                            IconImage(name: "lock", color: .theme.white, size: 16)
                                 .padding([.trailing, .top], 5.7)
                                 .offset(y: 3.38)
                             //                                .alignmentGuide(.bottom) {$0[VerticalAlignment.center]}
@@ -118,7 +118,7 @@ struct CollectionGridCell: View {
                     
                     if showClique {
                         HStack(spacing: 2) {
-                            IconImage("3-user", color: .theme.iconSecondary, size: 12)
+                            IconImage(name: "3-user", color: .theme.iconSecondary, size: 12)
                             
                             Group {
                                 if let clique {

@@ -117,7 +117,7 @@ struct CollectionPreviewSlideView: View {
             }
             .overlay {
                 // like animation
-                IconImage("heart-filled", color: .theme.red, size: 70)
+                IconImage(name: "heart-filled", color: .theme.red, size: 70)
                     .likeAnimation($likeAnimation)
             }
             .overlay(alignment: .center) {

@@ -318,7 +318,7 @@ extension CliqueProfileView {
                 if let leaderId = clique.leader, let leader = userStore.users[leaderId] {
                     NavigationLink(value: leader) {
                         HStack(spacing: 2) {
-                            IconImage("crown-leader", color: Color.theme.iconSecondary, size: 14)
+                            IconImage(name: "crown-leader", color: Color.theme.iconSecondary, size: 14)
                             
                             Text("@\(leader.username)")
                                 .font(.caption)
@@ -328,7 +328,7 @@ extension CliqueProfileView {
                 }
                 
                 HStack(spacing: 4) {
-                    IconImage("calendar", color: Color.theme.iconSecondary, size: 14)
+                    IconImage(name: "calendar", color: Color.theme.iconSecondary, size: 14)
                     
                     Text("est. \(formatDateMMMMyyyy(clique.creation))")
                         .font(.caption)

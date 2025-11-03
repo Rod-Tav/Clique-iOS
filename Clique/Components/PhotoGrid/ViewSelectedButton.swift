@@ -21,7 +21,7 @@ struct ViewSelectedButton: View {
 //                showSelectedPhotosView = true
 //            } label: {
 //                HStack(spacing: 8) {
-//                    IconImage("images-posts", color: .white, size: 20)
+//                    IconImage(name: "images-posts", color: .white, size: 20)
 //                    Text("View Selected (\(viewModel.selectedAssets.count))")
 //                        .font(.callout.bold())
 //                        .foregroundColor(.white)

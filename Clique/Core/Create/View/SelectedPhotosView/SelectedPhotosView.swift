@@ -159,7 +159,7 @@ struct SelectedPhotosView: View {
                     Button {
                         dismiss()
                     } label: {
-                        IconImage("arrow-left", color: .theme.iconPrimary, size: 24)
+                        IconImage(name: "arrow-left", color: .theme.iconPrimary, size: 24)
                     }
                 }
             },
@@ -512,7 +512,7 @@ struct PhotoGalleryItem: View {
                 if let collectionId = viewModel.selectedCollectionId {
                     Button(action: onCollectionTap) {
                         HStack(spacing: 6) {
-                            IconImage("collections", color: .theme.iconPrimary, size: 12)
+                            IconImage(name: "collections", color: .theme.iconPrimary, size: 12)
                             
                             if let name = collectionStore.collections[collectionId]?.name {
                                 Text(name)
@@ -521,7 +521,7 @@ struct PhotoGalleryItem: View {
                             }
                             
                             if viewModel.newCollectionVisibility == .priv {
-                                IconImage("lock", color: .theme.iconPrimary, size: 12)
+                                IconImage(name: "lock", color: .theme.iconPrimary, size: 12)
                             }
                         }
                         .padding(.horizontal, 12)

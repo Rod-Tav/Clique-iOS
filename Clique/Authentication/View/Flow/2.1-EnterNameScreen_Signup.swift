@@ -81,7 +81,7 @@ struct EnterNameScreen: View {
         } label: {
             HStack(spacing: 8) {
                 IconImage(
-                    "check-circle-empty",
+                    name: "check-circle-empty",
                     color: ageConfirmed ? .theme.cliquePink : .theme.iconSecondary,
                     size: 20
                 )

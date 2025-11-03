@@ -171,7 +171,7 @@ extension CommentCell {
             } label: {
                 VStack(alignment: .center, spacing: 4) {
                     IconImage(
-                        comment.hasLiked ? "heart-filled" : "heart-stroke",
+                        name: comment.hasLiked ? "heart-filled" : "heart-stroke",
                         color: comment.hasLiked ? .theme.red : forceDarkTheme ? .theme.shadesWhite65 : .theme.iconSecondary,
                         size: 16
                     )
@@ -252,7 +252,7 @@ extension CommentCell {
                         // report
                     }
                 } label: {
-                    IconImage("ellipsis", color: forceDarkTheme ? .theme.shadesWhite65 : .theme.iconSecondary, size: 16)
+                    IconImage(name: "ellipsis", color: forceDarkTheme ? .theme.shadesWhite65 : .theme.iconSecondary, size: 16)
                 }
             }
         }
@@ -279,7 +279,7 @@ extension CommentCell {
                                 .font(.caption.weight(.semibold))
                         }
                         
-                        IconImage("chevron-right", color: forceDarkTheme ? .theme.shadesWhite65 : .theme.iconSecondary, size: 12)
+                        IconImage(name: "chevron-right", color: forceDarkTheme ? .theme.shadesWhite65 : .theme.iconSecondary, size: 12)
                             .rotationEffect(.degrees(showReplies ? 90 : 0))
                     }
                 }
@@ -308,7 +308,7 @@ extension CommentCell {
                                     .foregroundStyle(forceDarkTheme ? Color.theme.shadesWhite65 : Color.theme.textSecondary)
                                     .font(.caption.weight(.semibold))
                                 
-                                IconImage("chevron-right", color: forceDarkTheme ? .theme.shadesWhite65 : .theme.iconSecondary, size: 12)
+                                IconImage(name: "chevron-right", color: forceDarkTheme ? .theme.shadesWhite65 : .theme.iconSecondary, size: 12)
                             }
                         }
                     }
@@ -443,7 +443,7 @@ extension CommentCell {
                     await updateReplies(.refresh)
                 }
             } label: {
-                IconImage("refresh", color: forceDarkTheme ? .theme.shadesWhite95 :.theme.iconPrimary, size: 32)
+                IconImage(name: "refresh", color: forceDarkTheme ? .theme.shadesWhite95 :.theme.iconPrimary, size: 32)
             }
             
             Text("Something went wrong. Tap to refresh.")

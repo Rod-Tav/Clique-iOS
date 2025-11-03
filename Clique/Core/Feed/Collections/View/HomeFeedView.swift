@@ -74,7 +74,7 @@ struct HomeFeedView: View {
                 header: { HeaderTextStar("Clique") },
                 trailingIcon: {
                     NavigationLink(value: "NotificationsCenter") {
-                        IconImage("inbox", color: .theme.iconPrimary, size: 24)
+                        IconImage(name: "inbox", color: .theme.iconPrimary, size: 24)
                             .overlayTopRightNotification(when: tabViewCoordinator.hasNotification)
                     }
                 }
@@ -245,7 +245,7 @@ private extension HomeFeedView {
     var emptyStateView: some View {
         VStack(spacing: 16) {
             VStack(spacing: 8) {
-                IconImage("search", color: .primaryIcon, size: 32)
+                IconImage(name: "search", color: .primaryIcon, size: 32)
                 
                 Text("Clique is way more fun with friends. Let’s add some?")
                     .textPrimary()

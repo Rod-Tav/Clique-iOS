@@ -39,11 +39,6 @@ struct DeviceImageView: View {
     @State private var mediaType: MediaType?
     @State private var isLoading: Bool = true
 
-    init(itemId: String, width: CGFloat? = nil) {
-        self.itemId = itemId
-        self.width = width
-    }
-
     var body: some View {
         Group {
             if let asset = asset, let mediaType = mediaType {

@@ -163,7 +163,7 @@ struct UserProfileTabsView: View {
         if isCurrentUser {
             HStack(spacing: 12) {
                 NavigationLink(value: "NotificationsCenter") {
-                    IconImage("inbox", color: .theme.iconPrimary, size: 24)
+                    IconImage(name: "inbox", color: .theme.iconPrimary, size: 24)
                         .overlayTopRightNotification(when: tabViewCoordinator.hasNotification)
                 }
                 
@@ -171,7 +171,7 @@ struct UserProfileTabsView: View {
                     Button {
                         refreshAll()
                     } label: {
-                        IconImage("refresh", color: .theme.iconPrimary, size: 24)
+                        IconImage(name: "refresh", color: .theme.iconPrimary, size: 24)
                     }
                 }
             }
@@ -193,7 +193,7 @@ struct UserProfileTabsView: View {
                     }
                 }
             } label: {
-                IconImage("ellipsis", color: .theme.iconPrimary, size: 24)
+                IconImage(name: "ellipsis", color: .theme.iconPrimary, size: 24)
             }
             .buttonStyle(.noHighlight)
             .fullScreenCover(isPresented: $showReportCover) {
@@ -314,7 +314,7 @@ extension UserProfileTabsView {
                             .textPrimary()
                         
                         if showPrivate {
-                            IconImage("lock", color: .theme.iconPrimary, size: 16)
+                            IconImage(name: "lock", color: .theme.iconPrimary, size: 16)
                         }
                     }
                     
@@ -430,7 +430,7 @@ extension UserProfileTabsView {
 extension UserProfileTabsView {
     @ViewBuilder private func PrivateView() -> some View {
         VStack(spacing: 8) {
-            IconImage("2-user", color: .theme.iconPrimary, size: 32)
+            IconImage(name: "2-user", color: .theme.iconPrimary, size: 32)
             
             if let user {
                 Text("\(user.firstname) has a private account.\nFollow them to see their flicks!")
@@ -445,7 +445,7 @@ extension UserProfileTabsView {
     
     @ViewBuilder private func PrivateViewForScrollContainer() -> some View {
         VStack(spacing: 8) {
-            IconImage("2-user", color: .theme.iconPrimary, size: 32)
+            IconImage(name: "2-user", color: .theme.iconPrimary, size: 32)
             
             if let user {
                 Text("\(user.firstname) has a private account.\nFollow them to see their flicks!")

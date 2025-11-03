@@ -15,7 +15,7 @@ struct TopIconBar: View {
         HStack(spacing: 8) {
             ForEach(0..<icons.count, id: \.self) { index in
                 HStack(spacing: 8) {
-                    IconImage(icons[index], color: .theme.shadesWhite95, size: 12)
+                    IconImage(name: icons[index], color: .theme.shadesWhite95, size: 12)
                 }
                 .frame(24)
                 .background(index+1 <= coordinator.currentIconStep ? coordinator.iconBgColor : Color.theme.surfacesElevatedPrimary)

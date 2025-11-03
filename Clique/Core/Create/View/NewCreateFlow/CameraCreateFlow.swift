@@ -152,12 +152,12 @@ struct CameraCreateFlow: View {
                                 model.camera.stop()
                             }
                         } label: {
-                            IconImage("arrow-left", color: .theme.shadesWhite95, size: 24)
+                            IconImage(name: "arrow-left", color: .theme.shadesWhite95, size: 24)
                         }
                         
                         if !viewModel.selectedImages.isEmpty {
                             HStack(spacing: 4) {
-                                IconImage("images-posts", color: .theme.shadesWhite95, size: 20)
+                                IconImage(name: "images-posts", color: .theme.shadesWhite95, size: 20)
                                 
                                 Text("\(viewModel.selectedImages.count)")
                                     .font(.caption.bold())
@@ -179,7 +179,7 @@ struct CameraCreateFlow: View {
                     Spacer().frame(24)
                 } else {
                     HStack(spacing: 4) {
-                        IconImage("images-posts", color: .theme.shadesWhite95, size: 20)
+                        IconImage(name: "images-posts", color: .theme.shadesWhite95, size: 20)
                         
                         Text("\(viewModel.selectedImages.count)")
                             .font(.caption.bold())
@@ -225,7 +225,7 @@ struct CameraCreateFlow: View {
                             viewModel.preparedImageVariants.removeAll()
                         } label: {
                             HStack(spacing: 4) {
-                                IconImage("x-icon", color: .theme.iconPrimary, size: 12)
+                                IconImage(name: "x-icon", color: .theme.iconPrimary, size: 12)
                             }
                             .padding(6)
                             .background(Color.theme.surfacesPrimary)
@@ -245,7 +245,7 @@ struct CameraCreateFlow: View {
                                 showChooseCollectionSheet = true
                             } label: {
                                 HStack(spacing: 6) {
-                                    IconImage("collections", color: .theme.textPrimary, size: 12)
+                                    IconImage(name: "collections", color: .theme.textPrimary, size: 12)
                                     
                                     if let name = collectionStore.collections[collectionId]?.name {
                                         Text(name)
@@ -254,7 +254,7 @@ struct CameraCreateFlow: View {
                                     }
                                     
                                     if viewModel.newCollectionVisibility == .priv {
-                                        IconImage("lock", color: .theme.textPrimary, size: 12)
+                                        IconImage(name: "lock", color: .theme.textPrimary, size: 12)
                                     }
                                 }
                                 .padding(.horizontal, 12)
@@ -356,7 +356,7 @@ struct CameraCreateFlow: View {
             Button {
                 tabViewCoordinator.createFlowMode = .library
             } label: {
-                IconImage("library", color: .theme.white, size: 32)
+                IconImage(name: "library", color: .theme.white, size: 32)
                     .padding(8)
                     .frame(48)
                     .background(Color.theme.shadesWhite15)
@@ -391,7 +391,7 @@ struct CameraCreateFlow: View {
                 model.switchCaptureDevice()
                 isFront.toggle()
             } label: {
-                IconImage("switch", color: .theme.white, size: 24)
+                IconImage(name: "switch", color: .theme.white, size: 24)
                     .padding(12)
                     .frame(48)
                     .background(Color.theme.shadesWhite15)

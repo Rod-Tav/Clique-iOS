@@ -54,7 +54,7 @@ struct FeedCellBottomOverlay: View {
                     haptics(.medium)
                     handleLikeTapped()
                 } label: {
-                    IconImage("heart-filled", color: hasLiked ? Color.theme.red : Color.theme.white, size: 20)
+                    IconImage(name: "heart-filled", color: hasLiked ? Color.theme.red : Color.theme.white, size: 20)
                 }.buttonStyle(.noHighlight)
 
                 Button {

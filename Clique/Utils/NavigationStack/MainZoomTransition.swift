@@ -15,15 +15,9 @@ extension AnyNavigationTransition {
 }
 
 struct ZoomTransition: NavigationTransitionProtocol {
-    let xOffset: CGFloat
-    let yOffset: CGFloat
-    let scaleFactor: CGFloat
-    
-    init(xOffset: CGFloat = 0, yOffset: CGFloat = 0, scaleFactor: CGFloat = 1.0) {
-        self.xOffset = xOffset
-        self.yOffset = yOffset
-        self.scaleFactor = scaleFactor
-    }
+    var xOffset: CGFloat = 0
+    var yOffset: CGFloat = 0
+    var scaleFactor: CGFloat = 1.0
     
     var body: some NavigationTransitionProtocol {
         OnPush {

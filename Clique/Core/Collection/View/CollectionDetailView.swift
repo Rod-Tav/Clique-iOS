@@ -179,7 +179,7 @@ extension CollectionDetailView {
                 Button {
                     closeImage()
                 } label: {
-                    IconImage("arrow-left", color: .theme.white, size: 24)
+                    IconImage(name: "arrow-left", color: .theme.white, size: 24)
                 }.buttonStyle(.noHighlight)
             },
             header: HeaderContent,
@@ -416,7 +416,7 @@ extension CollectionDetailView {
                                 .font(.callout.bold())
 
                             if !fromGallery {
-                                IconImage("chevron-right", color: .theme.white, size: 16)
+                                IconImage(name: "chevron-right", color: .theme.white, size: 16)
                             }
                         }
                     }
@@ -504,7 +504,7 @@ extension CollectionDetailView {
                         handleLikeTapped()
                     }
                     .overlay {
-                        IconImage("heart-filled", color: .theme.red, size: 70)
+                        IconImage(name: "heart-filled", color: .theme.red, size: 70)
                             .likeAnimation($likeAnimation)
                     }
             }
@@ -813,7 +813,7 @@ extension CollectionDetailView {
                         haptics(.medium)
                         handleLikeTapped()
                     } label: {
-                        IconImage("heart-filled", color: selectedImage.hasLiked ? .theme.red : .theme.white, size: 20)
+                        IconImage(name: "heart-filled", color: selectedImage.hasLiked ? .theme.red : .theme.white, size: 20)
                     }
                     
                     Button {
@@ -872,10 +872,13 @@ extension CollectionDetailView {
         }
     }
     
-    @ViewBuilder
-    private func BottomActionItem(icon: String, iconColor: Color = .theme.white, number: Int) -> some View {
+    @ViewBuilder private func BottomActionItem(
+        icon: String,
+        iconColor: Color = .theme.white,
+        number: Int
+    ) -> some View {
         HStack(spacing: 4) {
-            IconImage(icon, color: iconColor, size: 20)
+            IconImage(name: icon, color: iconColor, size: 20)
             
             Text(formatNumber(number))
                 .font(.footnote.bold())

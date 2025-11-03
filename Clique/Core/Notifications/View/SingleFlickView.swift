@@ -87,7 +87,7 @@ struct SingleFlickView: View {
                 Button {
                     dismiss()
                 } label: {
-                    IconImage("x-icon", color: .theme.white, size: 24)
+                    IconImage(name: "x-icon", color: .theme.white, size: 24)
                 }.buttonStyle(.noHighlight)
             },
             header: { headerContent },
@@ -110,7 +110,7 @@ struct SingleFlickView: View {
                         Text(collection.name)
                             .font(.callout.bold())
 
-                        IconImage("chevron-right", color: .theme.iconPrimary, size: 16)
+                        IconImage(name: "chevron-right", color: .theme.iconPrimary, size: 16)
                     }
 
                     Text("\(formatDateMMMMdYYYY(flick.date)) • \(formatDateHHmm(flick.date))")
@@ -172,7 +172,7 @@ struct SingleFlickView: View {
                     }
                 )
                 .overlay {
-                    IconImage("heart-filled", color: .theme.red, size: 70)
+                    IconImage(name: "heart-filled", color: .theme.red, size: 70)
                         .likeAnimation($likeAnimation)
                 }
         }
@@ -215,7 +215,7 @@ struct SingleFlickView: View {
                             haptics(.medium)
                             handleLikeTapped()
                         } label: {
-                            IconImage("heart-filled", color: currentImage.hasLiked ? .theme.red : .theme.white, size: 28)
+                            IconImage(name: "heart-filled", color: currentImage.hasLiked ? .theme.red : .theme.white, size: 28)
                         }
                         
                         Button {
@@ -236,7 +236,7 @@ struct SingleFlickView: View {
                         showCommentSheet = true
                     } label: {
                         HStack(spacing: 4) {
-                            IconImage("comment-filled", color: .theme.white, size: 28)
+                            IconImage(name: "comment-filled", color: .theme.white, size: 28)
                             
                             Text(formatNumber(currentImage.numComments))
                                 .font(.footnote)

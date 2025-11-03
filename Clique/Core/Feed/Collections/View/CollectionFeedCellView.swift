@@ -348,7 +348,7 @@ extension CollectionFeedCellView {
                 } label: {
                     HStack(spacing: 4) {
                         if collection.visibility == .priv {
-                            IconImage("lock", color: .theme.iconPrimary, size: 16)
+                            IconImage(name: "lock", color: .theme.iconPrimary, size: 16)
                         }
                         
                         Text(collection.name)
@@ -358,7 +358,7 @@ extension CollectionFeedCellView {
                             .lineLimit(1)
                             .textPrimary()
 
-                        IconImage("chevron-right", color: .theme.iconPrimary, size: 16)
+                        IconImage(name: "chevron-right", color: .theme.iconPrimary, size: 16)
 
                         Text("• \(pluralizeWithCount(count: collection.displayFlickCount(currentUserId: userStore.currentUserId), singular: "flick"))")
                             .font(.footnote)
@@ -435,7 +435,7 @@ extension CollectionFeedCellView {
                 showReportCover = true
             }
         } label: {
-            IconImage("ellipsis", color: Color.theme.iconSecondary, size: 20)
+            IconImage(name: "ellipsis", color: Color.theme.iconSecondary, size: 20)
         }
         .fullScreenCover(isPresented: $showReportCover) {
             ReportView(showReport: $showReportCover, objectId: collectionId, reportType: .collection)

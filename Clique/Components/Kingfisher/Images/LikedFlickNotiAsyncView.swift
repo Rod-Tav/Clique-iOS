@@ -11,7 +11,7 @@ struct LikedFlickNotiAsyncView: View {
     var urls: PhotoUrls?
     let size: CGFloat
     let quality: ImageQuality
-    
+
     var body: some View {
         GenericAsyncImage(urls: urls, quality: quality, performanceMode: true) { image in
             image

@@ -28,11 +28,11 @@ struct ChooseCollectionView: View {
     @State private var listState: ListState = .loading
     @State private var paginationState: AdvancedListPaginationState = .idle
     @State private var isScrollAtBottom: Bool = false
-    
+
     init(uid: String, _ collectionStore: CollectionStore, _ collectionImageStore: CollectionImageStore) {
         self.collectionsPgVM = .init(uid: uid, collectionStore, collectionImageStore)
     }
-    
+
     var body: some View {
         VStack(spacing: 16) {
             Text("Your Collections")

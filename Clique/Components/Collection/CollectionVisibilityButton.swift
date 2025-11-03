@@ -21,7 +21,7 @@ struct CollectionVisibilityButton: View {
             collectionVisibility = visibility
         } label: {
             HStack(spacing: 8) {
-                IconImage(visibility.icon, color: isSelected ? .theme.textPrimary : .theme.textSecondary, size: 20)
+                IconImage(name: visibility.icon, color: isSelected ? .theme.textPrimary : .theme.textSecondary, size: 20)
                 
                 Text(visibility.title)
                     .font(.callout.weight(.semibold))

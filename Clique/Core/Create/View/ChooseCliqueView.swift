@@ -20,11 +20,11 @@ struct ChooseCliqueView: View {
     @State private var listState: ListState = .loading
     @State private var paginationState: AdvancedListPaginationState = .idle
     @State private var isScrollAtBottom: Bool = false
-    
+
     init(uid: String, _ cliqueStore: CliqueStore) {
         self.cliquesPgVM = .init(uid: uid, cliqueStore)
     }
-    
+
     var body: some View {
         VStack(spacing: 16) {
             Text("Your Cliques")

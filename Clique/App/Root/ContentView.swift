@@ -150,7 +150,7 @@ struct ContentView: View {
         .onAppear {
             // Begin authentication state evaluation
             Task {
-//                isAppBricked = await AppService.isAppBricked()
+                isAppBricked = await AppService.isAppBricked()
                 await authService.loadUserData()
             }
         }

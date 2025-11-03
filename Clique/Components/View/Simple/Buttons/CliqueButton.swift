@@ -56,7 +56,7 @@ struct CliqueButton: View {
                             .frame(16)
                     } else {
                         if let leadingIcon {
-                            IconImage(leadingIcon, color: leadingIconColor ?? textColor ?? type.textColor, size: size)
+                            IconImage(name: leadingIcon, color: leadingIconColor ?? textColor ?? type.textColor, size: size)
                         }
                         
                         Text(text)

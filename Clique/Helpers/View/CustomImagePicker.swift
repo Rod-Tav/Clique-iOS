@@ -136,7 +136,7 @@ struct CropView: View {
                             Button {
                                 dismiss()
                             } label: {
-                                IconImage("x-icon", color: .theme.white, size: 32)
+                                IconImage(name: "x-icon", color: .theme.white, size: 32)
                             }
                             
                             Button {
@@ -153,7 +153,7 @@ struct CropView: View {
                                 
                                 dismiss()
                             } label: {
-                                IconImage("check", color: .theme.white, size: 32)
+                                IconImage(name: "check", color: .theme.white, size: 32)
                             }
                         }
                         .frame(maxWidth: .infinity, alignment: .trailing)
