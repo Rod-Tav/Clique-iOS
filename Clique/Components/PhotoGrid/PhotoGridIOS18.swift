@@ -66,7 +66,7 @@ struct PhotoGridIOS18: View {
         .background(
             Color.clear
                 .ignoresSafeArea()
-                .contentShape(Rectangle())
+                .contentShape(.rect)
         )
         // Gesture handling for both iOS 18 and iOS 26
         .simultaneousGesture(

@@ -330,7 +330,7 @@ extension UserSettingsView {
                 trailingIcon()
             }
             .frame(maxWidth: .infinity, minHeight: 45, maxHeight: 45)
-            .contentShape(Rectangle())
+            .contentShape(.rect)
         }
         .if(action == nil) { view in
             view

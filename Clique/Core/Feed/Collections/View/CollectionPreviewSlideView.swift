@@ -206,7 +206,7 @@ private struct PendingFeedCellImage: View {
                 Rectangle()
                     .fill(Color.theme.iconTertiary)
                     .frame(width: width, height: width)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .roundCorners(8)
                     .overlay {
                         ProgressView()
                             .scaleEffect(0.5)

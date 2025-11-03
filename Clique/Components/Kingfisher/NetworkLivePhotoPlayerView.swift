@@ -106,7 +106,7 @@ struct NetworkLivePhotoPlayerView: View {
                 if #available(iOS 26, *) {
                     // iOS 26+: Use custom gesture that works with ScrollView
                     Color.clear
-                        .contentShape(Rectangle())
+                        .contentShape(.rect)
                         .gesture(
                             LivePhotoInteractionGesture(
                                 minimumPressDuration: minimumHoldDuration,
@@ -153,7 +153,7 @@ struct NetworkLivePhotoPlayerView: View {
                 } else {
                     // iOS 17-18: Use simultaneousGesture with drag to allow both tap and hold
                     Color.clear
-                        .contentShape(Rectangle())
+                        .contentShape(.rect)
                         .simultaneousGesture(
                             DragGesture(minimumDistance: 0)
                                 .onChanged { value in

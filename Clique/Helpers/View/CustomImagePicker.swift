@@ -297,7 +297,7 @@ struct CropView: View {
         }
         .coordinateSpace(name: "CROPVIEW")
         .frame(cropSize)
-        .clipShape(RoundedRectangle(cornerRadius: crop == .circle ? cropSize.height : crop == .cliquePfp ? 32 : 0))
+        .roundCorners(crop == .circle ? cropSize.height : crop == .cliquePfp ? 32 : 0)
     }
     
     /// - Grids

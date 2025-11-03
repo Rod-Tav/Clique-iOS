@@ -353,7 +353,7 @@ struct CarouselThumbnail: View {
                         .resizable()
                         .aspectRatio(contentMode: .fill)
                         .frame(width: 60, height: 60)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .roundCorners(8)
                 } else {
                     RoundedRectangle(cornerRadius: 8)
                         .fill(Color.theme.surfacesElevatedBlur)

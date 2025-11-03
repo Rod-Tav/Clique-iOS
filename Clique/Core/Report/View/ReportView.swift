@@ -83,7 +83,7 @@ struct ReportView: View {
                                 
                                 IconImage(name: "chevron-right", color: .theme.iconPrimary, size: 20)
                             }
-                            .contentShape(Rectangle())
+                            .contentShape(.rect)
                             .padding(.vertical, 12)
                         }.buttonStyle(PlainButtonStyle())
                     }

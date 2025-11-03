@@ -210,7 +210,7 @@ enum ImageSizing {
                 .resizable()
                 .scaledToFit()
                 .frame(maxWidth: width)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .roundCorners(8)
         case .width(let width):
             image
                 .resizable()
@@ -218,13 +218,13 @@ enum ImageSizing {
                 .aspectRatio(1, contentMode: .fill)
                 .frame(width: width, height: width)
                 .clipped()
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .roundCorners(8)
         case .side(let side):
             image
                 .resizable()
                 .scaledToFill()
                 .frame(width: side, height: side)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .roundCorners(8)
         case .custom(let width, let height, let aspectRatio, let cornerRadius):
             image
                 .resizable()
@@ -236,7 +236,7 @@ enum ImageSizing {
                     view.frame(width: width, height: height)
                 }
                 .if(cornerRadius > 0) { view in
-                    view.clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+                    view.roundCorners(cornerRadius)
                 }
         }
     }
@@ -260,17 +260,17 @@ enum ImageSizing {
         case .slideView(let width):
             view
                 .frame(maxWidth: width)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .roundCorners(8)
         case .width(let width):
             view
                 .aspectRatio(1, contentMode: .fill)
                 .frame(width: width, height: width)
                 .clipped()
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .roundCorners(8)
         case .side(let side):
             view
                 .frame(width: side, height: side)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .roundCorners(8)
         case .custom(let width, let height, let aspectRatio, let cornerRadius):
             view
                 .if(aspectRatio != nil) { v in
@@ -280,7 +280,7 @@ enum ImageSizing {
                     v.frame(width: width, height: height)
                 }
                 .if(cornerRadius > 0) { v in
-                    v.clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+                    v.roundCorners(cornerRadius)
                 }
         }
     }

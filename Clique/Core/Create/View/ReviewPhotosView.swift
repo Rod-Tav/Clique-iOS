@@ -134,7 +134,7 @@ struct ReviewPhotosView: View {
                         .resizable()
                         .scaledToFill()
                         .frame(width: 64, height: 86)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .roundCorners(8)
                         .overlay {
                             if currentImageIndex == index {
                                 RoundedRectangle(cornerRadius: 8)

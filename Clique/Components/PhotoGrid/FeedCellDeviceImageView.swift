@@ -127,7 +127,7 @@ struct FeedCellDeviceImageView: View {
         .aspectRatio(1, contentMode: .fill)
         .frame(width: width, height: width)
         .clipped()
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .roundCorners(8)
         .id(asset.localIdentifier)  // Stable identity to prevent recreation during transitions
         .onAppear {
             loadImage()

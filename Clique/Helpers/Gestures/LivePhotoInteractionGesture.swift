@@ -19,7 +19,7 @@ import UIKit
 /// ## Usage
 /// ```swift
 /// Color.clear
-///     .contentShape(Rectangle())
+///     .contentShape(.rect)
 ///     .gesture(
 ///         LivePhotoInteractionGesture(
 ///             minimumPressDuration: 0.05,

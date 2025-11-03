@@ -180,7 +180,7 @@ extension CollectionFeedCellView {
                     .resizable()
                     .aspectRatio(1, contentMode: .fill)
                     .frame(UIScreen.width - 32)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .roundCorners(8)
                     .overlay {
                         if let clique = cliqueStore.cliques[collection.cliqueId], let relationship = clique.relationship, relationship.isInClique {
                             Text("Uploading flicks...")
