@@ -808,58 +808,12 @@ extension CollectionDetailView {
         guard !isSavingLivePhoto, let selectedImage else { return }
 
         Task {
-            guard let imageUrl = selectedImage.imageUrl?.highQualityUrl,
-                  let videoUrl = selectedImage.videoUrls?.highQualityUrl else { return }
-
-            let date = selectedImage.date
-            var timezoneOffset = selectedImage.cachedTimezoneOffset
-
-            // Check store cache (timezone may have been extracted during display)
-            if timezoneOffset == nil {
-                timezoneOffset = collectionImageStore.getCachedTimezoneOffset(for: selectedImage.id)
-                print("📅 [SAVE] Checked store cache: \(timezoneOffset ?? "nil")")
-            }
-
-            // For old photos without cached timezone, try to extract from video metadata
-            if timezoneOffset == nil, let videoURL = URL(string: videoUrl) {
-                timezoneOffset = await VideoMetadataHelper.extractTimezoneOffset(from: videoURL)
-                print("📅 [SAVE-FALLBACK] Extracted timezone from video: \(timezoneOffset ?? "nil")")
-            }
-
-            if timezoneOffset == nil {
-                print("⚠️ [SAVE] No timezone information available for this photo")
-                print("   This is an old photo uploaded before timezone preservation was implemented")
-                print("   It will be saved in the device's current timezone")
-            }
-
-            isSavingLivePhoto = true
-
-            let saver = LivePhotoSaver()
-            let success = await saver.saveLivePhoto(
-                imageUrl: imageUrl,
-                videoUrl: videoUrl,
-                date: date,
-                timezoneOffset: timezoneOffset
-            ) { progress in
-                switch progress {
-                case .downloading:
-                    presentToast(Toasts.savingLivePhoto)
-                case .processing, .saving:
-                    // Don't show additional toasts, initial toast still showing
-                    break
-                case .completed:
-                    presentToast(Toasts.savedLivePhoto)
-                    isSavingLivePhoto = false
-                case .failed:
-                    // Fallback already happened, show video saved toast
-                    presentToast(Toasts.savedVideo)
-                    isSavingLivePhoto = false
-                }
-            }
-
-            if !success && !isSavingLivePhoto {
-                presentToast(Toasts.somethingWentWrong)
-            }
+            await CollectionImageSaveHelpers.saveLivePhoto(
+                image: selectedImage,
+                collectionImageStore: collectionImageStore,
+                isSavingLivePhoto: &isSavingLivePhoto,
+                presentToast: presentToast
+            )
         }
     }
 
@@ -868,38 +822,22 @@ extension CollectionDetailView {
         guard let selectedImage else { return }
 
         Task {
-            guard let videoUrl = selectedImage.videoUrls?.highQualityUrl else { return }
-
-            let date = selectedImage.date
-            let timezoneOffset = selectedImage.cachedTimezoneOffset
-
-            do {
-                // Download video
-                let videoLocalUrl = try await VideoCache.shared.getVideo(from: URL(string: videoUrl)!)
-
-                // Save video
-                let imageSaver = ImageSaver()
-                imageSaver.writeVideoToPhotoAlbum(videoUrl: videoLocalUrl, date: date, timezoneOffset: timezoneOffset) { success in
-                    presentToast(success ? Toasts.savedVideo : Toasts.somethingWentWrong)
-                }
-            } catch {
-                print("❌ Failed to save video: \(error)")
-                presentToast(Toasts.somethingWentWrong)
-            }
+            await CollectionImageSaveHelpers.saveVideo(
+                image: selectedImage,
+                presentToast: presentToast
+            )
         }
     }
 
     /// Handles saving a static image
     private func handleSaveImage() {
-        guard let selectedImage, let url = selectedImage.imageUrl else { return }
+        guard let selectedImage else { return }
 
         Task {
-            guard let url = url.highQualityUrl, let loadedImage = await fetchImageWithKingfisher(from: url) else { return }
-
-            let imageSaver = ImageSaver()
-            imageSaver.writeToPhotoAlbum(image: loadedImage, date: selectedImage.date, timezoneOffset: selectedImage.cachedTimezoneOffset) { success in
-                presentToast(success ? Toasts.savedImage : Toasts.somethingWentWrong)
-            }
+            await CollectionImageSaveHelpers.saveImage(
+                image: selectedImage,
+                presentToast: presentToast
+            )
         }
     }
 
@@ -908,20 +846,17 @@ extension CollectionDetailView {
         guard let selectedImageId else { return }
 
         Task {
-            do {
-                try await CollectionService.deleteCollectionItem(.init(path: .init(collectionItemId: selectedImageId)))
-
-                closeImage()
-
-                imagesPgVM.items.removeAll(where: { $0.id == selectedImageId })
-                collectionStore.collections[clCoordinator.collectionId]?.images.removeAll(where: { $0.id == selectedImageId })
-                collectionStore.collections[clCoordinator.collectionId]?.numFlicks -= 1
-                collectionImageStore.images.removeValue(forKey: selectedImageId)
-
-                trigger(.refreshCollectionCells, object: [clCoordinator.collectionId])
-            } catch {
-                presentToast(Toasts.somethingWentWrong)
-            }
+            await CollectionImageSaveHelpers.deleteCollectionItem(
+                imageId: selectedImageId,
+                collectionId: clCoordinator.collectionId,
+                collectionStore: collectionStore,
+                collectionImageStore: collectionImageStore,
+                presentToast: presentToast,
+                onSuccess: {
+                    closeImage()
+                    imagesPgVM.items.removeAll(where: { $0.id == selectedImageId })
+                }
+            )
         }
     }
     

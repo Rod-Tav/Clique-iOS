@@ -427,56 +427,7 @@ struct FlicksFeedView: View {
                                     if currentImage.isLivePhoto {
                                         // Save Live Photo with metadata injection (falls back to video if metadata fails)
                                         Button {
-                                            guard !isSavingLivePhoto else { return }
-
-                                            Task {
-                                                guard let imageUrl = currentImage.imageUrl?.highQualityUrl,
-                                                      let videoUrl = currentImage.videoUrls?.highQualityUrl else { return }
-
-                                                let date = currentImage.date
-                                                var timezoneOffset = currentImage.cachedTimezoneOffset
-
-                                                // Check store cache (timezone may have been extracted during display)
-                                                if timezoneOffset == nil {
-                                                    timezoneOffset = collectionImageStore.getCachedTimezoneOffset(for: currentImage.id)
-                                                    print("📅 [SAVE] Checked store cache: \(timezoneOffset ?? "nil")")
-                                                }
-
-                                                // For old photos without cached timezone, try to extract from video metadata
-                                                if timezoneOffset == nil, let videoURL = URL(string: videoUrl) {
-                                                    timezoneOffset = await VideoMetadataHelper.extractTimezoneOffset(from: videoURL)
-                                                    print("📅 [SAVE-FALLBACK] Extracted timezone from video: \(timezoneOffset ?? "nil")")
-                                                }
-
-                                                isSavingLivePhoto = true
-
-                                                let saver = LivePhotoSaver()
-                                                let success = await saver.saveLivePhoto(
-                                                    imageUrl: imageUrl,
-                                                    videoUrl: videoUrl,
-                                                    date: date,
-                                                    timezoneOffset: timezoneOffset
-                                                ) { progress in
-                                                    switch progress {
-                                                    case .downloading:
-                                                        presentToast(Toasts.savingLivePhoto)
-                                                    case .processing, .saving:
-                                                        // Don't show additional toasts, initial toast still showing
-                                                        break
-                                                    case .completed:
-                                                        presentToast(Toasts.savedLivePhoto)
-                                                        isSavingLivePhoto = false
-                                                    case .failed:
-                                                        // Fallback already happened, show video saved toast
-                                                        presentToast(Toasts.savedVideo)
-                                                        isSavingLivePhoto = false
-                                                    }
-                                                }
-
-                                                if !success && !isSavingLivePhoto {
-                                                    presentToast(Toasts.somethingWentWrong)
-                                                }
-                                            }
+                                            handleSaveLivePhoto()
                                         } label: {
                                             HStack {
                                                 Text(isSavingLivePhoto ? "Saving..." : "Save Live Photo")
@@ -493,26 +444,7 @@ struct FlicksFeedView: View {
                                     } else if currentImage.isVideo {
                                         // Save Video
                                         Button {
-                                            Task {
-                                                guard let videoUrl = currentImage.videoUrls?.highQualityUrl else { return }
-
-                                                let date = currentImage.date
-                                                let timezoneOffset = currentImage.cachedTimezoneOffset
-
-                                                do {
-                                                    // Download video
-                                                    let videoLocalUrl = try await VideoCache.shared.getVideo(from: URL(string: videoUrl)!)
-
-                                                    // Save video
-                                                    let imageSaver = ImageSaver()
-                                                    imageSaver.writeVideoToPhotoAlbum(videoUrl: videoLocalUrl, date: date, timezoneOffset: timezoneOffset) { success in
-                                                        presentToast(success ? Toasts.savedVideo : Toasts.somethingWentWrong)
-                                                    }
-                                                } catch {
-                                                    print("❌ Failed to save video: \(error)")
-                                                    presentToast(Toasts.somethingWentWrong)
-                                                }
-                                            }
+                                            handleSaveVideo()
                                         } label: {
                                             Text("Save Video")
                                             Image("download")
@@ -521,14 +453,7 @@ struct FlicksFeedView: View {
                                     } else {
                                         // Save static image
                                         Button {
-                                            Task {
-                                                guard let imageUrl = currentImage.imageUrl, let url = imageUrl.highQualityUrl, let loadedImage = await fetchImageWithKingfisher(from: url) else { return }
-
-                                                let imageSaver = ImageSaver()
-                                                imageSaver.writeToPhotoAlbum(image: loadedImage, date: currentImage.date, timezoneOffset: currentImage.cachedTimezoneOffset) { success in
-                                                    presentToast(success ? Toasts.savedImage : Toasts.somethingWentWrong)
-                                                }
-                                            }
+                                            handleSaveImage()
                                         } label: {
                                             Text("Save Image")
                                             Image("download")
@@ -558,22 +483,7 @@ struct FlicksFeedView: View {
                                 title: Text("Are you sure you want to delete this flick?"),
                                 message: Text("This action cannot be undone."),
                                 primaryButton: .destructive(Text("Delete")) {
-                                    guard let currentFlickId, let currentCollection else { return }
-                                    
-                                    Task {
-                                        do {
-                                            try await CollectionService.deleteCollectionItem(.init(path: .init(collectionItemId: currentFlickId)))
-                                            
-                                            viewModel.items.removeAll(where: { $0.id == currentFlickId })
-                                            collectionStore.collections[currentCollection.id]?.images.removeAll(where: { $0.id == currentFlickId })
-                                            collectionStore.collections[currentCollection.id]?.numFlicks -= 1
-                                            collectionImageStore.images.removeValue(forKey: currentFlickId)
-                                            
-                                            trigger(.refreshCollectionCells, object: [currentCollection.id])
-                                        } catch {
-                                            presentToast(Toasts.somethingWentWrong)
-                                        }
-                                    }
+                                    handleDeleteFlick()
                                 },
                                 secondaryButton: .cancel()
                             )
@@ -736,6 +646,62 @@ struct FlicksFeedView: View {
             } catch {
                 presentToast(Toasts.somethingWentWrong)
             }
+        }
+    }
+
+    /// Handles saving a Live Photo with metadata injection
+    private func handleSaveLivePhoto() {
+        guard !isSavingLivePhoto, let currentImage else { return }
+
+        Task {
+            await CollectionImageSaveHelpers.saveLivePhoto(
+                image: currentImage,
+                collectionImageStore: collectionImageStore,
+                isSavingLivePhoto: &isSavingLivePhoto,
+                presentToast: presentToast
+            )
+        }
+    }
+
+    /// Handles saving a standalone video
+    private func handleSaveVideo() {
+        guard let currentImage else { return }
+
+        Task {
+            await CollectionImageSaveHelpers.saveVideo(
+                image: currentImage,
+                presentToast: presentToast
+            )
+        }
+    }
+
+    /// Handles saving a static image
+    private func handleSaveImage() {
+        guard let currentImage else { return }
+
+        Task {
+            await CollectionImageSaveHelpers.saveImage(
+                image: currentImage,
+                presentToast: presentToast
+            )
+        }
+    }
+
+    /// Handles deleting the current flick
+    private func handleDeleteFlick() {
+        guard let currentFlickId, let currentCollection else { return }
+
+        Task {
+            await CollectionImageSaveHelpers.deleteCollectionItem(
+                imageId: currentFlickId,
+                collectionId: currentCollection.id,
+                collectionStore: collectionStore,
+                collectionImageStore: collectionImageStore,
+                presentToast: presentToast,
+                onSuccess: {
+                    viewModel.items.removeAll(where: { $0.id == currentFlickId })
+                }
+            )
         }
     }
     
