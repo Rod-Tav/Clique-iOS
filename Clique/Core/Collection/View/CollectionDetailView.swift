@@ -224,62 +224,7 @@ extension CollectionDetailView {
                             if selectedImage.isLivePhoto {
                                 // Save Live Photo with metadata injection (falls back to video if metadata fails)
                                 Button {
-                                    guard !isSavingLivePhoto else { return }
-
-                                    Task {
-                                        guard let imageUrl = selectedImage.imageUrl?.highQualityUrl,
-                                              let videoUrl = selectedImage.videoUrls?.highQualityUrl else { return }
-
-                                        let date = selectedImage.date
-                                        var timezoneOffset = selectedImage.cachedTimezoneOffset
-
-                                        // Check store cache (timezone may have been extracted during display)
-                                        if timezoneOffset == nil {
-                                            timezoneOffset = collectionImageStore.getCachedTimezoneOffset(for: selectedImage.id)
-                                            print("📅 [SAVE] Checked store cache: \(timezoneOffset ?? "nil")")
-                                        }
-
-                                        // For old photos without cached timezone, try to extract from video metadata
-                                        if timezoneOffset == nil, let videoURL = URL(string: videoUrl) {
-                                            timezoneOffset = await VideoMetadataHelper.extractTimezoneOffset(from: videoURL)
-                                            print("📅 [SAVE-FALLBACK] Extracted timezone from video: \(timezoneOffset ?? "nil")")
-                                        }
-
-                                        if timezoneOffset == nil {
-                                            print("⚠️ [SAVE] No timezone information available for this photo")
-                                            print("   This is an old photo uploaded before timezone preservation was implemented")
-                                            print("   It will be saved in the device's current timezone")
-                                        }
-
-                                        isSavingLivePhoto = true
-
-                                        let saver = LivePhotoSaver()
-                                        let success = await saver.saveLivePhoto(
-                                            imageUrl: imageUrl,
-                                            videoUrl: videoUrl,
-                                            date: date,
-                                            timezoneOffset: timezoneOffset
-                                        ) { progress in
-                                            switch progress {
-                                            case .downloading:
-                                                presentToast(Toasts.savingLivePhoto)
-                                            case .processing, .saving:
-                                                // Don't show additional toasts, initial toast still showing
-                                                break
-                                            case .completed:
-                                                presentToast(Toasts.savedLivePhoto)
-                                                isSavingLivePhoto = false
-                                            case .failed:
-                                                // Fallback already happened, show video saved toast
-                                                presentToast(Toasts.savedVideo)
-                                                isSavingLivePhoto = false
-                                            }
-                                        }
-
-                                        if !success && !isSavingLivePhoto {
-                                            presentToast(Toasts.somethingWentWrong)
-                                        }
-                                    }
+                                    handleSaveLivePhoto()
                                 } label: {
                                     HStack {
                                         Text(isSavingLivePhoto ? "Saving..." : "Save Live Photo")
@@ -296,26 +241,7 @@ extension CollectionDetailView {
                             } else if selectedImage.isVideo {
                                 // Save Video
                                 Button {
-                                    Task {
-                                        guard let videoUrl = selectedImage.videoUrls?.highQualityUrl else { return }
-
-                                        let date = selectedImage.date
-                                        let timezoneOffset = selectedImage.cachedTimezoneOffset
-
-                                        do {
-                                            // Download video
-                                            let videoLocalUrl = try await VideoCache.shared.getVideo(from: URL(string: videoUrl)!)
-
-                                            // Save video
-                                            let imageSaver = ImageSaver()
-                                            imageSaver.writeVideoToPhotoAlbum(videoUrl: videoLocalUrl, date: date, timezoneOffset: timezoneOffset) { success in
-                                                presentToast(success ? Toasts.savedVideo : Toasts.somethingWentWrong)
-                                            }
-                                        } catch {
-                                            print("❌ Failed to save video: \(error)")
-                                            presentToast(Toasts.somethingWentWrong)
-                                        }
-                                    }
+                                    handleSaveVideo()
                                 } label: {
                                     Text("Save Video")
                                     Image("download")
@@ -324,16 +250,7 @@ extension CollectionDetailView {
                             } else {
                                 // Save static image
                                 Button {
-                                    if let url = selectedImage.imageUrl {
-                                        Task {
-                                            guard let url = url.highQualityUrl, let loadedImage = await fetchImageWithKingfisher(from: url) else { return }
-
-                                            let imageSaver = ImageSaver()
-                                            imageSaver.writeToPhotoAlbum(image: loadedImage, date: selectedImage.date, timezoneOffset: selectedImage.cachedTimezoneOffset) { success in
-                                                presentToast(success ? Toasts.savedImage : Toasts.somethingWentWrong)
-                                            }
-                                        }
-                                    }
+                                    handleSaveImage()
                                 } label: {
                                     Text("Save Image")
                                     Image("download")
@@ -358,24 +275,7 @@ extension CollectionDetailView {
                         title: Text("Are you sure you want to delete this flick?"),
                         message: Text("This action cannot be undone."),
                         primaryButton: .destructive(Text("Delete")) {
-                            guard let selectedImageId else { return }
-                            
-                            Task {
-                                do {
-                                    try await CollectionService.deleteCollectionItem(.init(path: .init(collectionItemId: selectedImageId)))
-                                    
-                                    closeImage()
-                                    
-                                    imagesPgVM.items.removeAll(where: { $0.id == selectedImageId })
-                                    collectionStore.collections[clCoordinator.collectionId]?.images.removeAll(where: { $0.id == selectedImageId })
-                                    collectionStore.collections[clCoordinator.collectionId]?.numFlicks -= 1
-                                    collectionImageStore.images.removeValue(forKey: selectedImageId)
-                                    
-                                    trigger(.refreshCollectionCells, object: [clCoordinator.collectionId])
-                                } catch {
-                                    presentToast(Toasts.somethingWentWrong)
-                                }
-                            }
+                            handleDeleteFlick()
                         },
                         secondaryButton: .cancel()
                     )
@@ -897,6 +797,128 @@ extension CollectionDetailView {
         if let selectedImage {
             do {
                 try handleCollectionImageLikeTapped(image: selectedImage, collectionImageStore)
+            } catch {
+                presentToast(Toasts.somethingWentWrong)
+            }
+        }
+    }
+
+    /// Handles saving a Live Photo with metadata injection
+    private func handleSaveLivePhoto() {
+        guard !isSavingLivePhoto, let selectedImage else { return }
+
+        Task {
+            guard let imageUrl = selectedImage.imageUrl?.highQualityUrl,
+                  let videoUrl = selectedImage.videoUrls?.highQualityUrl else { return }
+
+            let date = selectedImage.date
+            var timezoneOffset = selectedImage.cachedTimezoneOffset
+
+            // Check store cache (timezone may have been extracted during display)
+            if timezoneOffset == nil {
+                timezoneOffset = collectionImageStore.getCachedTimezoneOffset(for: selectedImage.id)
+                print("📅 [SAVE] Checked store cache: \(timezoneOffset ?? "nil")")
+            }
+
+            // For old photos without cached timezone, try to extract from video metadata
+            if timezoneOffset == nil, let videoURL = URL(string: videoUrl) {
+                timezoneOffset = await VideoMetadataHelper.extractTimezoneOffset(from: videoURL)
+                print("📅 [SAVE-FALLBACK] Extracted timezone from video: \(timezoneOffset ?? "nil")")
+            }
+
+            if timezoneOffset == nil {
+                print("⚠️ [SAVE] No timezone information available for this photo")
+                print("   This is an old photo uploaded before timezone preservation was implemented")
+                print("   It will be saved in the device's current timezone")
+            }
+
+            isSavingLivePhoto = true
+
+            let saver = LivePhotoSaver()
+            let success = await saver.saveLivePhoto(
+                imageUrl: imageUrl,
+                videoUrl: videoUrl,
+                date: date,
+                timezoneOffset: timezoneOffset
+            ) { progress in
+                switch progress {
+                case .downloading:
+                    presentToast(Toasts.savingLivePhoto)
+                case .processing, .saving:
+                    // Don't show additional toasts, initial toast still showing
+                    break
+                case .completed:
+                    presentToast(Toasts.savedLivePhoto)
+                    isSavingLivePhoto = false
+                case .failed:
+                    // Fallback already happened, show video saved toast
+                    presentToast(Toasts.savedVideo)
+                    isSavingLivePhoto = false
+                }
+            }
+
+            if !success && !isSavingLivePhoto {
+                presentToast(Toasts.somethingWentWrong)
+            }
+        }
+    }
+
+    /// Handles saving a standalone video
+    private func handleSaveVideo() {
+        guard let selectedImage else { return }
+
+        Task {
+            guard let videoUrl = selectedImage.videoUrls?.highQualityUrl else { return }
+
+            let date = selectedImage.date
+            let timezoneOffset = selectedImage.cachedTimezoneOffset
+
+            do {
+                // Download video
+                let videoLocalUrl = try await VideoCache.shared.getVideo(from: URL(string: videoUrl)!)
+
+                // Save video
+                let imageSaver = ImageSaver()
+                imageSaver.writeVideoToPhotoAlbum(videoUrl: videoLocalUrl, date: date, timezoneOffset: timezoneOffset) { success in
+                    presentToast(success ? Toasts.savedVideo : Toasts.somethingWentWrong)
+                }
+            } catch {
+                print("❌ Failed to save video: \(error)")
+                presentToast(Toasts.somethingWentWrong)
+            }
+        }
+    }
+
+    /// Handles saving a static image
+    private func handleSaveImage() {
+        guard let selectedImage, let url = selectedImage.imageUrl else { return }
+
+        Task {
+            guard let url = url.highQualityUrl, let loadedImage = await fetchImageWithKingfisher(from: url) else { return }
+
+            let imageSaver = ImageSaver()
+            imageSaver.writeToPhotoAlbum(image: loadedImage, date: selectedImage.date, timezoneOffset: selectedImage.cachedTimezoneOffset) { success in
+                presentToast(success ? Toasts.savedImage : Toasts.somethingWentWrong)
+            }
+        }
+    }
+
+    /// Handles deleting the current flick
+    private func handleDeleteFlick() {
+        guard let selectedImageId else { return }
+
+        Task {
+            do {
+                try await CollectionService.deleteCollectionItem(.init(path: .init(collectionItemId: selectedImageId)))
+
+                closeImage()
+
+                imagesPgVM.items.removeAll(where: { $0.id == selectedImageId })
+                collectionStore.collections[clCoordinator.collectionId]?.images.removeAll(where: { $0.id == selectedImageId })
+                collectionStore.collections[clCoordinator.collectionId]?.numFlicks -= 1
+                collectionImageStore.images.removeValue(forKey: selectedImageId)
+
+                trigger(.refreshCollectionCells, object: [clCoordinator.collectionId])
             } catch {
                 presentToast(Toasts.somethingWentWrong)
             }

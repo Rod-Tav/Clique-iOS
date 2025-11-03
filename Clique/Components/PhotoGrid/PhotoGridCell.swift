@@ -40,11 +40,7 @@ struct PhotoGridCell: View {
                 }
 
                 // Media type badges
-                if asset.isLivePhoto {
-                    livePhotoBadge
-                } else if asset.isVideo {
-                    videoBadge
-                }
+                MediaTypeBadge(asset: asset, style: .grid)
 
                 if isSelected && !isBeingRemoved {
                     selectionOverlay
@@ -123,39 +119,4 @@ struct PhotoGridCell: View {
         .animation(.snappy(duration: 0.25, extraBounce: 0), value: isBeingRemoved)
     }
 
-    /// Live Photo badge indicator (bottom-left corner)
-    private var livePhotoBadge: some View {
-        VStack {
-            HStack {
-                Image(systemName: "livephoto")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
-                    .padding(6)
-            }
-            .maxWidth(.leading)
-        }
-        .frameBottom()
-    }
-
-    /// Video badge indicator (bottom-right corner with duration)
-    private var videoBadge: some View {
-        VStack {
-            HStack(spacing: 4) {
-                Image(systemName: "play.fill")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.white)
-
-                if let duration = asset.formattedDuration {
-                    Text(duration)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.white)
-                }
-            }
-            .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
-            .padding(6)
-            .maxWidth(.trailing)
-        }
-        .frameBottom()
-    }
 }

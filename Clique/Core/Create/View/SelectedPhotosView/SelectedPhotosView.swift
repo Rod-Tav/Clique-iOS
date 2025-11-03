@@ -342,11 +342,8 @@ struct CarouselThumbnail: View {
                 }
 
                 // Media type badges
-                if asset.isVideo {
-                    videoBadge
-                } else if asset.isLivePhoto {
-                    livePhotoBadge
-                }
+                MediaTypeBadge(asset: asset, style: .carousel)
+                    .frame(width: 60, height: 60)
 
                 if isSelected {
                     RoundedRectangle(cornerRadius: 8)
@@ -368,43 +365,6 @@ struct CarouselThumbnail: View {
         .buttonStyle(.plain)
     }
 
-    /// Video badge indicator (bottom-right corner with duration)
-    private var videoBadge: some View {
-        VStack {
-            HStack(spacing: 2) {
-                Image(systemName: "play.fill")
-                    .font(.system(size: 6, weight: .semibold))
-                    .foregroundStyle(.white)
-
-                if let duration = asset.formattedDuration {
-                    Text(duration)
-                        .font(.system(size: 8, weight: .semibold))
-                        .foregroundStyle(.white)
-                }
-            }
-            .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
-            .padding(3)
-            .maxWidth(.trailing)
-        }
-        .frameBottom()
-        .frame(width: 60, height: 60)
-    }
-
-    /// Live Photo badge indicator (bottom-left corner)
-    private var livePhotoBadge: some View {
-        VStack {
-            HStack {
-                Image(systemName: "livephoto")
-                    .font(.system(size: 8, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
-                    .padding(3)
-            }
-            .maxWidth(.leading)
-        }
-        .frameBottom()
-        .frame(width: 60, height: 60)
-    }
 }
 
 struct PhotoGalleryItem: View {
