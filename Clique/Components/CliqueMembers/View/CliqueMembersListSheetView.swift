@@ -74,7 +74,7 @@ struct CliqueMembersListSheetView: View {
                         dismiss()
                         tabViewCoordinator.navigate(to: clique)
                     } label: {
-                        CliquePill(cid, type: .feedCell)
+                        CliquePill(cid: cid, type: .feedCell)
                     }.buttonStyle(.noHighlight)
                 } else {
                     Text("Members")

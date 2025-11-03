@@ -77,7 +77,7 @@ struct BackButton: View {
     }
     
     private var label: some View {
-        IconImage("arrow-left", color: color, size: size)
+        IconImage(name: "arrow-left", color: color, size: size)
     }
 }
 
@@ -94,8 +94,8 @@ private extension BackButton {
 struct EllipsisImage: View {
     let color: Color
     let size: CGFloat
-    
+
     var body: some View {
-        IconImage("ellipsis", color: color, size: size)
+        IconImage(name: "ellipsis", color: color, size: size)
     }
 }

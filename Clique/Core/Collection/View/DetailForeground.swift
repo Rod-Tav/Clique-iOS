@@ -106,7 +106,7 @@
 //                                .resizable()
 //                                .aspectRatio(contentMode: .fill)
 //                                .frame(width: selected ? 56 : 35, height: selected ? 68 : 52)
-//                                .clipShape(RoundedRectangle(cornerRadius: 8))
+//                                .roundCorners(8)
 //                                .animation(.snappy, value: selected)
 //                            //                                .scaleEffect(0.97)
 ////                                .clipped()

@@ -133,10 +133,11 @@ extension CollectionPhotosPicker {
         DispatchQueue.main.async {
             self.isLoadingPhotos = true
         }
-        
+
         let fetchOptions = PHFetchOptions()
         fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
-        let fetchResult = PHAsset.fetchAssets(with: .image, options: fetchOptions)
+        // Fetch all media types (photos, Live Photos, and videos)
+        let fetchResult = PHAsset.fetchAssets(with: fetchOptions)
         
         var assets: [PHAsset] = []
         fetchResult.enumerateObjects { asset, _, _ in

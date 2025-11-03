@@ -33,7 +33,7 @@ struct UserFeedHeader: View {
                     
                     VStack(alignment: .leading, spacing: 0) {
                         if visibility == .priv {
-                            VisibilityPill(visibility)
+                            VisibilityPill(visibility: visibility)
                         }
                         
                         HStack(spacing: 4) {

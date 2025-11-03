@@ -37,6 +37,9 @@ struct PhotoGridIOS18: View {
     @State private var touchLocation: CGPoint?
     @State internal var currentTouchLocation: CGPoint?
     @State internal var currentScrollDirection: ScrollDirection = .none
+
+    // iOS 26: Track initial drag position to distinguish tap vs drag
+    @State private var initialDragLocation: CGPoint?
     
     var body: some View {
         ScrollView {
@@ -45,6 +48,8 @@ struct PhotoGridIOS18: View {
         .overlay(alignment: .top) { scrollDetectionRegion(.top) }
         .overlay(alignment: .bottom) { scrollDetectionRegion(.bottom) }
         .scrollPosition($localScrollPosition)
+        // iOS 26: Disable scrolling only when actively dragging over cells
+        .scrollDisabled(dragSelectionHandler.isDragSelectionActive)
         .onScrollGeometryChange(for: CGFloat.self, of: {
             $0.contentOffset.y + $0.contentInsets.top
         }, action: { oldValue, newValue in
@@ -61,27 +66,59 @@ struct PhotoGridIOS18: View {
         .background(
             Color.clear
                 .ignoresSafeArea()
-                .contentShape(Rectangle())
+                .contentShape(.rect)
         )
+        // Gesture handling for both iOS 18 and iOS 26
         .simultaneousGesture(
             DragGesture(minimumDistance: 0, coordinateSpace: .global)
                 .onChanged { value in
                     let location = value.location
                     touchLocation = location
                     currentTouchLocation = location
+
+                    // iOS 26: Handle drag selection with horizontal bias
+                    if #available(iOS 26, *) {
+                        if initialDragLocation == nil {
+                            initialDragLocation = location
+                        }
+
+                        // Calculate horizontal and vertical movement
+                        if let initial = initialDragLocation {
+                            let dx = abs(location.x - initial.x)
+                            let dy = abs(location.y - initial.y)
+
+                            // Only activate drag selection if:
+                            // 1. Movement is more horizontal than vertical
+                            // 2. Horizontal movement exceeds minimum threshold (10pt)
+                            if dx > dy && dx > 10 {
+                                handleIOS26DragSelection(at: location)
+                            }
+                        }
+                    }
+
                     checkAndHandleScrolling(at: location)
                 }
                 .onEnded { _ in
                     touchLocation = nil
                     currentTouchLocation = nil
+                    initialDragLocation = nil
+
+                    // iOS 26: Finalize selection
+                    if #available(iOS 26, *) {
+                        finalizeIOS26Selection()
+                    }
+
                     stopScrolling()
                 }
         )
-        .gesture(
-            PanGesture { gesture in
-                dragSelectionHandler.handlePanGesture(gesture, isDragSelectionEnabled: isDragSelectionEnabled)
-            }
-        )
+        // iOS 18: Use PanGesture for UIKit-based selection
+        .if(!.iOS26) { view in
+            view.gesture(
+                PanGesture { gesture in
+                    dragSelectionHandler.handlePanGesture(gesture, isDragSelectionEnabled: isDragSelectionEnabled)
+                }
+            )
+        }
     }
     
     /// Grid of photo cells with selection tracking
@@ -106,6 +143,81 @@ struct PhotoGridIOS18: View {
                 }
             }
         }
+    }
+
+    /// Finds asset at a given location
+    private func findAssetAtLocation(_ location: CGPoint) -> (index: Int, asset: PHAsset)? {
+        for (index, asset) in assets.enumerated() {
+            if let rect = dragSelectionHandler.assetLocations[asset], rect.contains(location) {
+                return (index, asset)
+            }
+        }
+        return nil
+    }
+
+    /// iOS 26: Handles drag selection with proper ScrollView coordination
+    internal func handleIOS26DragSelection(at location: CGPoint) {
+        // First check: did we START on a cell?
+        if dragSelectionHandler.dragSelectionProperties.startIndex == nil {
+            guard let initial = initialDragLocation,
+                  let (index, asset) = findAssetAtLocation(initial) else {
+                // Didn't start on a cell - don't activate drag selection
+                return
+            }
+
+            // Started on a cell - activate drag selection
+            dragSelectionHandler.isDragSelectionActive = true
+            dragSelectionHandler.dragSelectionProperties.startIndex = index
+            dragSelectionHandler.dragSelectionProperties.previousSelectedAssets = viewModel.selectedAssets
+            dragSelectionHandler.dragSelectionProperties.isDeletingSelection = viewModel.selectedAssets.contains(asset)
+        }
+
+        // Find current cell (if any)
+        guard let (index, _) = findAssetAtLocation(location) else {
+            // Not over a cell currently - keep current selection state
+            return
+        }
+
+        // Update current drag position
+        dragSelectionHandler.dragSelectionProperties.endIndex = index
+
+        // Update selection in real-time
+        if let start = dragSelectionHandler.dragSelectionProperties.startIndex,
+           let end = dragSelectionHandler.dragSelectionProperties.endIndex {
+            let range = start <= end ? start...end : end...start
+            let assetsInRange = range.compactMap { index in
+                index < assets.count ? assets[index] : nil
+            }
+
+            if dragSelectionHandler.dragSelectionProperties.isDeletingSelection {
+                // Deselection mode
+                let assetsToRemove = Set(assetsInRange).intersection(dragSelectionHandler.dragSelectionProperties.previousSelectedAssets)
+                dragSelectionHandler.dragSelectionProperties.toBeRemovedAssets = assetsToRemove
+                viewModel.selectedAssets = dragSelectionHandler.dragSelectionProperties.previousSelectedAssets.subtracting(assetsToRemove)
+            } else {
+                // Selection mode
+                viewModel.selectedAssets = dragSelectionHandler.dragSelectionProperties.previousSelectedAssets.union(Set(assetsInRange))
+                dragSelectionHandler.dragSelectionProperties.toBeRemovedAssets = []
+            }
+        }
+    }
+
+    /// iOS 26: Finalizes selection when drag ends
+    private func finalizeIOS26Selection() {
+        if dragSelectionHandler.isDragSelectionActive {
+            // Finalize any pending removals
+            if !dragSelectionHandler.dragSelectionProperties.toBeRemovedAssets.isEmpty {
+                viewModel.selectedAssets = viewModel.selectedAssets.subtracting(dragSelectionHandler.dragSelectionProperties.toBeRemovedAssets)
+            }
+        }
+
+        // Reset all state
+        dragSelectionHandler.isDragSelectionActive = false
+        dragSelectionHandler.dragSelectionProperties.startIndex = nil
+        dragSelectionHandler.dragSelectionProperties.endIndex = nil
+        dragSelectionHandler.dragSelectionProperties.previousSelectedAssets = []
+        dragSelectionHandler.dragSelectionProperties.isDeletingSelection = false
+        dragSelectionHandler.dragSelectionProperties.toBeRemovedAssets = []
     }
     
     /// Invisible regions at top/bottom that trigger auto-scrolling

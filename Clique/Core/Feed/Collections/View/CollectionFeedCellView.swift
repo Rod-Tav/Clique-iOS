@@ -32,13 +32,13 @@ struct CollectionFeedCellView: View {
     @State private var imagesPgVM: CollectionImagesPaginationViewModel
     
     @State private var scrollPosition: String?
-    
+
     @State private var showReportCover: Bool = false
     @State private var showCliqueMembers: Bool = false
     @State private var showDetailView: Bool = false
-    
+
     @State private var refreshTask: Task<Void, Never>?
-    
+
     let collectionId: String
     var author: User?
     var relevantUser: User?
@@ -145,13 +145,13 @@ extension CollectionFeedCellView {
                     )
                     
                     NavigationLink(value: clique) {
-                        CliquePill(clique.id, type: .feedCell)
+                        CliquePill(cid: clique.id, type: .feedCell)
                     }.noHighlight()
                 } else {
                     CliqueFeedHeader(
                         clique: clique,
                         visibility: collection.visibility,
-                        numFlicks: collection.numFlicks
+                        numFlicks: collection.displayFlickCount(currentUserId: userStore.currentUserId)
                     )
                     
                     if !cliqueMembersVM.firstXMembers.isEmpty {
@@ -180,7 +180,7 @@ extension CollectionFeedCellView {
                     .resizable()
                     .aspectRatio(1, contentMode: .fill)
                     .frame(UIScreen.width - 32)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .roundCorners(8)
                     .overlay {
                         if let clique = cliqueStore.cliques[collection.cliqueId], let relationship = clique.relationship, relationship.isInClique {
                             Text("Uploading flicks...")
@@ -189,8 +189,10 @@ extension CollectionFeedCellView {
                         }
                     }
                     .padding(.top, -16)
+                    .padding(.horizontal, 16)
             } else if imagesPgVM.items.isEmpty {
                 LoadingStateView()
+                    .padding(.horizontal, 16)
             } else {
                 // lazy hstack doesn't load images behind because of offset stuff
                 // adding content margins loads the second image behind but messes up when swiping
@@ -223,6 +225,7 @@ extension CollectionFeedCellView {
                     .scrollTargetBehavior(.viewAligned)
                     .scrollIndicators(.hidden)
                     .padding(.vertical, -32)
+                    .padding(.horizontal, 16)
                     // results in black screen idk man
 //                    .onChange(of: clCoordinator.selectedImageId) { _, newValue in
 //                        scrollPosition = newValue
@@ -238,8 +241,8 @@ extension CollectionFeedCellView {
                 if let selectedIndex = imagesPgVM.items.firstIndex(where: { $0.id == scrollPosition }),
                    abs(index - selectedIndex) <= 3
                 {
-                    CollectionPreviewSlideView(imageId: image.id, commentStore, userStore)
-                    
+                    CollectionPreviewSlideView(imageId: image.id, collectionId: collectionId, scrollPosition: scrollPosition, commentStore, userStore)
+
                 } else {
                     Color.clear
                         .frame(UIScreen.width - 32)
@@ -345,7 +348,7 @@ extension CollectionFeedCellView {
                 } label: {
                     HStack(spacing: 4) {
                         if collection.visibility == .priv {
-                            IconImage("lock", color: .theme.iconPrimary, size: 16)
+                            IconImage(name: "lock", color: .theme.iconPrimary, size: 16)
                         }
                         
                         Text(collection.name)
@@ -354,10 +357,10 @@ extension CollectionFeedCellView {
                             .minimumScaleFactor(0.5)
                             .lineLimit(1)
                             .textPrimary()
-                        
-                        IconImage("chevron-right", color: .theme.iconPrimary, size: 16)
-                        
-                        Text("• \(pluralizeWithCount(count: collection.numFlicks, singular: "flick"))")
+
+                        IconImage(name: "chevron-right", color: .theme.iconPrimary, size: 16)
+
+                        Text("• \(pluralizeWithCount(count: collection.displayFlickCount(currentUserId: userStore.currentUserId), singular: "flick"))")
                             .font(.footnote)
                             .textSecondary()
                         
@@ -432,7 +435,7 @@ extension CollectionFeedCellView {
                 showReportCover = true
             }
         } label: {
-            IconImage("ellipsis", color: Color.theme.iconSecondary, size: 20)
+            IconImage(name: "ellipsis", color: Color.theme.iconSecondary, size: 20)
         }
         .fullScreenCover(isPresented: $showReportCover) {
             ReportView(showReport: $showReportCover, objectId: collectionId, reportType: .collection)
@@ -459,20 +462,20 @@ extension CollectionFeedCellView {
     private func refreshAsync() async {
         // Check if already refreshing
         guard !imagesPgVM.isRefreshing else { return }
-        
+
         do {
             await CacheControl.shared.refreshCollection(collectionId)
-          
+
             var updatedCollection = try await CollectionService.getCollectionById(.init(path: .init(collectionDataId: collectionId), query: .init(page: 0, size: 10, sort: mapFromSortOption(.likesDesc))))
-            
+
             if imagesPgVM.sortOption == .likesDesc {
                 updatedCollection.mostLikedImage = updatedCollection.images.first?.id
             }
-            
+
             await updateImages(.refresh)
-            
+
             collectionStore.updateCollection(updatedCollection, forceUpdateURL: true, collectionImageStore)
-            
+
             // TODO: refresh comments (is it done somewhere else?)
 //                await updateComments(.refresh)
         } catch {

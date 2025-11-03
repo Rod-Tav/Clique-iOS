@@ -19,7 +19,7 @@ struct SearchBar: View {
     var body: some View {
         HStack(spacing: 16) {
             HStack(spacing: 8) {
-                IconImage("search", color: .theme.textSecondary, size: 20)
+                IconImage(name: "search", color: .theme.textSecondary, size: 20)
                 
                 TextField(
                     "",
@@ -35,7 +35,7 @@ struct SearchBar: View {
                 }
                 
                 if isSearchFocused {
-                    IconImage("x-icon", color: .theme.iconPrimary, size: 16)
+                    IconImage(name: "x-icon", color: .theme.iconPrimary, size: 16)
                         .contentShape(.rect)
                         .onHighPriorityTap {
                             if searchText.isEmpty {
@@ -52,7 +52,7 @@ struct SearchBar: View {
             .roundCorners(8)
             
             if isSearchFocused {
-                TextButton(buttonText) {
+                TextButton(text: buttonText) {
                     searchText = ""
                     isSearchFocused = false
                     onCancel?()

@@ -38,6 +38,7 @@ struct CliqueButton: View {
     
     let text: String
     var textColor: Color?
+    var size: CGFloat = 16
     var fontWeight: (Font.Weight)?
     var buttonColor: Color?
     
@@ -55,7 +56,7 @@ struct CliqueButton: View {
                             .frame(16)
                     } else {
                         if let leadingIcon {
-                            IconImage(leadingIcon, color: leadingIconColor ?? textColor ?? type.textColor, size: 16)
+                            IconImage(name: leadingIcon, color: leadingIconColor ?? textColor ?? type.textColor, size: size)
                         }
                         
                         Text(text)

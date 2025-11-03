@@ -209,7 +209,7 @@ extension CollectionMainView {
                 }
             }
         } label: {
-            IconImage("sort", color: .theme.white, size: 24)
+            IconImage(name: "sort", color: .theme.white, size: 24)
                 .popoverTip(gallerySortTip)
                 .onTapGesture {
                     gallerySortTip.invalidate(reason: .actionPerformed)
@@ -351,8 +351,8 @@ extension CollectionMainView {
             VStack(spacing: 2) {
                 Text(collection.name)
                     .font(.callout.bold())
-                
-                Text("\(formatDateMMMMdd(collection.creation)) • \(formatNumber(collection.numFlicks)) Flicks")
+
+                Text("\(formatDateMMMMdd(collection.creation)) • \(formatNumber(collection.displayFlickCount(currentUserId: userStore.currentUserId))) Flicks")
                     .font(.caption)
             }
             .multilineTextAlignment(.center)
@@ -390,7 +390,7 @@ extension CollectionMainView {
                         if let clique {
                             NavigationLink(value: clique) {
                                 HStack(spacing: 4) {
-                                    IconImage("3-user", color: .theme.iconSecondary, size: 14)
+                                    IconImage(name: "3-user", color: .theme.iconSecondary, size: 14)
                                     
                                     Text(clique.name)
                                         .font(.caption.bold())
@@ -406,7 +406,7 @@ extension CollectionMainView {
                                 .kerning(0.072)
                             
                             if collection.visibility.isPrivate {
-                                IconImage("lock", color: .theme.iconPrimary, size: 16)
+                                IconImage(name: "lock", color: .theme.iconPrimary, size: 16)
                             }
                             
                             if let cid = clique?.id, isInClique(cid: cid, cliqueStore) {
@@ -425,14 +425,15 @@ extension CollectionMainView {
                         
                         HStack(spacing: 2) {
                             HStack(spacing: 4) {
-                                IconImage("calendar", color: Color.theme.iconSecondary, size: 16)
-                                
+                                IconImage(name: "calendar", color: Color.theme.iconSecondary, size: 16)
+
                                 Text(formatDateMMMMddYYYY(collection.creation))
                                     .font(.caption)
                                     .textSecondary()
                             }
-                            
-                            Text("• \(formatNumber(collection.numFlicks)) \(collection.numFlicks == 1 ? "Flick" : "Flicks")")
+
+                            let displayCount = collection.displayFlickCount(currentUserId: userStore.currentUserId)
+                            Text("• \(formatNumber(displayCount)) \(displayCount == 1 ? "Flick" : "Flicks")")
                                 .font(.caption)
                                 .textSecondary()
                         }
@@ -492,8 +493,16 @@ extension CollectionMainView {
     }
     
     @ViewBuilder private func ImageCell(_ image: CollectionImage) -> some View {
-        CollectionPreviewAsyncImage(urls: image.imageUrl, quality: .medium)
-            .overlayCollectionPreviewStats(likes: image.numLikes, comments: image.numComments, hasLiked: image.hasLiked)
+        CollectionPreviewAsyncImage(urls: image.imageUrl, quality: .low, isLivePhoto: image.isLivePhoto, isVideo: image.isVideo, uploadStatus: image.uploadStatus, itemId: image.id, onRefresh: refreshAll)
+            .overlayCollectionPreviewStats(
+                likes: image.numLikes,
+                comments: image.numComments,
+                hasLiked: image.hasLiked,
+                isLivePhoto: image.isLivePhoto,
+                isVideo: image.isVideo,
+                videoDuration: image.videoDuration,
+                videoUrl: image.videoUrls?.videoUrl(for: .medium)
+            )
             .id(image.id)
             .heroSource(urls: image.imageUrl) {
                 tabCoordinator.showTabBar = false

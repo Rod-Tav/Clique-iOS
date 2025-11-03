@@ -97,7 +97,7 @@ struct EditCliqueHeader: View {
             if let pfp = selectedPfpUIImage {
                 CliquePfpView(pfp: pfp, type: .cliqueProfile)
             } else if let ogCliquePic {
-                CliquePfpAsyncView(pfp: ogCliquePic, type: .cliqueProfile, quality: .medium)
+                CliquePfpAsyncView(pfp: ogCliquePic, type: .cliqueProfile, quality: .low)
             } else {
                 CliquePfpView(pfp: "default-gradient", type: .cliqueProfile)
             }
@@ -107,7 +107,7 @@ struct EditCliqueHeader: View {
                 .fill(Color.theme.surfacesPrimary)
                 .frame(20)
                 .overlay {
-                    IconImage("plus", color: .theme.iconSecondary, size: 12)
+                    IconImage(name: "plus", color: .theme.iconSecondary, size: 12)
                 }
                 .rotationEffect(.degrees(selectedPfpUIImage == nil ? 0 : 45))
                 .offset(x: 5, y: -5)
@@ -177,7 +177,7 @@ struct EditCliqueHeader: View {
     @ViewBuilder private func CliqueLeaderAndCreation() -> some View {
         HStack(spacing: 12) {
             HStack(spacing: 2) {
-                IconImage("crown-leader", color: Color.theme.iconSecondary, size: 14)
+                IconImage(name: "crown-leader", color: Color.theme.iconSecondary, size: 14)
                 
                 if let leader {
                     Text("@\(leader.username)" )
@@ -187,7 +187,7 @@ struct EditCliqueHeader: View {
             }
             
             HStack(spacing: 4) {
-                IconImage("calendar", color: Color.theme.iconSecondary, size: 14)
+                IconImage(name: "calendar", color: Color.theme.iconSecondary, size: 14)
                 
                 Text("est. \(formatDateMMMMyyyy(Date()))")
                     .font(.caption)

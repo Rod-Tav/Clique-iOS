@@ -15,7 +15,7 @@ struct SomethingWentWrong: View {
             Button {
                 Task { await action?() }
             } label: {
-                IconImage("refresh", color: .theme.iconPrimary, size: 32)
+                IconImage(name: "refresh", color: .theme.iconPrimary, size: 32)
             }
             
             Text("Something went wrong. Tap to refresh.")

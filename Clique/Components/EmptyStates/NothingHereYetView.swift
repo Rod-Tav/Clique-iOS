@@ -10,7 +10,7 @@ import SwiftUI
 struct NothingHereYetView: View {
     var body: some View {
         VStack(spacing: 8) {
-            IconImage("search", color: .theme.iconPrimary, size: 32)
+            IconImage(name: "search", color: .theme.iconPrimary, size: 32)
             
             Text("Nothing here yet.")
                 .font(.footnote)
@@ -28,7 +28,7 @@ struct NothingHereYetAddFlicksView: View {
     var body: some View {
         VStack(spacing: 16) {
             VStack(spacing: 8) {
-                IconImage("search", color: .theme.iconPrimary, size: 32)
+                IconImage(name: "search", color: .theme.iconPrimary, size: 32)
                 
                 Text("Nothing here yet.\nWhy don’t you add some flicks?")
                     .font(.footnote)

@@ -14,12 +14,13 @@ struct ZoomGestureHandler: UIViewRepresentable {
     @Binding var dragOffset: CGSize
     @Binding var zoomAnchor: UnitPoint
     @Binding var isZooming: Bool
-    
+
     let maxScale: CGFloat
     let minScale: CGFloat
+    let isInteractive: Bool
     let constrainOffset: (CGSize) -> CGSize
     let snapBackIfNeeded: () -> Void
-    
+
     init(
         scale: Binding<CGFloat>,
         dragOffset: Binding<CGSize>,
@@ -27,6 +28,7 @@ struct ZoomGestureHandler: UIViewRepresentable {
         isZooming: Binding<Bool>,
         maxScale: CGFloat = 5.0,
         minScale: CGFloat = 1.0,
+        isInteractive: Bool = true,
         constrainOffset: @escaping (CGSize) -> CGSize = { $0 },
         snapBackIfNeeded: @escaping () -> Void = {}
     ) {
@@ -36,6 +38,7 @@ struct ZoomGestureHandler: UIViewRepresentable {
         self._isZooming = isZooming
         self.maxScale = maxScale
         self.minScale = minScale
+        self.isInteractive = isInteractive
         self.constrainOffset = constrainOffset
         self.snapBackIfNeeded = snapBackIfNeeded
     }
@@ -43,20 +46,21 @@ struct ZoomGestureHandler: UIViewRepresentable {
     func makeUIView(context: Context) -> UIView {
         let view = UIView()
         view.backgroundColor = .clear
-        
+        view.isUserInteractionEnabled = isInteractive
+
         let pinchGesture = UIPinchGestureRecognizer(
             target: context.coordinator,
             action: #selector(Coordinator.handlePinch(_:))
         )
         pinchGesture.delegate = context.coordinator
-        
+
         let panGesture = UIPanGestureRecognizer(
             target: context.coordinator,
             action: #selector(Coordinator.handlePan(_:))
         )
         panGesture.minimumNumberOfTouches = 1
         panGesture.delegate = context.coordinator
-        
+
         view.addGestureRecognizer(pinchGesture)
         view.addGestureRecognizer(panGesture)
         return view

@@ -21,7 +21,7 @@ struct NotificationListCellView: View {
         HStack(spacing: 0) {
             NavigationLink(value: notification.user) {
                 ZStack(alignment: .bottomTrailing) {
-                    UserPfpAsyncView(pfp: notification.user.profilePic, size: UserListCellViewType.large.size, quality: .medium)
+                    UserPfpAsyncView(pfp: notification.user.profilePic, size: UserListCellViewType.large.size, quality: .low, context: .list)
                         .overlayTopLeftNotification(when: !(notification.viewed ?? false), size: 10)
                     
                     switch notification.type {
@@ -50,7 +50,11 @@ struct NotificationListCellView: View {
                         )
                         .offset(x: 2, y: 2)
                     default:
-                        IconImage(notification.type.notificationSymbol, color: notification.type.notificationSymbolColor, size: 12)
+                        IconImage(
+                            name: notification.type.notificationSymbol,
+                            color: notification.type.notificationSymbolColor,
+                            size: 12
+                        )
                             .background(
                                 Circle()
                                     .fill(Color.theme.surfacesPrimary)
@@ -285,6 +289,5 @@ struct NotificationListCellView: View {
 
 
 #Preview {
-    var mockNotification = UserNotification.MOCK_NOTIFICATIONS[6]
-    NotificationListCellView(notification: mockNotification)
+    NotificationListCellView(notification: UserNotification.MOCK_NOTIFICATIONS[6])
 }

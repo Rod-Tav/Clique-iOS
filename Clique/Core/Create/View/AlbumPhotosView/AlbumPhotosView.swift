@@ -70,7 +70,7 @@ struct AlbumPhotosView: View {
             leadingIcon: {
                 ZStack(alignment: .leading) {
                     if viewModel.selectedAssets.count > 0 {
-                        TrailingIcon()
+                        trailingIcon
                             .hidden()
                     }
                     
@@ -98,16 +98,14 @@ struct AlbumPhotosView: View {
                     }
                 }
             },
-            trailingIcon: {
-                TrailingIcon()
-            }
+            trailingIcon: { trailingIcon }
         )
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.horizontal, 24)
+        .padding(.vertical, 8)
         .primaryBackground()
     }
     
-    @ViewBuilder private func TrailingIcon() -> some View {
+    @ViewBuilder private var trailingIcon: some View {
         if viewModel.selectedAssets.isEmpty {
             // No selection - show nothing or spacer
             Spacer()

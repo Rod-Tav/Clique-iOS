@@ -77,7 +77,7 @@ struct EnterUsernameScreen_Signup: View {
 
                 if !viewModel.username.isEmpty, hasTriedUsername {
                     IconImage(
-                        isUsernameTaken ? "x-icon" : "check-circle-empty",
+                        name: isUsernameTaken ? "x-icon" : "check-circle-empty",
                         color: isUsernameTaken ? .theme.red : .theme.green, size: 20
                     )
                     .animation(.easeInOut, value: isUsernameTaken)
