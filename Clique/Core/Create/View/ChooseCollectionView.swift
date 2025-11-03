@@ -129,7 +129,7 @@ struct ChooseCollectionView: View {
                 }
                 
                 VStack(alignment: .leading, spacing: 4) {
-                    CliquePill(collection.cliqueId, type: .createCollections)
+                    CliquePill(cid: collection.cliqueId, type: .createCollections)
                     
                     Text(collection.name)
                         .font(.footnote.bold())
@@ -150,7 +150,7 @@ struct ChooseCollectionView: View {
     
     @ViewBuilder private func CollectionStat(icon: String, text: String) -> some View {
         HStack(spacing: 4) {
-            IconImage(icon, color: Color.theme.iconSecondary, size: 12)
+            IconImage(name: icon, color: Color.theme.iconSecondary, size: 12)
             
             Text(text)
                 .font(.caption2.bold())

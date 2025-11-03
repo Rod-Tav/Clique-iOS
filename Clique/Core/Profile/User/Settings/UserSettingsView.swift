@@ -314,7 +314,11 @@ extension UserSettingsView {
         Button(action: { action?() }) {
             HStack(spacing: 0) {
                 HStack(spacing: 8) {
-                    IconImage(icon, color: color, size: 20)
+                    IconImage(
+                        name: icon,
+                        color: color,
+                        size: 20
+                    )
 
                     Text(settingText)
                         .font(.callout)
@@ -338,7 +342,7 @@ extension UserSettingsView {
 // MARK: - Helpers
 extension UserSettingsView {
     @ViewBuilder private func TrailingIcon(_ name: String) -> some View {
-        IconImage(name, color: .theme.iconSecondary, size: 20)
+        IconImage(name: name, color: .theme.iconSecondary, size: 20)
     }
 }
 

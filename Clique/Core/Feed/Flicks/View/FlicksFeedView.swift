@@ -266,7 +266,7 @@ struct FlicksFeedView: View {
         TopAppBar(
             type: .medium,
             leadingIcon: { },
-            header: { HeaderTextStar("Flicks") },
+            header: { HeaderTextStar(title: "Flicks") },
             trailingIcon: {
                 HStack(spacing: 12) {
                     Menu {

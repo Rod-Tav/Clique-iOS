@@ -29,9 +29,9 @@ struct DateMediaTypeLabel: View {
     @Environment(CollectionImageStore.self) private var collectionImageStore
 
     let image: CollectionImage
-    let dateFormat: DateFormat = .full
-    let fontSize: FontSize = .caption
-    let textColor: Color = .white
+    var dateFormat: DateFormat = .full
+    var fontSize: FontSize = .caption
+    var textColor: Color = .white
 
     @State private var fetchedDuration: TimeInterval?
     @State private var timezoneOffset: String?

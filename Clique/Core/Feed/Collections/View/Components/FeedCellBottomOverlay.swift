@@ -176,7 +176,7 @@ struct FeedCellBottomOverlay: View {
             Button {
                 onTap()
             } label: {
-                IconImage(iconName, color: iconColor, size: iconSize)
+                IconImage(name: iconName, color: iconColor, size: iconSize)
             }.buttonStyle(.noHighlight)
             
             Text(formatNumber(count))

@@ -68,7 +68,11 @@ struct MyCollectionsView: View {
                                 viewType = .compactList
                             }
                         } label: {
-                            IconImage(viewType.icon, color: .theme.iconPrimary, size: 16)
+                            IconImage(
+                                name: viewType.icon,
+                                color: .theme.iconPrimary,
+                                size: 16
+                            )
                         }.noHighlight()
                     }
                     .padding(.top, 12)
@@ -247,7 +251,10 @@ extension MyCollectionsView {
                     }
                     
                     VStack(alignment: .leading, spacing: 4) {
-                        CliquePill(collection.cliqueId, type: .collectionPreview)
+                        CliquePill(
+                            cid: collection.cliqueId,
+                            type: .collectionPreview
+                        )
                         
                         Text(collection.name)
                             .lineLimit(1)

@@ -70,12 +70,15 @@ struct HomeFeedView: View {
         VStack(spacing: 0) {
             TopAppBar(
                 type: .medium,
-                leadingIcon: { },
-                header: { HeaderTextStar("Clique") },
+                leadingIcon: {
+                },
+                header: { HeaderTextStar(title: "Clique") },
                 trailingIcon: {
                     NavigationLink(value: "NotificationsCenter") {
                         IconImage(name: "inbox", color: .theme.iconPrimary, size: 24)
-                            .overlayTopRightNotification(when: tabViewCoordinator.hasNotification)
+                            .overlayTopRightNotification(
+                                when: tabViewCoordinator.hasNotification
+                            )
                     }
                 }
             )

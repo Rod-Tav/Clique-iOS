@@ -15,8 +15,8 @@ import SwiftUI
 /// - COMPLETED: No overlay shown
 struct UploadStatusOverlay: View {
     let status: UploadStatus?
-    let onRetry: (() -> Void)?
-    let onRefresh: (() -> Void)?
+    var onRetry: (() -> Void)?
+    var onRefresh: (() -> Void)?
 
     var body: some View {
         Group {

@@ -51,7 +51,7 @@ struct NewCollectionDetailsView: View {
             } label: {
                 Group {
                     if let cid = viewModel.newCollectionClique?.id {
-                        CliquePill(cid, type: .newCollection)
+                        CliquePill(cid: cid, type: .newCollection)
                     } else {
                         HStack(spacing: 8) {
                             IconImage(name: "plus", color: .theme.textSecondary, size: 16)
@@ -173,7 +173,7 @@ struct NewCollectionDetailsView: View {
             viewModel.newCollectionVisibility = visibility
         } label: {
             HStack(spacing: 8) {
-                IconImage(visibility.icon, color: isSelected ? .theme.textPrimary : .theme.textSecondary, size: 20)
+                IconImage(name: visibility.icon, color: isSelected ? .theme.textPrimary : .theme.textSecondary, size: 20)
                 
                 Text(visibility.title)
                     .font(.callout.weight(.semibold))

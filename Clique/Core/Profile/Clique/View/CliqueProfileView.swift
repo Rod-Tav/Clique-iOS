@@ -151,15 +151,24 @@ extension CliqueProfileView {
         if let clique {
             VStack(spacing: 0) {
                 ZStack(alignment: .bottom) {
-                    CollapsedBannerAsyncImage(banner: clique.cliqueBanner, quality: .high)
+                    CollapsedBannerAsyncImage(
+                        banner: clique.cliqueBanner,
+                        quality: .high
+                    )
                     
                     TopAppBar(
                         type: .small,
                         leadingIcon: {
-                            BackButton(color: .theme.white, size: 24)
+                            BackButton(
+                                color: .theme.white,
+                                size: 24
+                            )
                         },
                         header: {
-                            CliquePill(clique.id, type: .cliqueProfile)
+                            CliquePill(
+                                cid: clique.id,
+                                type: .cliqueProfile
+                            )
                         },
                         trailingIcon: {
                             EllipsisMenu()

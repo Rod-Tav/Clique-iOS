@@ -174,7 +174,7 @@ struct InboxView: View {
             LazyVStack(spacing: 16, content: invites)
             
             if !cliqueInvitesVM.done {
-                TextButton("See More") {
+                TextButton(text: "See More") {
                     Task { await updateCliqueInvites(.loadNextPage) }
                 }
             }

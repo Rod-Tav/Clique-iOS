@@ -504,7 +504,7 @@ struct PhotoGalleryItem: View {
             }
             .overlay(alignment: .topLeading) {
                 if let cid = viewModel.selectedCollectionClique?.id {
-                    CliquePill(cid, type: .newCollection)
+                    CliquePill(cid: cid, type: .newCollection)
                         .padding(16)
                 }
             }

@@ -145,7 +145,7 @@ extension CollectionFeedCellView {
                     )
                     
                     NavigationLink(value: clique) {
-                        CliquePill(clique.id, type: .feedCell)
+                        CliquePill(cid: clique.id, type: .feedCell)
                     }.noHighlight()
                 } else {
                     CliqueFeedHeader(

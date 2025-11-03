@@ -124,7 +124,10 @@ struct CollectionPreviewSlideView: View {
                 // Processing overlay for live photos/videos only (static images handle it internally)
                 if (collectionImage.isLivePhoto || collectionImage.isVideo) {
                     if collectionImage.uploadStatus == .PENDING, let onRefresh = onRefresh {
-                        UploadStatusOverlay(status: collectionImage.uploadStatus, onRefresh: onRefresh)
+                        UploadStatusOverlay(
+                            status: collectionImage.uploadStatus,
+                            onRefresh: onRefresh
+                        )
                     } else if collectionImage.uploadStatus == .FAILED {
                         UploadStatusOverlay(status: collectionImage.uploadStatus, onRefresh: onRefresh)
                     }

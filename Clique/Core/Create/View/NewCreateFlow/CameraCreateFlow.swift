@@ -235,7 +235,7 @@ struct CameraCreateFlow: View {
                     }
                     .overlay(alignment: .topLeading) {
                         if let cid = viewModel.selectedCollectionClique?.id {
-                            CliquePill(cid, type: .newCollection)
+                            CliquePill(cid: cid, type: .newCollection)
                                 .padding(16)
                         }
                     }
@@ -415,7 +415,7 @@ struct CameraCreateFlow: View {
             }
         } label: {
             IconImage(
-                model.flashMode == .off ? "no-flash" : "flash",
+                name: model.flashMode == .off ? "no-flash" : "flash",
                 color: model.flashMode == .auto ? .theme.gold : .theme.shadesWhite95,
                 size: 24
             )

@@ -92,7 +92,7 @@ struct ReviewPhotosView: View {
                 .frame(maxHeight: UIScreen.height * 0.5)
                 .overlay(alignment: .topLeading) {
                     if let cid = viewModel.selectedCollectionClique?.id {
-                        CliquePill(cid, type: .newCollection)
+                        CliquePill(cid: cid, type: .newCollection)
                             .padding(16)
                     }
                 }

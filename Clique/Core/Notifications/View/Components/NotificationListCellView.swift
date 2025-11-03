@@ -50,7 +50,11 @@ struct NotificationListCellView: View {
                         )
                         .offset(x: 2, y: 2)
                     default:
-                        IconImage(notification.type.notificationSymbol, color: notification.type.notificationSymbolColor, size: 12)
+                        IconImage(
+                            name: notification.type.notificationSymbol,
+                            color: notification.type.notificationSymbolColor,
+                            size: 12
+                        )
                             .background(
                                 Circle()
                                     .fill(Color.theme.surfacesPrimary)
