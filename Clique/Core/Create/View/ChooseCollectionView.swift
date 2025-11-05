@@ -117,9 +117,9 @@ struct ChooseCollectionView: View {
                     
                     Group {
                         if let coverPhoto = collection.coverPhoto {
-                            ProfileCollectionCoverPhotoAsyncImage(urls: coverPhoto, side: 64, quality: .medium)
+                            ProfileCollectionCoverPhotoAsyncImage(urls: coverPhoto, side: 64, quality: .low)
                         } else if let mostLikedImage = collection.mostLikedImage, let urls = collectionImageStore.images[mostLikedImage]?.imageUrl {
-                            ProfileCollectionCoverPhotoAsyncImage(urls: urls, side: 64, quality: .medium)
+                            ProfileCollectionCoverPhotoAsyncImage(urls: urls, side: 64, quality: .low)
                         } else {
                             ProfileCollectionPlaceholder(side: 64)
                         }
