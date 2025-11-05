@@ -20,11 +20,20 @@ struct InAppUploadActivityView: View {
     var retryAction: () -> Void
 
     @Environment(TabViewCoordinator.self) private var tabViewCoordinator
+    @Environment(CollectionStore.self) private var collectionStore
 
     // MARK: - Body
 
     var body: some View {
         VStack(spacing: 12) {
+            // Informational message
+            Text("You can leave the app - we'll continue uploading in the background")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+                .padding(.top, 4)
+
             // Show custom progress UI with Live Activity data
             if let activity = LiveActivityManager.shared.currentActivity {
                 customProgressView(activity: activity)
@@ -33,13 +42,20 @@ struct InAppUploadActivityView: View {
                 fallbackProgressView
             }
 
-            // Action buttons
-            HStack(spacing: 12) {
+            // Action buttons (stacked vertically, full width)
+            VStack(spacing: 12) {
                 // Navigate to collection button
                 if showNav {
                     Button {
                         showUploading = false
-                        tabViewCoordinator.navigate(to: collectionId)
+
+                        // Fetch collection from store and navigate
+                        if let collection = collectionStore.collections[collectionId] {
+                            tabViewCoordinator.navigate(to: collection)
+                        } else {
+                            // Fallback: navigate to profile tab
+                            tabViewCoordinator.selectTab(.profile)
+                        }
                     } label: {
                         HStack(spacing: 6) {
                             Image(systemName: "photo.on.rectangle.angled")
@@ -47,8 +63,8 @@ struct InAppUploadActivityView: View {
                             Text("View Collection")
                                 .font(.callout.weight(.semibold))
                         }
+                        .frame(maxWidth: .infinity)
                         .foregroundStyle(.white)
-                        .padding(.horizontal, 16)
                         .padding(.vertical, 12)
                         .background(Color.theme.cliquePink)
                         .roundCorners(12)
@@ -66,24 +82,25 @@ struct InAppUploadActivityView: View {
                             Text("Retry Upload")
                                 .font(.callout.weight(.semibold))
                         }
+                        .frame(maxWidth: .infinity)
                         .foregroundStyle(.white)
-                        .padding(.horizontal, 16)
                         .padding(.vertical, 12)
                         .background(Color.theme.cliquePink)
                         .roundCorners(12)
                     }
                 }
 
-                Spacer()
-
-                // Dismiss button
+                // Dismiss button (if no other buttons showing)
                 if !showNav && !showRetry {
                     Button {
                         showUploading = false
                     } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 24))
-                            .foregroundStyle(.secondary)
+                        HStack {
+                            Spacer()
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 24))
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
             }
