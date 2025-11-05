@@ -45,98 +45,80 @@ struct InAppUploadActivityView: View {
 
     /// Completion view shown when upload successfully finishes
     private var completionView: some View {
-        VStack(spacing: 20) {
-            Spacer()
+        Button {
+            showUploading = false
 
-            // Success icon
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 60))
-                .foregroundStyle(.green)
-
-            VStack(spacing: 8) {
-                Text("Upload Complete!")
-                    .font(.title3.bold())
-                    .textPrimary()
-
-                Text("\(uploadedCount) of \(uploadedCount) flicks uploaded successfully")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
+            // Fetch collection from store and navigate
+            if let collection = collectionStore.collections[collectionId] {
+                tabViewCoordinator.navigate(to: collection)
+            } else {
+                // Fallback: navigate to profile tab
+                tabViewCoordinator.selectTab(.profile)
             }
+        } label: {
+            HStack(spacing: 12) {
+                // Success checkmark
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 24, weight: .semibold))
+                    .foregroundStyle(.green)
 
-            Spacer()
-
-            // Full-width View Collection button
-            Button {
-                showUploading = false
-
-                // Fetch collection from store and navigate
-                if let collection = collectionStore.collections[collectionId] {
-                    tabViewCoordinator.navigate(to: collection)
-                } else {
-                    // Fallback: navigate to profile tab
-                    tabViewCoordinator.selectTab(.profile)
-                }
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "photo.on.rectangle.angled")
-                        .font(.system(size: 16, weight: .semibold))
+                VStack(alignment: .leading, spacing: 4) {
                     Text("View Collection")
-                        .font(.callout.weight(.semibold))
+                        .font(.callout.bold())
+                        .textPrimary()
+
+                    Text("\(uploadedCount) of \(uploadedCount) flicks uploaded")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-                .frame(maxWidth: .infinity)
-                .foregroundStyle(.white)
-                .padding(.vertical, 16)
-                .background(Color.theme.cliquePink)
-                .roundCorners(12)
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.secondary)
             }
+            .padding(16)
+            .primaryBackground()
+            .roundCorners(16)
+            .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 4)
         }
-        .padding(24)
-        .primaryBackground()
+        .padding(.horizontal, 16)
     }
 
     /// Retry view shown when upload fails
     private var retryView: some View {
-        VStack(spacing: 20) {
-            Spacer()
+        Button {
+            retryAction()
+        } label: {
+            HStack(spacing: 12) {
+                // Error icon
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 24, weight: .semibold))
+                    .foregroundStyle(.orange)
 
-            // Error icon
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 60))
-                .foregroundStyle(.orange)
-
-            VStack(spacing: 8) {
-                Text("Upload Failed")
-                    .font(.title3.bold())
-                    .textPrimary()
-
-                Text("Some photos couldn't be uploaded")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-
-            Spacer()
-
-            // Full-width Retry button
-            Button {
-                retryAction()
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 16, weight: .semibold))
+                VStack(alignment: .leading, spacing: 4) {
                     Text("Retry Upload")
-                        .font(.callout.weight(.semibold))
+                        .font(.callout.bold())
+                        .textPrimary()
+
+                    Text("Some flicks couldn't be uploaded")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-                .frame(maxWidth: .infinity)
-                .foregroundStyle(.white)
-                .padding(.vertical, 16)
-                .background(Color.theme.cliquePink)
-                .roundCorners(12)
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.secondary)
             }
+            .padding(16)
+            .primaryBackground()
+            .roundCorners(16)
+            .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 4)
         }
-        .padding(24)
-        .primaryBackground()
+        .padding(.horizontal, 16)
     }
 
     /// Progress view shown during active upload
