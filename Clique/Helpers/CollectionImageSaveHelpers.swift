@@ -16,12 +16,12 @@ struct CollectionImageSaveHelpers {
     /// - Parameters:
     ///   - image: The collection image to save
     ///   - collectionImageStore: Store for accessing cached timezone data
-    ///   - isSavingLivePhoto: Binding to track save state
+    ///   - setSaving: Closure to update saving state
     ///   - presentToast: Toast presentation closure
     static func saveLivePhoto(
         image: CollectionImage,
         collectionImageStore: CollectionImageStore,
-        isSavingLivePhoto: inout Bool,
+        setSaving: @escaping (Bool) -> Void,
         presentToast: @escaping (ToastValue) -> Void
     ) async {
         guard let imageUrl = image.imageUrl?.highQualityUrl,
@@ -48,7 +48,7 @@ struct CollectionImageSaveHelpers {
             print("   It will be saved in the device's current timezone")
         }
 
-        isSavingLivePhoto = true
+        setSaving(true)
 
         let saver = LivePhotoSaver()
         let success = await saver.saveLivePhoto(
@@ -65,16 +65,17 @@ struct CollectionImageSaveHelpers {
                 break
             case .completed:
                 presentToast(Toasts.savedLivePhoto)
-                isSavingLivePhoto = false
+                setSaving(false)
             case .failed:
                 // Fallback already happened, show video saved toast
                 presentToast(Toasts.savedVideo)
-                isSavingLivePhoto = false
+                setSaving(false)
             }
         }
 
-        if !success && !isSavingLivePhoto {
+        if !success {
             presentToast(Toasts.somethingWentWrong)
+            setSaving(false)
         }
     }
 

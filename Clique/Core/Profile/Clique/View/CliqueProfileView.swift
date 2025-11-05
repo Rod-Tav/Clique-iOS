@@ -186,7 +186,7 @@ extension CliqueProfileView {
             VStack(alignment: .leading, spacing: 0) {
                 VStack(alignment: .leading, spacing: 0) {
                     ZStack(alignment: .top) {
-                        ExpandedBannerAsyncImage(banner: clique.cliqueBanner, type: .clique, quality: .high)
+                        ExpandedBannerAsyncImage(banner: clique.cliqueBanner, type: .clique, quality: .medium)
                             .onTapGesture {
                                 showCliqueBanner = true
                             }
