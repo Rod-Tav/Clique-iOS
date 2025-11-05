@@ -20,7 +20,7 @@ struct ListSelectionItem: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 0) {
                 HStack(spacing: 8) {
-                    IconImage(leadingIcon, color: color, size: 20)
+                    IconImage(name: leadingIcon, color: color, size: 20)
                     
                     Text(title)
                         .font(.callout.bold())
@@ -29,7 +29,7 @@ struct ListSelectionItem: View {
                 
                 Spacer()
                 
-                IconImage("check-circle-empty", color: color, size: 20)
+                IconImage(name: "check-circle-empty", color: color, size: 20)
             }
             
             Text(description)

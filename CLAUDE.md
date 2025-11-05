@@ -256,6 +256,64 @@ let imageManager = PHCachingImageManager()
 @State private var localOnlyState: Bool = false
 ```
 
+### SwiftUI Modifier Preferences
+Use shorter, cleaner alternatives when available:
+
+**Content Shapes:**
+```swift
+// ✅ Preferred - shorter and cleaner
+.contentShape(.rect)
+
+// ❌ Avoid - verbose
+.contentShape(Rectangle())
+```
+
+**Rounded Corners:**
+```swift
+// ✅ Preferred - uses custom extension
+.roundCorners(8)
+.roundCorners(cornerRadius)  // Variable radius
+
+// ❌ Avoid - verbose
+.clipShape(RoundedRectangle(cornerRadius: 8))
+```
+
+The `.roundCorners()` modifier is a custom extension that provides the same functionality with cleaner syntax.
+
+**Layout Alignment:**
+Use custom frame modifiers instead of Spacer() for cleaner, more explicit alignment:
+```swift
+// ✅ Preferred - explicit with custom modifiers
+VStack {
+    HStack {
+        Image(systemName: "livephoto")
+            .font(.system(size: 14, weight: .semibold))
+            .foregroundStyle(.white)
+            .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
+            .padding(6)
+    }
+    .maxWidth(.leading)  // Align to leading edge
+}
+.frameBottom()  // Position at bottom
+
+// ❌ Avoid - uses Spacer()
+VStack {
+    Spacer()
+
+    HStack {
+        Image(systemName: "livephoto")
+            .font(.system(size: 14, weight: .semibold))
+            .foregroundStyle(.white)
+            .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
+            .padding(6)
+
+        Spacer()
+    }
+}
+```
+
+The `.maxWidth()` and `.frameBottom()` modifiers are custom extensions that make alignment intentions more explicit.
+
 ### View Organization Pattern
 Break complex views into computed properties, using functions only when parameters are needed:
 ```swift
@@ -311,6 +369,74 @@ Group related state, especially "show" booleans:
 @State var showAddFriendsSheet: Bool = false
 @State var showCommentSheet: Bool = false
 @State var showLikedMembers: Bool = false
+```
+
+### Init Methods - Swift 6 Best Practices
+**IMPORTANT**: Do NOT write unnecessary init methods for structs. Swift 6 automatically synthesizes memberwise initializers.
+
+#### When to OMIT init (let Swift handle it):
+```swift
+// ✅ CORRECT - No init needed
+struct IconImage: View {
+    let name: String
+    let color: Color
+    let size: CGFloat
+
+    var body: some View {
+        Image(name).icon(color: color, size: size)
+    }
+}
+
+// Usage: IconImage(name: "arrow-left", color: .theme.white, size: 24)
+```
+
+#### When to ADD init (custom logic required):
+```swift
+// ✅ CORRECT - Default parameter values (NO init needed, use var)
+struct DateLabel: View {
+    let date: Date
+    var format: DateFormat = .full  // var with default (Swift auto-generates init param)
+    var textColor: Color = .white   // var with default (Swift auto-generates init param)
+
+    var body: some View { /* ... */ }
+}
+// Usage: DateLabel(date: myDate) or DateLabel(date: myDate, format: .short)
+
+// ✅ Init needed - custom initialization logic
+struct MyView: View {
+    let userId: String
+    @State private var viewModel: UserViewModel
+
+    init(userId: String) {
+        self.userId = userId
+        self._viewModel = State(initialValue: UserViewModel(userId: userId))
+    }
+}
+
+// ✅ Init needed - @ViewBuilder closures
+struct Container<Content: View>: View {
+    let content: Content
+
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
+}
+```
+
+#### Key Rules:
+1. **Structs with only stored properties** → NO init (Swift auto-generates)
+2. **Default parameter values** → Use `var` with default on property (NOT `let`), NO init needed
+3. **@State/@Binding initialization** → Keep init (requires custom logic)
+4. **@ViewBuilder closures** → Keep init (requires escaping closure handling)
+5. **Custom logic/validation** → Keep init (transformation, computed values, etc.)
+
+**CRITICAL**: Properties with default values MUST use `var` not `let` for Swift to generate init parameters:
+```swift
+// ✅ CORRECT - var allows Swift to generate optional init parameter
+var uploadStatus: UploadStatus? = nil
+
+// ❌ WRONG - let with default makes property non-overridable, no init parameter generated
+let uploadStatus: UploadStatus? = nil
 ```
 
 ### Complex View Decomposition

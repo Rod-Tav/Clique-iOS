@@ -15,21 +15,11 @@ struct TwoStageImageLoader: View {
     let asset: PHAsset
     let thumbnail: UIImage?
     let contentMode: ContentMode
-    
+
     @State private var fullImage: UIImage?
     @State private var isLoadingFull = false
     @State private var requestID: PHImageRequestID?
-    
-    init(
-        asset: PHAsset,
-        thumbnail: UIImage?,
-        contentMode: ContentMode = .fit
-    ) {
-        self.asset = asset
-        self.thumbnail = thumbnail
-        self.contentMode = contentMode
-    }
-    
+
     var body: some View {
         ZStack {
             // Stage 1: Immediate thumbnail display
@@ -43,7 +33,7 @@ struct TwoStageImageLoader: View {
                 ProgressView()
                     .progressViewStyle(CircularProgressViewStyle())
             }
-            
+
             // Stage 2: Full resolution overlay with smooth transition
             if let fullImage = fullImage {
                 Image(uiImage: fullImage)
@@ -63,12 +53,14 @@ struct TwoStageImageLoader: View {
     private func loadFullResolution() {
         guard fullImage == nil && !isLoadingFull else { return }
         isLoadingFull = true
-        
+
         let options = PHImageRequestOptions()
+        options.version = .current
         options.deliveryMode = .highQualityFormat
         options.isNetworkAccessAllowed = true
         options.isSynchronous = false
-        
+        options.resizeMode = .none  // Prevents iOS green tint bug with PHImageManagerMaximumSize
+
         // Request full resolution image
         requestID = PHImageManager.default().requestImage(
             for: asset,

@@ -142,174 +142,164 @@ struct ImageCacheConfig {
 ///
 /// Provides instant cache hit detection to eliminate placeholder flash.
 /// Uses TTL-based caching with automatic cleanup and race condition prevention.
-/// Thread-safe using concurrent queue with barrier for writes.
-final class GenericAsyncImageCacheManager: ObservableObject {
+/// Thread-safe using Swift actor isolation (iOS 17+).
+actor GenericAsyncImageCacheManager {
     static let shared = GenericAsyncImageCacheManager()
 
-    // Thread-safe access using concurrent queue
-    private let cacheQueue = DispatchQueue(label: "com.clique.imagecache.queue", attributes: .concurrent)
-    private var _cacheCheckResults: [String: (Bool, Date)] = [:]
-    private var _pendingChecks: [String: Task<Bool, Never>] = [:]
-    private var _lastCleanupTime: Date = Date()
-    private var cleanupTimer: Timer? // Store timer reference for proper cleanup
-    private var cleanupTask: Task<Void, Never>? // Single cleanup task to prevent races
+    // Actor-isolated state - automatically thread-safe
+    private var cacheCheckResults: [String: (Bool, Date)] = [:]
+    private var pendingChecks: [String: Task<Bool, Never>] = [:]
+    private var lastCleanupTime: Date = Date()
+    private var isCleaningUp: Bool = false
 
     private init() {
-        setupCleanupTimer()
-        setupMemoryWarningObserver()
-    }
-
-    deinit {
-        cleanupTimer?.invalidate()
-        cleanupTask?.cancel()
+        // Trigger lifecycle manager initialization on main thread
+        // This ensures notification observers are registered as early as possible
+        // The manager is accessed via its singleton, which will initialize synchronously
+        // when first accessed from main thread
+        Task { @MainActor in
+            _ = ImageCacheLifecycleManager.shared
+        }
     }
 
     func getCachedResult(for url: String) -> Bool? {
         // Lazy cleanup - only when needed and not too frequently
         cleanupIfNeeded()
 
-        return cacheQueue.sync {
-            if let (cachedResult, timestamp) = _cacheCheckResults[url],
-               Date().timeIntervalSince(timestamp) < ImageCacheConfig.cacheResultTTL {
-                return cachedResult
-            }
-            return nil
+        if let (cachedResult, timestamp) = cacheCheckResults[url],
+           Date().timeIntervalSince(timestamp) < ImageCacheConfig.cacheResultTTL {
+            return cachedResult
         }
+        return nil
     }
 
     func setCachedResult(for url: String, result: Bool) {
-        // Capture strong self before barrier to ensure it exists during operation
-        cacheQueue.async(flags: .barrier) { [weak self] in
-            guard let self = self else { return }
-            // Access properties synchronously within the barrier block
-            // Prevent unbounded growth
-            if self._cacheCheckResults.count >= ImageCacheConfig.maxCacheSize {
-                // Direct cleanup without calling function
-                let now = Date()
-                self._cacheCheckResults = self._cacheCheckResults.filter {
-                    now.timeIntervalSince($0.value.1) < ImageCacheConfig.cacheResultTTL
-                }
+        // Prevent unbounded growth
+        if cacheCheckResults.count >= ImageCacheConfig.maxCacheSize {
+            let now = Date()
+            cacheCheckResults = cacheCheckResults.filter {
+                now.timeIntervalSince($0.value.1) < ImageCacheConfig.cacheResultTTL
             }
-
-            self._cacheCheckResults[url] = (result, Date())
-            self._pendingChecks[url] = nil // Remove from pending after completion
         }
+
+        cacheCheckResults[url] = (result, Date())
+        pendingChecks[url] = nil
     }
 
     // Get or create a cache check task to prevent race conditions
     func getCacheCheckTask(for url: String) -> Task<Bool, Never>? {
-        return cacheQueue.sync { _pendingChecks[url] }
+        return pendingChecks[url]
     }
 
     func setPendingCacheCheck(for url: String, task: Task<Bool, Never>) {
-        cacheQueue.async(flags: .barrier) { [weak self] in
-            guard let self = self else { return }
-            self._pendingChecks[url] = task
-        }
+        pendingChecks[url] = task
     }
 
     func removePendingCheck(for url: String) {
-        cacheQueue.async(flags: .barrier) { [weak self] in
-            guard let self = self else { return }
-            self._pendingChecks[url] = nil
-        }
+        pendingChecks[url] = nil
     }
 
     private func cleanupIfNeeded() {
-        Task { [weak self] in
-            guard let self = self else { return }
+        guard !isCleaningUp else { return }
 
-            // Cancel and await previous task to prevent races
-            if let existingTask = self.cleanupTask {
-                existingTask.cancel()
-                _ = await existingTask.value // Wait for cancellation
-            }
+        let now = Date()
+        guard now.timeIntervalSince(lastCleanupTime) > ImageCacheConfig.cleanupInterval else { return }
 
-            // Create new coordinated cleanup task
-            let newTask = Task { [weak self] in
-                guard let self = self else { return }
+        isCleaningUp = true
 
-                let shouldCleanup = self.cacheQueue.sync {
-                    let now = Date()
-                    if now.timeIntervalSince(self._lastCleanupTime) > ImageCacheConfig.cleanupInterval {
-                        return true
-                    }
-                    return false
-                }
-
-                if shouldCleanup && !Task.isCancelled {
-                    self.cleanupExpiredEntries()
-                }
-            }
-
-            self.cleanupTask = newTask
+        // Perform cleanup inline - actor ensures thread safety
+        cacheCheckResults = cacheCheckResults.filter {
+            now.timeIntervalSince($0.value.1) < ImageCacheConfig.cacheResultTTL
         }
+        lastCleanupTime = now
+        isCleaningUp = false
     }
 
-    private func cleanupExpiredEntries() {
-        cacheQueue.async(flags: .barrier) { [weak self] in
-            guard let self = self else { return }
-            let now = Date()
-            self._cacheCheckResults = self._cacheCheckResults.filter {
-                now.timeIntervalSince($0.value.1) < ImageCacheConfig.cacheResultTTL
-            }
-            self._lastCleanupTime = Date()
-        }
+    /// Performs periodic cleanup of expired cache entries.
+    /// Intended to be called from timer or other periodic mechanisms.
+    func performCleanup() {
+        cleanupIfNeeded()
     }
 
-    private func setupCleanupTimer() {
-        // Store timer reference for proper lifecycle management
-        cleanupTimer = Timer.scheduledTimer(withTimeInterval: ImageCacheConfig.cleanupInterval, repeats: true) { [weak self] _ in
-            // Direct call without nested Task to avoid retain cycle
-            guard let self = self else { return }
-            self.cleanupIfNeeded()
-        }
-
-        // Clear cache when app backgrounds to free memory
-        NotificationCenter.default.addObserver(
-            forName: UIApplication.didEnterBackgroundNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            self?.clearCache()
-        }
-    }
-
-    private func setupMemoryWarningObserver() {
-        NotificationCenter.default.addObserver(
-            forName: UIApplication.didReceiveMemoryWarningNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            self?.handleMemoryPressure()
-        }
-    }
-
-    private func handleMemoryPressure() {
+    func handleMemoryPressure() {
         // Reduce cache size by 50% on memory warning
-        cacheQueue.async(flags: .barrier) { [weak self] in
-            guard let self = self else { return }
-            let entriesToKeep = self._cacheCheckResults.count / 2
-            let sortedEntries = self._cacheCheckResults.sorted { $0.value.1 > $1.value.1 }
-            self._cacheCheckResults = Dictionary(uniqueKeysWithValues: Array(sortedEntries.prefix(entriesToKeep)))
-        }
+        let entriesToKeep = cacheCheckResults.count / 2
+        let sortedEntries = cacheCheckResults.sorted { $0.value.1 > $1.value.1 }
+        cacheCheckResults = Dictionary(uniqueKeysWithValues: Array(sortedEntries.prefix(entriesToKeep)))
     }
 
-    // Clear cache when app backgrounds to free memory
     func clearCache() {
-        cacheQueue.async(flags: .barrier) { [weak self] in
-            guard let self = self else { return }
-            self._cacheCheckResults.removeAll()
-            self._pendingChecks.removeAll() // Clear pending operations too
-        }
+        cacheCheckResults.removeAll()
+        pendingChecks.removeAll()
     }
 
     // Synchronous cache check for immediate display
-    func checkCacheSync(for urlString: String) -> Bool {
+    nonisolated func checkCacheSync(for urlString: String) -> Bool {
         guard let url = URL(string: urlString) else { return false }
         let resource = KF.ImageResource(downloadURL: url)
         return KingfisherManager.shared.cache.isCached(forKey: resource.cacheKey) ||
                KingfisherManager.shared.cache.isCached(forKey: urlString)
+    }
+}
+
+// MARK: - MainActor Setup
+
+/// Lifecycle manager for image cache cleanup and memory management.
+///
+/// This class manages the timer and notification observers for the singleton cache manager.
+/// Even though the cache manager is a singleton with app lifetime, we store observer tokens
+/// as a best practice for proper resource management.
+@MainActor
+private final class ImageCacheLifecycleManager {
+    static let shared = ImageCacheLifecycleManager()
+
+    private var cleanupTimer: Timer?
+    private var notificationTokens: [NSObjectProtocol] = []
+
+    private init() {
+        setupObservers()
+    }
+
+    private func setupObservers() {
+        let manager = GenericAsyncImageCacheManager.shared
+
+        // Invalidate existing timer before creating new one
+        cleanupTimer?.invalidate()
+
+        // Periodic cleanup timer
+        cleanupTimer = Timer.scheduledTimer(withTimeInterval: ImageCacheConfig.cleanupInterval, repeats: true) { _ in
+            Task {
+                await manager.performCleanup()
+            }
+        }
+
+        // Store notification observer tokens for proper cleanup
+        let backgroundToken = NotificationCenter.default.addObserver(
+            forName: UIApplication.didEnterBackgroundNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            Task {
+                await manager.clearCache()
+            }
+        }
+        notificationTokens.append(backgroundToken)
+
+        let memoryWarningToken = NotificationCenter.default.addObserver(
+            forName: UIApplication.didReceiveMemoryWarningNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            Task {
+                await manager.handleMemoryPressure()
+            }
+        }
+        notificationTokens.append(memoryWarningToken)
+    }
+
+    deinit {
+        cleanupTimer?.invalidate()
+        notificationTokens.forEach { NotificationCenter.default.removeObserver($0) }
     }
 }
 
@@ -322,19 +312,31 @@ final class GenericAsyncImageCacheManager: ObservableObject {
 ///   - urls: Photo URLs for different quality levels
 ///   - quality: Target quality level to load
 ///   - shouldFixSize: Whether to fix size for layout stability
-///   - loadingBug: Legacy compatibility flag
-///   - performanceMode: Use lightweight mode for grids (default: false)
+///   - context: Loading context (list/grid/detail/hero) for optimal strategy
+///   - performanceMode: Use lightweight mode for grids (default: false, auto-enabled for list/grid contexts)
 ///   - content: View builder for the loaded image
 ///   - placeholder: View to show while loading
 struct GenericAsyncImage<Content: View, Placeholder: View>: View {
     let urls: PhotoUrls?
     var quality: ImageQuality
     var shouldFixSize: Bool = true
-    var loadingBug: Bool = false
-    var performanceMode: Bool = false  // New parameter for lightweight mode
+    var context: ImageLoadingContext = .detail
+    var performanceMode: Bool = false  // Automatically enabled for list/grid contexts
 
     let content: (KFImage) -> Content
     @ViewBuilder var placeholder: Placeholder
+
+    /// Computed performance mode based on context.
+    /// List and grid contexts automatically use performance mode for better scrolling.
+    private var effectivePerformanceMode: Bool {
+        performanceMode || context == .list || context == .grid
+    }
+
+    /// Effective context considering force preload flag from timeout retry.
+    /// If we've detected a stuck placeholder, force preload even in detail context.
+    private var effectiveContext: ImageLoadingContext {
+        forcePreload ? .list : context
+    }
 
 
     // MARK: - Simplified State Machine
@@ -361,9 +363,13 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
 
     @State private var loadingState: ImageLoadingState = .idle
     @State private var cacheCheckCompleted = false
-    @State private var cacheTasks: [String: Task<Bool, Never>] = [:]
     @State private var imageLoadTasks: Set<AnyCancellable> = []
     @State private var retryCount: [String: Int] = [:]
+
+    // Smart retry mechanism for stuck placeholders
+    @State private var loadingTimeoutTask: Task<Void, Never>?
+    @State private var hasAttemptedRetry = false
+    @State private var forcePreload = false
 
     // Cache status for immediate display
     @State private var hasCachedLow = false
@@ -372,6 +378,21 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
 
     private let cacheManager = GenericAsyncImageCacheManager.shared
     private let maxRetries = 2
+
+    /// Network-adaptive timeout for placeholder detection
+    /// - WiFi/Ethernet: 750ms - Fast networks should load quickly
+    /// - Cellular: 2000ms - Accommodate variable cellular speeds (3G/4G/5G)
+    /// - Unknown: 1500ms - Middle ground for uncertain conditions
+    private var placeholderTimeout: TimeInterval {
+        switch NetworkMonitor.shared.connectionType {
+        case .wifi, .ethernet:
+            return 0.75
+        case .cellular:
+            return 2.0
+        case .unknown:
+            return 1.5
+        }
+    }
 
     // MARK: - Computed Properties
 
@@ -404,7 +425,7 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
 
     var body: some View {
         ZStack {
-            if performanceMode {
+            if effectivePerformanceMode {
                 // Performance mode: Single layer approach for fast scrolling
                 performanceModeView
             } else {
@@ -444,16 +465,28 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
                     }
                 }
             }
+
+            // Start smart timeout detection for stuck placeholders
+            startPlaceholderTimeoutDetection()
+        }
+        .onDisappear {
+            // Cancel timeout task when view disappears
+            loadingTimeoutTask?.cancel()
+            loadingTimeoutTask = nil
         }
         .onChange(of: urls) { oldUrls, newUrls in
             guard oldUrls != newUrls else { return }
 
             // Reset when URLs change
             cacheCheckCompleted = false
-            cacheTasks.values.forEach { $0.cancel() }
-            cacheTasks.removeAll()
             retryCount.removeAll()
             loadingState = .idle
+            hasAttemptedRetry = false
+            forcePreload = false
+
+            // Cancel existing timeout
+            loadingTimeoutTask?.cancel()
+            loadingTimeoutTask = nil
 
             // Check cache for new URLs asynchronously
             Task.detached(priority: .userInitiated) {
@@ -464,11 +497,9 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
                     }
                 }
             }
-        }
-        .onDisappear {
-            // Cancel pending cache tasks
-            cacheTasks.values.forEach { $0.cancel() }
-            cacheTasks.removeAll()
+
+            // Restart timeout detection
+            startPlaceholderTimeoutDetection()
         }
     }
 
@@ -563,7 +594,7 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
     ) -> some View {
         if let url = url {
             content(KFImage(urlFor(url))
-                .kfModifiers(shouldFade: shouldFade, loadingBug: loadingBug)
+                .kfModifiers(shouldFade: shouldFade, context: effectiveContext)
                 .onSuccess { _ in onSuccess() }
                 .onFailure { _ in onFailure() }
             )
@@ -708,7 +739,7 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
 
     private func checkCacheAsync(for urlString: String) async -> Bool {
         // Check cached result first
-        if let cachedResult = cacheManager.getCachedResult(for: urlString) {
+        if let cachedResult = await cacheManager.getCachedResult(for: urlString) {
             // Record metrics for cached result
             Task {
                 if cachedResult {
@@ -721,8 +752,7 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
         }
 
         // Check for existing pending operation to prevent race conditions
-        if let existingTask = cacheTasks[urlString] {
-            // Task.value doesn't throw, so no need for do-catch
+        if let existingTask = await cacheManager.getCacheCheckTask(for: urlString) {
             return await existingTask.value
         }
 
@@ -738,7 +768,7 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
             }.value
         }
 
-        cacheTasks[urlString] = task
+        await cacheManager.setPendingCacheCheck(for: urlString, task: task)
 
         let result = await task.value
         // Record metrics
@@ -750,8 +780,7 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
             }
         }
         // Cache the result
-        cacheManager.setCachedResult(for: urlString, result: result)
-        cacheTasks[urlString] = nil
+        await cacheManager.setCachedResult(for: urlString, result: result)
         return result
     }
 
@@ -786,6 +815,65 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
 
         if allFailed {
             loadingState = .failed
+        }
+    }
+
+    // MARK: - Smart Timeout Detection
+
+    /// Starts monitoring for stuck placeholders and automatically retries with preloading if detected.
+    ///
+    /// This function implements intelligent failure detection by:
+    /// 1. Waiting for a timeout period (2.5 seconds)
+    /// 2. Checking if image is still showing placeholder
+    /// 3. If stuck, forcing preload mode and triggering cache clear + retry
+    ///
+    /// This solves the iOS 16-18 List lifecycle bug where onAppear doesn't fire reliably,
+    /// causing images to never start loading in certain contexts.
+    private func startPlaceholderTimeoutDetection() {
+        // Cancel any existing timeout
+        loadingTimeoutTask?.cancel()
+
+        loadingTimeoutTask = Task {
+            // Wait for timeout period
+            try? await Task.sleep(for: .seconds(placeholderTimeout))
+
+            // Check if still showing placeholder and haven't retried yet
+            guard !Task.isCancelled,
+                  !hasAttemptedRetry,
+                  !loadingState.isShowingAny,
+                  urls != nil else {
+                return
+            }
+
+            // Image is stuck as placeholder - force aggressive retry
+            await performSmartRetry()
+        }
+    }
+
+    /// Performs an intelligent retry by enabling preload mode and refreshing the image.
+    @MainActor
+    private func performSmartRetry() {
+        hasAttemptedRetry = true
+        forcePreload = true
+
+        // Reset loading state to trigger fresh load with preload enabled
+        loadingState = .idle
+        cacheCheckCompleted = false
+        retryCount.removeAll()
+
+        // Clear any potentially stale cache entries
+        if let lowUrl = urls?.lowQualityUrl {
+            KingfisherManager.shared.cache.removeImage(forKey: lowUrl)
+        }
+
+        // Trigger fresh async cache check with new preload context
+        Task.detached(priority: .userInitiated) {
+            await self.performAsyncCacheCheck()
+            await MainActor.run {
+                if !self.cacheCheckCompleted {
+                    Task { await self.determineInitialState() }
+                }
+            }
         }
     }
 }

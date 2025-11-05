@@ -9,6 +9,7 @@ import SwiftUI
 import Toasts
 import Kingfisher
 import AdvancedList
+import AVFoundation
 
 struct CollectionDetailView: View {
     @AppStorage("hasSwipedUpToOpenComments") private var hasSwipedUpToOpenComments: Bool = false
@@ -42,15 +43,24 @@ struct CollectionDetailView: View {
     @State private var showLikedMembers: Bool = false
     
     @State private var isScrolling: Bool = false
-    
+
     @State private var likeAnimation: Bool = false
-    
+
+    /// Video quality preference
+    @AppStorage("videoQualityPreference") private var videoQualityPreference: VideoQualityPreference = .auto
+
+    /// Live Photo save state
+    @State private var isSavingLivePhoto: Bool = false
+
     /// self tagging
     @State private var confirmed: Bool = false
     @State private var shouldFadeOut: Bool = false
     @State private var isButtonDisabled: Bool = false
     @State private var selfTaggedImages = [String]() // image ids
-    
+
+    /// Video playback position preservation
+    @State private var videoPlaybackPositions: [String: CMTime] = [:]
+
     private var selectedImageId: String? {
         clCoordinator.selectedImageId
     }
@@ -132,10 +142,21 @@ struct CollectionDetailView: View {
             }
             .onDisappear {
                 tabCoordinator.pan = .pan
+                // Ensure dismissing flag is reset to prevent stale state
+                dismissing = false
+                // Reset pagination view model state
+                imagesPgVM.isDetailView = false
             }
             .background {
                 if let selectedImage {
-                    CollectionDetailBackgroundAsyncImage(urls: selectedImage.imageUrl, quality: .low)
+                    CollectionDetailBackgroundAsyncImage(
+                        urls: selectedImage.imageUrl,
+                        quality: .low,
+                        uploadStatus: selectedImage.uploadStatus,
+                        itemId: selectedImage.id,
+                        isLivePhoto: selectedImage.isLivePhoto,
+                        isVideo: selectedImage.isVideo
+                    )
                         .blur(radius: 12.5 /*- (10 * ((idx + 1) - diff))*/, opaque: true)
                         .overlay(Color.theme.surfacesImageBgDarkOverlay)
                         .overlay(.black.opacity(0.2))
@@ -158,45 +179,91 @@ extension CollectionDetailView {
                 Button {
                     closeImage()
                 } label: {
-                    IconImage("arrow-left", color: .theme.white, size: 24)
+                    IconImage(name: "arrow-left", color: .theme.white, size: 24)
                 }.buttonStyle(.noHighlight)
             },
             header: HeaderContent,
             trailingIcon: {
                 Menu {
+                    // Video quality selector (only for videos)
+                    if selectedImage?.isVideo == true {
+                        Menu {
+                            ForEach(VideoQualityPreference.allCases, id: \.self) { quality in
+                                Button {
+                                    videoQualityPreference = quality
+                                    print("🎬 [QUALITY] User selected: \(quality.displayName)")
+                                } label: {
+                                    HStack {
+                                        Text(quality.displayName)
+                                        if videoQualityPreference == quality {
+                                            Image(systemName: "checkmark")
+                                        }
+                                    }
+                                }
+                            }
+                        } label: {
+                            Text("Video Quality")
+                            Image(systemName: "video.badge.waveform")
+                                .color(.theme.iconPrimary)
+                        }
+                    }
+
                     if let cid, isInClique(cid: cid, cliqueStore), let loadedImage {
                         ShareLink(
                             item: Image(uiImage: loadedImage),
                             preview: SharePreview("", image: Image(uiImage: loadedImage))
                         ) {
                             Text("Share Image")
-                            
+
                             Image("share")
                                 .color(.theme.iconPrimary)
                         }
-                        
-                        Button {
-                            if let url = selectedImage?.imageUrl, let date = selectedImage?.date {
-                                Task {
-                                    guard let url = url.highQualityUrl, let loadedImage = await fetchImageWithKingfisher(from: url) else { return }
-                                    
-                                    let imageSaver = ImageSaver()
-                                    imageSaver.writeToPhotoAlbum(image: loadedImage, date: date) { success in
-                                        presentToast(success ? Toasts.savedImage : Toasts.somethingWentWrong)
+
+                        // Save button (conditional based on media type)
+                        if let selectedImage = selectedImage {
+                            if selectedImage.isLivePhoto {
+                                // Save Live Photo with metadata injection (falls back to video if metadata fails)
+                                Button {
+                                    handleSaveLivePhoto()
+                                } label: {
+                                    HStack {
+                                        Text(isSavingLivePhoto ? "Saving..." : "Save Live Photo")
+                                        if !isSavingLivePhoto {
+                                            Image("download")
+                                                .color(.theme.iconPrimary)
+                                        } else {
+                                            ProgressView()
+                                                .tint(.theme.iconPrimary)
+                                        }
                                     }
                                 }
+                                .disabled(isSavingLivePhoto)
+                            } else if selectedImage.isVideo {
+                                // Save Video
+                                Button {
+                                    handleSaveVideo()
+                                } label: {
+                                    Text("Save Video")
+                                    Image("download")
+                                        .color(.theme.iconPrimary)
+                                }
+                            } else {
+                                // Save static image
+                                Button {
+                                    handleSaveImage()
+                                } label: {
+                                    Text("Save Image")
+                                    Image("download")
+                                        .color(.theme.iconPrimary)
+                                }
                             }
-                        } label: {
-                            Text("Save Image")
-                            Image("download")
-                                .color(.theme.iconPrimary)
                         }
-                        
+
                         DeleteButton {
                             showDeleteFlickAlert = true
                         }
                     }
-                    
+
                     ReportButton {
                         showReportCover = true
                     }
@@ -208,24 +275,7 @@ extension CollectionDetailView {
                         title: Text("Are you sure you want to delete this flick?"),
                         message: Text("This action cannot be undone."),
                         primaryButton: .destructive(Text("Delete")) {
-                            guard let selectedImageId else { return }
-                            
-                            Task {
-                                do {
-                                    try await CollectionService.deleteCollectionItem(.init(path: .init(collectionItemId: selectedImageId)))
-                                    
-                                    closeImage()
-                                    
-                                    imagesPgVM.items.removeAll(where: { $0.id == selectedImageId })
-                                    collectionStore.collections[clCoordinator.collectionId]?.images.removeAll(where: { $0.id == selectedImageId })
-                                    collectionStore.collections[clCoordinator.collectionId]?.numFlicks -= 1
-                                    collectionImageStore.images.removeValue(forKey: selectedImageId)
-                                    
-                                    trigger(.refreshCollectionCells, object: [clCoordinator.collectionId])
-                                } catch {
-                                    presentToast(Toasts.somethingWentWrong)
-                                }
-                            }
+                            handleDeleteFlick()
                         },
                         secondaryButton: .cancel()
                     )
@@ -254,7 +304,7 @@ extension CollectionDetailView {
     @ViewBuilder private func HeaderContent() -> some View {
         Button {
             guard !fromGallery, let collection else { return }
-            
+
             dismiss()
             tabCoordinator.navigate(to: collection)
         } label: {
@@ -264,16 +314,25 @@ extension CollectionDetailView {
                         HStack(spacing: 4) {
                             Text(collectionName)
                                 .font(.callout.bold())
-                            
+
                             if !fromGallery {
-                                IconImage("chevron-right", color: .theme.iconPrimary, size: 16)
+                                IconImage(
+                                    name: "chevron-right",
+                                    color: Color.theme.white,
+                                    size: 16
+                                )
                             }
                         }
                     }
-                    
-                    if let date = selectedImage?.date {
-                        Text("\(formatDateMMMMdYYYY(date)) • \(formatDateHHmm(date))")
-                            .font(.caption)
+
+                    // Date, time, and media type inline
+                    if let selectedImage {
+                        DateMediaTypeLabel(
+                            image: selectedImage,
+                            dateFormat: .full,
+                            fontSize: .caption,
+                            textColor: .theme.white
+                        )
                     }
                 }
                 .multilineTextAlignment(.center)
@@ -293,11 +352,18 @@ extension CollectionDetailView {
             
             //        let screenWidth = UIScreen.width
             ZStack {
-                /// hero close
-                CollectionDetailImageAsyncView(urls: selectedImage.imageUrl, quality: .high)
-                    .contentShape(.rect)
-                    .opacity(dismissing ? 1 : 0)
-                
+                /// hero close (only render when actually dismissing to avoid duplicate video players)
+                if dismissing {
+                    CollectionDetailImageAsyncView(
+                        image: selectedImage,
+                        quality: videoQualityPreference.imageQuality,
+                        forceQuality: videoQualityPreference != .auto,
+                        isVisible: true,
+                        onRefresh: refreshCollection
+                    )
+                        .contentShape(.rect)
+                }
+
                     AdvancedList(imagesPgVM.items, listView: { images in
                         ImageDetailList(images)
                     }, content: { imageID in
@@ -342,7 +408,7 @@ extension CollectionDetailView {
                         handleLikeTapped()
                     }
                     .overlay {
-                        IconImage("heart-filled", color: .theme.red, size: 70)
+                        IconImage(name: "heart-filled", color: .theme.red, size: 70)
                             .likeAnimation($likeAnimation)
                     }
             }
@@ -357,21 +423,23 @@ extension CollectionDetailView {
             }
             .offset(heroCoordinator.offset)
             .compatibleDragGesture(
-                minimumDistance: 10,
+                minimumDistance: GestureConstants.minimumRecognitionDistance,
                 onChanged: { translation in
-                    guard (translation.height > 10 && abs(translation.width) < 20) || dismissing else { return }
+                    guard (translation.height > GestureConstants.minimumVerticalSwipe && abs(translation.width) < GestureConstants.maximumHorizontalDeviation) || dismissing else { return }
                     dismissing = true
                     heroCoordinator.offset = fromGallery ? translation : CGSize(width: 0, height: translation.height)
                     /// Progress For Fading Out the Detail View
-                    let heightProgress = max(min(translation.height / 200, 1), 0)
+                    let heightProgress = max(min(translation.height / GestureConstants.dragProgressDivisor, 1), 0)
                     heroCoordinator.dragProgress = heightProgress
                 },
-                onEnded: { translation in
+                onEnded: { translation, velocity in
                     guard dismissing else { return }
 
-                    /// Close the View based on the Drag Amount
-                    if translation.height > 250 {
-                        heroCoordinator.toggleView(show: false)
+                    /// Close the View based on drag distance OR velocity (for flick gestures)
+                    let height = translation.height + (velocity.height / GestureConstants.velocityDampening)
+
+                    if height > GestureConstants.dismissThresholdWithVelocity {
+                        closeImage()
                     } else {
                         /// Reset to its Initial Position
                         heroCoordinator.offset = .zero
@@ -390,7 +458,8 @@ extension CollectionDetailView {
                         showCommentSheet = true
                         hasSwipedUpToOpenComments = true
                     }
-                }
+                },
+                onEnded: { _, _ in }  // Required for CompatibleDragGestureModifier signature
             )
         }
     }
@@ -426,10 +495,22 @@ extension CollectionDetailView {
     }
     
     @ViewBuilder private func ImageDetailCell(_ image: CollectionImage) -> some View {
-        CollectionDetailImageAsyncView(urls: image.imageUrl, quality: .high)
+        CollectionDetailImageAsyncView(
+            image: image,
+            quality: videoQualityPreference.imageQuality,
+            forceQuality: videoQualityPreference != .auto,
+            isVisible: selectedImageId == image.id,
+            onRefresh: refreshCollection,
+            savedPosition: videoPlaybackPositions[image.id],
+            onPositionSave: { time in
+                videoPlaybackPositions[image.id] = time
+            }
+        )
             .contentShape(.rect)
             .id(image.id)
-            .pinchZoom()
+            .if(!image.isVideo && !image.isLivePhoto) { view in
+                view.pinchZoom()  // Only apply pinch zoom to static photos (not videos or Live Photos)
+            }
             .scrollTransition { content, phase in
                 content
                     .opacity(phase.isIdentity ? 1 : 0.7)
@@ -484,6 +565,13 @@ extension CollectionDetailView {
             isButtonDisabled = false
         }
         .disabled(isButtonDisabled)
+    }
+
+    // MARK: - Helper Functions
+
+    /// Triggers a refresh of the collection to update processing status
+    private func refreshCollection() {
+        trigger(.refreshCollectionImages, object: [clCoordinator.collectionId])
     }
 }
 
@@ -553,8 +641,17 @@ extension CollectionDetailView {
     
     @ViewBuilder private func BottomCarouselCell(_ image: CollectionImage, width: CGFloat, height: CGFloat) -> some View {
         if let selectedImage {
-            CollectionBottomCarouselAsyncView(urls: image.imageUrl, width: width, height: height, quality: .low)
-            
+            CollectionBottomCarouselAsyncView(
+                urls: image.imageUrl,
+                width: width,
+                height: height,
+                quality: .low,
+                uploadStatus: image.uploadStatus,
+                itemId: image.id,
+                isLivePhoto: image.isLivePhoto,
+                isVideo: image.isVideo
+            )
+
             // TODO: rework
                 .if(heroCoordinator.showDetailView) { view in
                     view
@@ -620,7 +717,7 @@ extension CollectionDetailView {
                         haptics(.medium)
                         handleLikeTapped()
                     } label: {
-                        IconImage("heart-filled", color: selectedImage.hasLiked ? .theme.red : .theme.white, size: 20)
+                        IconImage(name: "heart-filled", color: selectedImage.hasLiked ? .theme.red : .theme.white, size: 20)
                     }
                     
                     Button {
@@ -679,10 +776,13 @@ extension CollectionDetailView {
         }
     }
     
-    @ViewBuilder
-    private func BottomActionItem(icon: String, iconColor: Color = .theme.white, number: Int) -> some View {
+    @ViewBuilder private func BottomActionItem(
+        icon: String,
+        iconColor: Color = .theme.white,
+        number: Int
+    ) -> some View {
         HStack(spacing: 4) {
-            IconImage(icon, color: iconColor, size: 20)
+            IconImage(name: icon, color: iconColor, size: 20)
             
             Text(formatNumber(number))
                 .font(.footnote.bold())
@@ -702,6 +802,63 @@ extension CollectionDetailView {
             }
         }
     }
+
+    /// Handles saving a Live Photo with metadata injection
+    private func handleSaveLivePhoto() {
+        guard !isSavingLivePhoto, let selectedImage else { return }
+
+        Task {
+            await CollectionImageSaveHelpers.saveLivePhoto(
+                image: selectedImage,
+                collectionImageStore: collectionImageStore,
+                isSavingLivePhoto: &isSavingLivePhoto,
+                presentToast: presentToast
+            )
+        }
+    }
+
+    /// Handles saving a standalone video
+    private func handleSaveVideo() {
+        guard let selectedImage else { return }
+
+        Task {
+            await CollectionImageSaveHelpers.saveVideo(
+                image: selectedImage,
+                presentToast: presentToast
+            )
+        }
+    }
+
+    /// Handles saving a static image
+    private func handleSaveImage() {
+        guard let selectedImage else { return }
+
+        Task {
+            await CollectionImageSaveHelpers.saveImage(
+                image: selectedImage,
+                presentToast: presentToast
+            )
+        }
+    }
+
+    /// Handles deleting the current flick
+    private func handleDeleteFlick() {
+        guard let selectedImageId else { return }
+
+        Task {
+            await CollectionImageSaveHelpers.deleteCollectionItem(
+                imageId: selectedImageId,
+                collectionId: clCoordinator.collectionId,
+                collectionStore: collectionStore,
+                collectionImageStore: collectionImageStore,
+                presentToast: presentToast,
+                onSuccess: {
+                    closeImage()
+                    imagesPgVM.items.removeAll(where: { $0.id == selectedImageId })
+                }
+            )
+        }
+    }
     
     private var swipeUpToOpenComments: some Gesture {
         DragGesture(minimumDistance: 10)
@@ -717,24 +874,24 @@ extension CollectionDetailView {
     }
     
     private var swipeDownToDismiss: some Gesture {
-        DragGesture(minimumDistance: 10)
+        DragGesture(minimumDistance: GestureConstants.minimumRecognitionDistance)
             .onChanged { value in
-                guard (value.translation.height > 10 && abs(value.translation.width) < 20) || dismissing else { return }
+                guard (value.translation.height > GestureConstants.minimumVerticalSwipe && abs(value.translation.width) < GestureConstants.maximumHorizontalDeviation) || dismissing else { return }
                 dismissing = true
                 let translation = value.translation
                 heroCoordinator.offset = fromGallery ? translation : CGSize(width: 0, height: translation.height)
                 /// Progress For Fading Out the Detail View
-                let heightProgress = max(min(translation.height / 200, 1), 0)
+                let heightProgress = max(min(translation.height / GestureConstants.dragProgressDivisor, 1), 0)
                 heroCoordinator.dragProgress = heightProgress
             }
             .onEnded { value in
                 guard dismissing else { return }
                 let translation = value.translation
                 let velocity = value.velocity
-                //let width = translation.width + (velocity.width / 5)
-                let height = translation.height + (velocity.height / 5)
-                
-                if height > 10 {
+                //let width = translation.width + (velocity.width / GestureConstants.velocityDampening)
+                let height = translation.height + (velocity.height / GestureConstants.velocityDampening)
+
+                if height > GestureConstants.dismissThresholdBasic {
                     /// Close View
                     closeImage()
                 } else {
@@ -755,11 +912,13 @@ extension CollectionDetailView {
             heroCoordinator.toggleView(show: false) {
                 clCoordinator.resetAnimationProperties()
                 heroCoordinator.resetAnimationProperties()
+                dismissing = false
             }
         } else {
             // Reset coordinator state to prevent stale state on rapid open/close
             heroCoordinator.resetAnimationProperties()
             clCoordinator.resetAnimationProperties()
+            dismissing = false
             dismiss()
         }
     }

@@ -38,31 +38,23 @@ import SwiftUI
             members: invitedMembers.map { $0.id }
         ))))
         
-        // ✅ Step 3: Conditionally upload profile picture if provided
-        if let preparedPfp, let profilePicUrls = clique.cliquePic {
-            async let pfpHigh: () = PhotoHelper.uploadImageData(preparedPfp.imageVariants.high.data, to: profilePicUrls.highQualityUrl)
-            async let pfpMed: () = PhotoHelper.uploadImageData(preparedPfp.imageVariants.medium.data, to: profilePicUrls.medQualityUrl)
-            async let pfpLow: () = PhotoHelper.uploadImageData(preparedPfp.imageVariants.low.data, to: profilePicUrls.lowQualityUrl)
-            
+        // ✅ Step 3: Conditionally upload profile picture if provided (original quality - backend handles conversion)
+        if let preparedPfp, let profilePicUrl = clique.cliquePic?.url {
             do {
-                _ = try await (pfpHigh, pfpMed, pfpLow)
-                print("✅ Uploaded clique profile pictures")
+                try await PhotoHelper.uploadImageData(preparedPfp.imageVariant.data, to: profilePicUrl)
+                print("✅ Uploaded clique profile picture")
             } catch {
-                print("❌ Failed to upload clique profile pictures: \(error.localizedDescription)")
+                print("❌ Failed to upload clique profile picture: \(error.localizedDescription)")
             }
         }
-        
-        // ✅ Step 4: Conditionally upload banner if provided
-        if let preparedBanner, let bannerUrls = clique.cliqueBanner {
-            async let bannerHigh: () = PhotoHelper.uploadImageData(preparedBanner.imageVariants.high.data, to: bannerUrls.highQualityUrl)
-            async let bannerMed: () = PhotoHelper.uploadImageData(preparedBanner.imageVariants.medium.data, to: bannerUrls.medQualityUrl)
-            async let bannerLow: () = PhotoHelper.uploadImageData(preparedBanner.imageVariants.low.data, to: bannerUrls.lowQualityUrl)
-            
+
+        // ✅ Step 4: Conditionally upload banner if provided (original quality - backend handles conversion)
+        if let preparedBanner, let bannerUrl = clique.cliqueBanner?.url {
             do {
-                _ = try await (bannerHigh, bannerMed, bannerLow)
-                print("✅ Uploaded clique banners")
+                try await PhotoHelper.uploadImageData(preparedBanner.imageVariant.data, to: bannerUrl)
+                print("✅ Uploaded clique banner")
             } catch {
-                print("❌ Failed to upload clique banners: \(error.localizedDescription)")
+                print("❌ Failed to upload clique banner: \(error.localizedDescription)")
             }
         }
         

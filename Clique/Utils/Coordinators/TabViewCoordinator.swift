@@ -13,6 +13,8 @@ import SwiftUINavigationTransitions
 /// The create flow can be initiated from different sources, affecting
 /// the initial screen presented to the user.
 enum CreateFlowMode {
+    /// No mode selected - prevents eager camera initialization
+    case none
     /// Start with camera interface for taking new photos
     case camera
     /// Start with photo library for selecting existing photos
@@ -55,7 +57,7 @@ enum CreateFlowMode {
 /// - Note: Designed to work with ``NavigationDestinationsModifier`` for global routes
 @Observable @MainActor final class TabViewCoordinator {
     // MARK: - UI Triggers
-    
+
     /// Triggers scroll-to-top animation for collections feed
     var triggerScrollToTopOfFeed: Bool = false
     /// Triggers refresh of the flicks feed
@@ -64,20 +66,24 @@ enum CreateFlowMode {
     var triggerScrollToTopOfMyCollections: Bool = false
     /// Triggers focus on search text field
     var triggerFocusSearch: Bool = false
+    /// Triggers scroll-to-top for flicks grid view
+    var triggerScrollToTopOfFlicksGrid: Bool = false
     
     // MARK: - Status Flags
-    
+
     /// Whether the flicks feed is currently refreshing
     var isFlicksFeedRefreshing: Bool = false
     /// Whether to show the clique creation interface
     var showCliqueCreator: Bool = false
     /// Whether to focus the comment keyboard input
     var focusCommentKeyboard: Bool = false
+    /// Whether flicks feed is showing grid view (true) or carousel view (false)
+    var flicksShowGrid: Bool = true
     
     // MARK: - Create Flow State
-    
-    /// Current mode for the create flow (camera or library)
-    var createFlowMode: CreateFlowMode = .camera
+
+    /// Current mode for the create flow (none, camera, or library)
+    var createFlowMode: CreateFlowMode = .none
     
     // MARK: - Tab Bar State
     
@@ -192,7 +198,7 @@ enum CreateFlowMode {
     ///
     /// ## Behavior by Tab
     /// **Same tab tapped:**
-    /// - **Flicks**: Refresh feed (if at root) or pop navigation
+    /// - **Flicks**: Scroll to top (if grid view at root), switch to grid (if carousel at root), or pop navigation
     /// - **Collections**: Scroll to top (if at root) or pop navigation
     /// - **Search**: Focus search field (if at root) or pop navigation
     /// - **Profile**: Pop navigation only
@@ -209,8 +215,13 @@ enum CreateFlowMode {
             switch tab {
             case .flicks:
                 if flicksNavigationPath.isEmpty {
-                    isFlicksFeedRefreshing = true
-                    trigger(.refreshFlicksFeed)
+                    if flicksShowGrid {
+                        // In grid view: scroll to top
+                        triggerScrollToTopOfFlicksGrid.toggle()
+                    } else {
+                        // In carousel view: switch to grid view
+                        flicksShowGrid = true
+                    }
                 } else {
                     flicksNavigationPath.removeLast()
                 }
@@ -287,5 +298,11 @@ enum CreateFlowMode {
         selectTab(.create)
         self.shouldOpenLibrary = shouldOpenLibrary
         createFlowInitialCollection = collection
+
+        // Set flow mode to library when shouldOpenLibrary is true
+        // This ensures LibraryCreateFlow is rendered even when coming from blank state
+        if shouldOpenLibrary {
+            createFlowMode = .library
+        }
     }
 }

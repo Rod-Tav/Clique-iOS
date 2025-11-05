@@ -20,11 +20,11 @@ struct ChooseCliqueView: View {
     @State private var listState: ListState = .loading
     @State private var paginationState: AdvancedListPaginationState = .idle
     @State private var isScrollAtBottom: Bool = false
-    
+
     init(uid: String, _ cliqueStore: CliqueStore) {
         self.cliquesPgVM = .init(uid: uid, cliqueStore)
     }
-    
+
     var body: some View {
         VStack(spacing: 16) {
             Text("Your Cliques")
@@ -78,7 +78,7 @@ struct ChooseCliqueView: View {
     
     @ViewBuilder private func CollectionStat(icon: String, text: String) -> some View {
         HStack(spacing: 4) {
-            IconImage(icon, color: Color.theme.iconSecondary, size: 12)
+            IconImage(name: icon, color: Color.theme.iconSecondary, size: 12)
             
             Text(text)
                 .font(.caption2.bold())

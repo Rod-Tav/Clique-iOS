@@ -19,7 +19,8 @@ struct AlbumPhotosView: View {
     @Environment(PhotoPickerContext.self) var context
     
     @State var albumAssets: [PHAsset] = []
-    
+    @State var showClearConfirmation: Bool = false
+
     let assetCollection: PHAssetCollection
     let title: String
     
@@ -47,6 +48,18 @@ struct AlbumPhotosView: View {
             .task {
                 loadPhotosFromAlbum()
             }
+            .confirmationDialog(
+                "Clear \(viewModel.selectedAssets.count) selected photos?",
+                isPresented: $showClearConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Clear All", role: .destructive) {
+                    clearAllSelections()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This will remove all selected photos and any processed data.")
+            }
         }
     }
     
@@ -57,7 +70,7 @@ struct AlbumPhotosView: View {
             leadingIcon: {
                 ZStack(alignment: .leading) {
                     if viewModel.selectedAssets.count > 0 {
-                        TrailingIcon()
+                        trailingIcon
                             .hidden()
                     }
                     
@@ -85,36 +98,20 @@ struct AlbumPhotosView: View {
                     }
                 }
             },
-            trailingIcon: {
-                TrailingIcon()
-            }
+            trailingIcon: { trailingIcon }
         )
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.horizontal, 24)
+        .padding(.vertical, 8)
         .primaryBackground()
     }
     
-    @ViewBuilder private func TrailingIcon() -> some View {
+    @ViewBuilder private var trailingIcon: some View {
         if viewModel.selectedAssets.isEmpty {
             // No selection - show nothing or spacer
             Spacer()
                 .frame(24)
         } else {
-            // Any selection - always show count and "Add" button
-            Button {
-                processSelectedPhotos()
-            } label: {
-                HStack(spacing: 8) {
-                    HStack(spacing: 4) {
-                        Text("\(viewModel.selectedAssets.count)")
-                        IconImage("images-posts", color: .theme.iconPrimary, size: 20)
-                    }
-                    Text("Add")
-                }
-                .font(.caption.bold())
-                .textPrimary()
-            }
-            .disabled(context.isProcessing)
+            ClearPhotosButton(count: viewModel.selectedAssets.count, action: handleClearTap)
         }
     }
 }

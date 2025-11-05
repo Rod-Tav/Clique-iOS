@@ -115,7 +115,7 @@ struct UserProfilePicWithSubIcon: View {
                         .stroke(Color.theme.strokeSecondary, lineWidth: 1)
                         .frame(18)
                     
-                    IconImage(type.pfpType ?? "dot", color: type.iconColor, size: 12)
+                    IconImage(name: type.pfpType ?? "dot", color: type.iconColor, size: 12)
                 }
                 .offset(x: size / 3, y: size / 3)
             }
@@ -134,11 +134,11 @@ struct CliquePicWithSubIcon: View {
     var hasBorder: Bool = true
     let size: CGFloat
     let quality: ImageQuality
-    var loadingBug: Bool = false
-    
+    var context: ImageLoadingContext = .detail
+
     var body: some View {
         ZStack {
-            CliquePfpAsyncView(pfp: pfp, type: cliquePfpType, hasBorder: hasBorder, quality: quality, loadingBug: loadingBug)
+            CliquePfpAsyncView(pfp: pfp, type: cliquePfpType, hasBorder: hasBorder, quality: quality, context: context)
             
             if subIconType.stroke {
                 IconOuterStroke(
@@ -154,7 +154,7 @@ struct CliquePicWithSubIcon: View {
                         .stroke(Color.theme.strokeSecondary, lineWidth: 1)
                         .frame(18)
                     
-                    IconImage(subIconType.pfpType ?? "dot", color: subIconType.iconColor, size: 12)
+                    IconImage(name: subIconType.pfpType ?? "dot", color: subIconType.iconColor, size: 12)
                 }
                 .offset(x: size / 3, y: size / 3)
             }

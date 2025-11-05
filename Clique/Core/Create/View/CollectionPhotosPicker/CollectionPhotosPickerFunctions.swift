@@ -133,10 +133,11 @@ extension CollectionPhotosPicker {
         DispatchQueue.main.async {
             self.isLoadingPhotos = true
         }
-        
+
         let fetchOptions = PHFetchOptions()
         fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
-        let fetchResult = PHAsset.fetchAssets(with: .image, options: fetchOptions)
+        // Fetch all media types (photos, Live Photos, and videos)
+        let fetchResult = PHAsset.fetchAssets(with: fetchOptions)
         
         var assets: [PHAsset] = []
         fetchResult.enumerateObjects { asset, _, _ in
@@ -149,20 +150,15 @@ extension CollectionPhotosPicker {
         }
     }
     
-    /// Processing Selected Photos
-    internal func processSelectedPhotos() {
-        context.processSelectedPhotos(
-            viewModel: viewModel,
-            tabViewCoordinator: tabViewCoordinator,
-            presentToast: { toast in presentToast(toast) },
-            clearExistingData: true // Clear for collection picker - fresh start
-        )
+    /// Clear All Selections
+    internal func clearAllSelections() {
+        viewModel.clearAllSelections()
     }
-    
+
     internal func toggleSelection(_ asset: PHAsset) {
         context.toggleSelection(asset, viewModel: viewModel)
     }
-    
+
     internal func loadThumbnail(for asset: PHAsset) {
         context.loadThumbnail(for: asset)
     }

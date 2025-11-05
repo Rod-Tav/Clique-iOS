@@ -62,31 +62,38 @@ extension PhotoGridIOS18 {
             guard
                   let touchLoc = self.currentTouchLocation,
                   self.currentScrollDirection != .none else { return }
-            
+
             let screenHeight = UIScreen.main.bounds.height
             let scrollThreshold: CGFloat = 150
-            
+
             let distanceFromEdge: CGFloat
             if self.currentScrollDirection == .down {
                 distanceFromEdge = touchLoc.y
             } else {
                 distanceFromEdge = screenHeight - touchLoc.y
             }
-            
+
             let normalizedDistance = max(0, min(1, (scrollThreshold - distanceFromEdge) / scrollThreshold))
             let baseSpeed: CGFloat = 1.5
             let maxSpeedMultiplier: CGFloat = 4.0
-            
+
             let speedMultiplier = 1 + (normalizedDistance * maxSpeedMultiplier * (0.7 + 0.3 * normalizedDistance))
             let speed = baseSpeed * speedMultiplier
-            
+
             if self.currentScrollDirection == .up {
                 self.targetScrollOffset += speed
             } else {
                 self.targetScrollOffset -= speed
             }
-            
+
             self.localScrollPosition.scrollTo(y: self.targetScrollOffset)
+
+            // iOS 26: Update selection as cells scroll under stationary finger
+            if #available(iOS 26, *) {
+                if self.dragSelectionHandler.isDragSelectionActive {
+                    self.handleIOS26DragSelection(at: touchLoc)
+                }
+            }
         }
         scrollTimer?.fire()
     }

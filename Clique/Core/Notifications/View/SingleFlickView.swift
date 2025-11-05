@@ -51,7 +51,14 @@ struct SingleFlickView: View {
         .commentSheet(imageId: flick.id, fromCollectionDetail: true, showCommentSheet: $showCommentSheet)
         .background {
             if let currentImage {
-                CollectionDetailBackgroundAsyncImage(urls: currentImage.imageUrl, quality: .low)
+                CollectionDetailBackgroundAsyncImage(
+                    urls: currentImage.imageUrl,
+                    quality: .low,
+                    uploadStatus: currentImage.uploadStatus,
+                    itemId: currentImage.id,
+                    isLivePhoto: currentImage.isLivePhoto,
+                    isVideo: currentImage.isVideo
+                )
                     .blur(radius: 12.5, opaque: true)
                     .overlay(Color.theme.surfacesImageBgDarkOverlay)
                     .overlay(.black.opacity(0.2))
@@ -60,11 +67,11 @@ struct SingleFlickView: View {
     }
     
     private var swipeUpToOpenComments: some Gesture {
-        DragGesture(minimumDistance: 10)
+        DragGesture(minimumDistance: GestureConstants.minimumRecognitionDistance)
             .onChanged { value in
                 guard !dismissing else { return }
                 // Check if the swipe was mostly vertical and upwards
-                if value.translation.height < -20 && abs(value.translation.width) < 20 {
+                if value.translation.height < -GestureConstants.minimumUpwardSwipeForAction && abs(value.translation.width) < GestureConstants.maximumHorizontalDeviation {
                     haptics(.light)
                     showCommentSheet = true
                     hasSwipedUpToOpenComments = true
@@ -80,7 +87,7 @@ struct SingleFlickView: View {
                 Button {
                     dismiss()
                 } label: {
-                    IconImage("x-icon", color: .theme.white, size: 24)
+                    IconImage(name: "x-icon", color: .theme.white, size: 24)
                 }.buttonStyle(.noHighlight)
             },
             header: { headerContent },
@@ -102,10 +109,10 @@ struct SingleFlickView: View {
                     HStack(spacing: 4) {
                         Text(collection.name)
                             .font(.callout.bold())
-                        
-                        IconImage("chevron-right", color: .theme.iconPrimary, size: 16)
+
+                        IconImage(name: "chevron-right", color: .theme.iconPrimary, size: 16)
                     }
-                    
+
                     Text("\(formatDateMMMMdYYYY(flick.date)) • \(formatDateHHmm(flick.date))")
                         .font(.caption)
                 }
@@ -120,39 +127,40 @@ struct SingleFlickView: View {
     // MARK: Flick View
     private var flickView: some View {
         ZoomContainer {
-            CollectionDetailImageAsyncView(urls: flick.imageUrl, quality: .high)
+            CollectionDetailImageAsyncView(image: flick, quality: .high)
                 .doubleTapToLike(hasLiked: currentImage?.hasLiked ?? false, likeAnimation: $likeAnimation) {
                     handleLikeTapped()
                 }
                 .pinchZoom()
                 .swipeUpToOpenCommentsTutorial()
                 .compatibleDragGesture(
-                    minimumDistance: 10,
+                    minimumDistance: GestureConstants.minimumRecognitionDistance,
                     onChanged: { translation in
                         guard !dismissing else { return }
                         // Check if the swipe was mostly vertical and upwards
-                        if translation.height < -20 && abs(translation.width) < 20 {
+                        if translation.height < -GestureConstants.minimumUpwardSwipeForAction && abs(translation.width) < GestureConstants.maximumHorizontalDeviation {
                             haptics(.light)
                             showCommentSheet = true
                             hasSwipedUpToOpenComments = true
                         }
-                    }
+                    },
+                    onEnded: { _, _ in }  // Required for CompatibleDragGestureModifier signature
                 )
                 .offset(dismissOffset)
                 .compatibleDragGesture(
-                    minimumDistance: 10,
+                    minimumDistance: GestureConstants.minimumRecognitionDistance,
                     onChanged: { translation in
-                        guard (translation.height > 10 && abs(translation.width) < 20) || dismissing else { return }
+                        guard (translation.height > GestureConstants.minimumVerticalSwipe && abs(translation.width) < GestureConstants.maximumHorizontalDeviation) || dismissing else { return }
 
                         dismissing = true
                         dismissOffset = CGSize(width: 0, height: translation.height)
                     },
-                    onEnded: { translation in
+                    onEnded: { translation, velocity in
                         guard dismissing else { return }
-                        // Simplified without velocity
-                        let height = translation.height
+                        // Include velocity for flick detection
+                        let height = translation.height + (velocity.height / GestureConstants.velocityDampening)
 
-                        if height > 10 {
+                        if height > GestureConstants.dismissThresholdWithVelocity {
                             dismiss()
                         } else {
                             withAnimation(.easeInOut(duration: 0.2)) {
@@ -164,7 +172,7 @@ struct SingleFlickView: View {
                     }
                 )
                 .overlay {
-                    IconImage("heart-filled", color: .theme.red, size: 70)
+                    IconImage(name: "heart-filled", color: .theme.red, size: 70)
                         .likeAnimation($likeAnimation)
                 }
         }
@@ -207,7 +215,7 @@ struct SingleFlickView: View {
                             haptics(.medium)
                             handleLikeTapped()
                         } label: {
-                            IconImage("heart-filled", color: currentImage.hasLiked ? .theme.red : .theme.white, size: 28)
+                            IconImage(name: "heart-filled", color: currentImage.hasLiked ? .theme.red : .theme.white, size: 28)
                         }
                         
                         Button {
@@ -228,7 +236,7 @@ struct SingleFlickView: View {
                         showCommentSheet = true
                     } label: {
                         HStack(spacing: 4) {
-                            IconImage("comment-filled", color: .theme.white, size: 28)
+                            IconImage(name: "comment-filled", color: .theme.white, size: 28)
                             
                             Text(formatNumber(currentImage.numComments))
                                 .font(.footnote)
@@ -256,18 +264,18 @@ private extension SingleFlickView {
     
     // TODO: DRY
     var swipeDownToDismiss: some Gesture {
-        DragGesture(minimumDistance: 10)
+        DragGesture(minimumDistance: GestureConstants.minimumRecognitionDistance)
             .onChanged { value in
-                guard (value.translation.height > 10 && abs(value.translation.width) < 20) || dismissing else { return }
+                guard (value.translation.height > GestureConstants.minimumVerticalSwipe && abs(value.translation.width) < GestureConstants.maximumHorizontalDeviation) || dismissing else { return }
                 
                 dismissing = true
                 dismissOffset = CGSize(width: 0, height: value.translation.height)
             }
             .onEnded { value in
                 guard dismissing else { return }
-                let height = value.translation.height + (value.velocity.height / 5)
-                
-                if height > 10 {
+                let height = value.translation.height + (value.velocity.height / GestureConstants.velocityDampening)
+
+                if height > GestureConstants.dismissThresholdBasic {
                     dismiss()
                 } else {
                     withAnimation(.easeInOut(duration: 0.2)) {

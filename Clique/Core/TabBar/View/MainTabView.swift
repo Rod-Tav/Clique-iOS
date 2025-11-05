@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Toasts
+import Photos
 
 /// The main authenticated app experience with tab-based navigation.
 ///
@@ -184,7 +185,7 @@ struct MainTabView: View {
                             successfulFlicks: viewModel.successfulImages,
                             failedFlicks: viewModel.retryImages?.count ?? 0,
                             showUploading: $showUploading,
-                            showNav: !isUploading,
+                            showNav: !isUploading && !viewModel.collectionId.isEmpty,
                             showRetry: viewModel.uploadFailed,
                             retryAction: {
                                 isUploading = true
@@ -219,25 +220,28 @@ struct MainTabView: View {
             //                    .animation(.easeInOut, value: tabViewCoordinator.overlayColor)
             //            }
         }
-//        .onReceive(NotificationCenter.default.publisher(for: .showProcessingImagesForUpload)) { _ in
-//            print("hi")
-//        }
-        .onReceive(NotificationCenter.default.publisher(for: .uploadImagesToCollection)) { notification in
+        .onReceive(of: .uploadImagesToCollection) { notification in
             guard let collection = notification.userInfo?["collection"] as? ClCollection,
                   let makingNew = notification.userInfo?["makingNew"] as? Bool,
-                  let photoDatePairs = notification.userInfo?["photoDatePairs"] as? [Components.Schemas.PhotoDatePair],
-                  let variants  = notification.userInfo?["variants"] as? [(PreparedImageVariant, PreparedImageVariant, PreparedImageVariant)]
+                  let photoDatePairs = notification.userInfo?["photoDatePairs"] as? [Components.Schemas.PhotoVideoDate],
+                  let variants  = notification.userInfo?["variants"] as? [PreparedImageVariant],
+                  let livePhotoAssets = notification.userInfo?["livePhotoAssets"] as? [(assetId: String, asset: PHAsset)?],
+                  let transcodedVideoUrls = notification.userInfo?["transcodedVideoUrls"] as? [URL?],
+                  let allAssetIdentifiers = notification.userInfo?["allAssetIdentifiers"] as? [String?]
             else { return }
-            
+
             isUploading = true
             showUploading = true
-            
+
             Task {
                 do {
                     try await viewModel.uploadToCollection(
                         makingNew: makingNew,
                         photoDatePairs: photoDatePairs,
                         preparedImages: variants,
+                        livePhotoAssets: livePhotoAssets,
+                        transcodedVideoUrls: transcodedVideoUrls,
+                        allAssetIdentifiers: allAssetIdentifiers,
                         collection: collection,
                         collectionStore,
                         collectionImageStore
@@ -293,9 +297,9 @@ struct MainTabView: View {
             // Also trigger inbox notification check for clique invites and follow requests
             trigger(.checkInboxNotifications)
             
-            if userStore.currentUserId != "cad46bda-7c82-4684-a95d-bed84f88dcc1" {
-                AppService.isUpdateAvailable { result in
-                    showUpdateAlert = result
+            if userStore.currentUserId != "cad46bda-7c82-4684-a95d-bed84f88dcc1" { // test 1 (apple reviewer login)
+                Task {
+                    showUpdateAlert = await AppService.isUpdateAvailable()
                 }
             }
             

@@ -12,14 +12,15 @@ import Toasts
 struct ChooseCollectionView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.presentToast) private var presentToast
-    
+
+    @Environment(UserStore.self) private var userStore
     @Environment(CliqueStore.self) private var cliqueStore
     @Environment(CollectionStore.self) private var collectionStore
     @Environment(CollectionImageStore.self) private var collectionImageStore
-    
+
     @Environment(AppCoordinator.self) private var appCoordinator
     @Environment(TabViewCoordinator.self) private var tabViewCoordinator
-    
+
     @Environment(CreateViewModel.self) private var viewModel
     
     @State private var collectionsPgVM: UserCollectionsPaginationViewModel
@@ -27,18 +28,18 @@ struct ChooseCollectionView: View {
     @State private var listState: ListState = .loading
     @State private var paginationState: AdvancedListPaginationState = .idle
     @State private var isScrollAtBottom: Bool = false
-    
+
     init(uid: String, _ collectionStore: CollectionStore, _ collectionImageStore: CollectionImageStore) {
         self.collectionsPgVM = .init(uid: uid, collectionStore, collectionImageStore)
     }
-    
+
     var body: some View {
         VStack(spacing: 16) {
             Text("Your Collections")
                 .font(.callout.weight(.semibold))
                 .foregroundStyle(Color.theme.textPrimary)
             
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(spacing: 16) {
                 CliqueButton(
                     type: .primary,
                     leadingIcon: "plus",
@@ -128,27 +129,28 @@ struct ChooseCollectionView: View {
                 }
                 
                 VStack(alignment: .leading, spacing: 4) {
-                    CliquePill(collection.cliqueId, type: .createCollections)
+                    CliquePill(cid: collection.cliqueId, type: .createCollections)
                     
                     Text(collection.name)
                         .font(.footnote.bold())
                         .foregroundStyle(Color.theme.textPrimary)
-                    
+
                     HStack(spacing: 8) {
                         CollectionStat(icon: "calendar", text: formatDateMdyy(collection.creation))
-                        
-                        CollectionStat(icon: "images-posts", text: String(collection.numFlicks))
+
+                        CollectionStat(icon: "images-posts", text: String(collection.displayFlickCount(currentUserId: userStore.currentUserId)))
                     }
                 }
             }
-            .maxWidth(.leading)
             .contentShape(.rect)
-        }.noHighlight()
+        }
+        .noHighlight()
+        .maxWidth(.leading)
     }
     
     @ViewBuilder private func CollectionStat(icon: String, text: String) -> some View {
         HStack(spacing: 4) {
-            IconImage(icon, color: Color.theme.iconSecondary, size: 12)
+            IconImage(name: icon, color: Color.theme.iconSecondary, size: 12)
             
             Text(text)
                 .font(.caption2.bold())

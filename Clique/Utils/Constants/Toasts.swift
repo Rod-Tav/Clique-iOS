@@ -14,7 +14,13 @@ struct Toasts {
     static let uploadFailed = ToastValue(icon: Image(systemName: "exclamationmark.circle.fill"), message: "Image upload failed")
     
     static let savedImage = ToastValue(icon: Image(systemName: "square.and.arrow.down"), message: "Saved to library")
-    
+
+    static let savedVideo = ToastValue(icon: Image(systemName: "square.and.arrow.down"), message: "Video saved to library")
+
+    static let savingLivePhoto = ToastValue(icon: Image(systemName: "arrow.triangle.2.circlepath"), message: "Processing Live Photo...")
+
+    static let savedLivePhoto = ToastValue(icon: Image(systemName: "square.and.arrow.down"), message: "Live Photo saved to library")
+
     static let downloadFromICloudFailed = ToastValue(icon: Image(systemName: "exclamationmark.circle.fill"), message: "One image download failed")
     
     static let imageOptimizationFailed = ToastValue(icon: Image(systemName: "exclamationmark.circle.fill"), message: "Failed to process images")

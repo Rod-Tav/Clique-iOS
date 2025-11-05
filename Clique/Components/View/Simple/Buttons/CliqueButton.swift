@@ -38,6 +38,7 @@ struct CliqueButton: View {
     
     let text: String
     var textColor: Color?
+    var size: CGFloat = 16
     var fontWeight: (Font.Weight)?
     var buttonColor: Color?
     
@@ -55,7 +56,7 @@ struct CliqueButton: View {
                             .frame(16)
                     } else {
                         if let leadingIcon {
-                            IconImage(leadingIcon, color: leadingIconColor ?? textColor ?? type.textColor, size: 16)
+                            IconImage(name: leadingIcon, color: leadingIconColor ?? textColor ?? type.textColor, size: size)
                         }
                         
                         Text(text)
@@ -71,9 +72,7 @@ struct CliqueButton: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(buttonColor ?? type.buttonColor)
-            .animation(.easeOut, value: buttonColor)
-            .clipShape(.capsule)
+            .glassButton(backgroundColor: buttonColor ?? type.buttonColor)
             .if(type == .tertiary) { view in
                 view
                     .overlay(

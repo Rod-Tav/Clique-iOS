@@ -19,7 +19,7 @@ struct TopBarXIcon: View {
                 Button {
                     dismiss()
                 } label: {
-                    IconImage("x-icon", color: color, size: 24)
+                    IconImage(name: "x-icon", color: color, size: 24)
                 }.buttonStyle(.noHighlight)
             },
             header: { },

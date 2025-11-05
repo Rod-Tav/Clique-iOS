@@ -7,6 +7,35 @@
 
 import Foundation
 
+/// Observable store managing collection metadata throughout the app lifecycle.
+///
+/// This store provides centralized collection data management with intelligent URL refresh,
+/// partial updates, and coordination with ``CollectionImageStore`` for image data.
+///
+/// ## Key Features
+/// - **Smart URL Management**: Automatic detection of expired S3 URLs for cover photos
+/// - **Partial Updates**: Only updates changed fields to prevent unnecessary UI refreshes
+/// - **Image Coordination**: Automatically updates ``CollectionImageStore`` with collection images
+/// - **Force Update Support**: Can bypass smart checking when needed (e.g., manual refresh)
+///
+/// ## URL Management
+/// Collections have cover photos (static images) that use S3 presigned URLs with expiration.
+/// The store uses `shouldUpdatePhotoUrls()` to check if cover photo URLs need refreshing.
+///
+/// For Live Photos and Videos within collections, URL management is handled by
+/// ``CollectionImageStore`` which checks both photo and video URL expiration independently.
+///
+/// ## Usage
+/// ```swift
+/// @Environment(CollectionStore.self) private var collectionStore
+/// @Environment(CollectionImageStore.self) private var collectionImageStore
+///
+/// // Update collection (smart URL checking)
+/// collectionStore.updateCollection(collection, collectionImageStore)
+///
+/// // Force URL refresh (bypass expiration checking)
+/// collectionStore.updateCollection(collection, forceUpdateURL: true, collectionImageStore)
+/// ```
 @Observable @MainActor final class CollectionStore {
     var collections = [String: ClCollection]() // id to collection
     
@@ -27,7 +56,14 @@ import Foundation
         if existingCollection.cliqueId != collection.cliqueId {
             existingCollection.cliqueId = collection.cliqueId
         }
-        if existingCollection.numFlicks != collection.numFlicks {
+
+        // Update numFlicks from backend, but protect against the 0 edge case during uploads
+        // Backend returns 0 when no flicks are processed yet, but we might have PENDING uploads
+        if collection.numFlicks == 0 && !existingCollection.images.isEmpty {
+            // Keep existing numFlicks if backend says 0 but we have images locally
+            // displayFlickCount() will handle the actual count with PENDING items
+        } else {
+            // Trust backend's numFlicks in all other cases
             existingCollection.numFlicks = collection.numFlicks
         }
         if forceUpdateURL || shouldUpdatePhotoUrls(existingCollection.coverPhoto, collection.coverPhoto) {
@@ -36,9 +72,23 @@ import Foundation
         if existingCollection.visibility != collection.visibility {
             existingCollection.visibility = collection.visibility
         }
-        // TODO: better handling because images could be deleted. currently when collections are loaded on user profile they don't have images which is why this is here (so feed items keep their images)
-        if existingCollection.images.count < collection.images.count {
-            existingCollection.images = collection.images
+
+        // Update images array when backend provides data
+        // Some API endpoints return collections without images (e.g., profile collection list)
+        if !collection.images.isEmpty || forceUpdateURL {
+            // Preserve local PENDING images that aren't in the backend response yet
+            // Key insight: We filter by ID, so when backend processes a PENDING image:
+            //   - Backend returns same ID with COMPLETED status
+            //   - Filter excludes it (ID exists in backend response)
+            //   - Backend version replaces local PENDING version
+            //   - This automatically cleans up PENDING → COMPLETED transitions
+            let localPendingImages = existingCollection.images.filter { localImage in
+                localImage.uploadStatus == .PENDING &&
+                !collection.images.contains(where: { $0.id == localImage.id })
+            }
+
+            // Merge: backend images + preserved PENDING still processing
+            existingCollection.images = collection.images + localPendingImages
         }
         
         if collection.mostLikedImage != nil {
@@ -56,7 +106,7 @@ import Foundation
     func updateCollections(_ newCollections: [ClCollection], forceUpdateURLs: Bool = false, _ collectionImageStore: CollectionImageStore) {
         newCollections.forEach { updateCollection($0, forceUpdateURL: forceUpdateURLs, collectionImageStore) }
     }
-    
+
     func reset() {
         collections = [String: ClCollection]()
     }

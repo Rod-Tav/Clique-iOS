@@ -10,40 +10,131 @@ import Photos
 
 struct SelectedPhotosView: View {
     @Environment(\.dismiss) var dismiss
+    @Environment(\.presentToast) var presentToast
     @Environment(CreateViewModel.self) var viewModel
     @Environment(PhotoPickerContext.self) var context
-    
+
+    @Environment(UserStore.self) var userStore
+    @Environment(CollectionStore.self) var collectionStore
+    @Environment(CollectionImageStore.self) var collectionImageStore
+    @Environment(CliqueStore.self) var cliqueStore
+    @Environment(TabViewCoordinator.self) var tabViewCoordinator
+
     @State var currentIndex: Int = 0
     @State var scrollPosition: PHAsset?
     @State var zoomScales: [PHAsset: CGFloat] = [:]
     @State var dragOffsets: [PHAsset: CGSize] = [:]
     @State var galleryProxy: ScrollViewProxy?
+
+    // Upload-related state
+    @State var activeSheet: SheetType?
+    @State var isProcessing: Bool = false
+    @State var processingProgress: Double = 0.0
+    @State var processedCount: Int = 0
+    @State var totalCount: Int = 0
+
+    // Sheet type enum
+    enum SheetType: Identifiable {
+        case chooseCollection
+        case newCollection
+
+        var id: Int {
+            switch self {
+            case .chooseCollection: return 0
+            case .newCollection: return 1
+            }
+        }
+    }
     
     // Convert Set to Array for indexed access
     var selectedAssetsArray: [PHAsset] {
         Array(viewModel.selectedAssets)
     }
-    
+
     // Check if current image is zoomed
     var isCurrentImageZoomed: Bool {
         guard currentIndex < selectedAssetsArray.count else { return false }
         let currentAsset = selectedAssetsArray[currentIndex]
         return (zoomScales[currentAsset] ?? 1.0) > 1.0
     }
+
+    // Get current asset's media type
+    var currentAssetMediaType: String? {
+        guard currentIndex < selectedAssetsArray.count else { return nil }
+        let asset = selectedAssetsArray[currentIndex]
+
+        if asset.isLivePhoto {
+            return "LIVE"
+        } else if asset.isVideo {
+            return "VIDEO"
+        }
+        return nil
+    }
     
     var body: some View {
+        @Bindable var bindableViewModel = viewModel
+
         ZStack {
             VStack(spacing: 0) {
                 topBar
                 centerImagePreview
                 bottomCarousel
+                Spacer()
+                uploadButton
             }
             .primaryBackground()
+
+            // Processing overlay
+            if isProcessing {
+                ProcessingOverlay(
+                    progress: processingProgress,
+                    processedCount: processedCount,
+                    totalCount: totalCount
+                )
+            }
         }
         .onAppear {
             // Initialize scroll position to first item
             if !selectedAssetsArray.isEmpty {
                 scrollPosition = selectedAssetsArray[0]
+            }
+        }
+        .onChange(of: viewModel.showNewCollectionSheet) { _, newValue in
+            if newValue {
+                activeSheet = .newCollection
+                viewModel.showNewCollectionSheet = false // Reset to avoid conflicts
+            }
+        }
+        .onChange(of: tabViewCoordinator.activeTab) { oldTab, newTab in
+            // Auto-dismiss when tab switches away (mimics NavigationDestination auto-dismiss behavior)
+            if oldTab != newTab {
+                dismiss()
+            }
+        }
+        .onChange(of: viewModel.shouldProcessAndUploadForNewCollection) { _, shouldUpload in
+            if shouldUpload {
+                viewModel.shouldProcessAndUploadForNewCollection = false
+                // Dismiss sheet first
+                activeSheet = nil
+                // Then process and upload
+                Task {
+                    await processPhotosAndUploadForNewCollection()
+                }
+            }
+        }
+        .sheet(item: $activeSheet) { sheetType in
+            switch sheetType {
+            case .chooseCollection:
+                if let uid = userStore.currentUserId {
+                    ChooseCollectionView(uid: uid, collectionStore, collectionImageStore)
+                        .environment(viewModel)
+                        .bottomSheetModifiers()
+                }
+            case .newCollection:
+                NewCollectionDetailsView()
+                    .environment(viewModel)
+                    .bottomSheetModifiers()
+                    .presentationDetents([.fraction(0.999)])
             }
         }
     }
@@ -68,7 +159,7 @@ struct SelectedPhotosView: View {
                     Button {
                         dismiss()
                     } label: {
-                        IconImage("arrow-left", color: .theme.iconPrimary, size: 24)
+                        IconImage(name: "arrow-left", color: .theme.iconPrimary, size: 24)
                     }
                 }
             },
@@ -77,9 +168,28 @@ struct SelectedPhotosView: View {
                     Text("Selected Photos")
                         .font(.callout.weight(.semibold))
                         .textPrimary()
-                    Text("\(currentIndex + 1) of \(selectedAssetsArray.count)")
-                        .font(.caption)
-                        .foregroundStyle(Color.theme.textSecondary)
+
+                    HStack(spacing: 6) {
+                        // Media type badge (LIVE or VIDEO)
+                        if let mediaType = currentAssetMediaType {
+                            HStack(spacing: 3) {
+                                Image(systemName: mediaType == "LIVE" ? "livephoto" : "play.fill")
+                                    .font(.system(size: 8, weight: .semibold))
+                                Text(mediaType)
+                                    .font(.system(size: 10, weight: .semibold))
+                            }
+                            .foregroundStyle(mediaType == "LIVE" ? .yellow : .red)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+//                            .background(mediaType == "LIVE" ? Color(red: 0.95, green: 0.7, blue: 0.0) : Color.red)
+                            .background(Color(.systemGray5))
+                            .clipShape(.capsule)
+                        }
+
+                        Text("\(currentIndex + 1) of \(selectedAssetsArray.count)")
+                            .font(.caption)
+                            .foregroundStyle(Color.theme.textSecondary)
+                    }
                 }
             },
             trailingIcon: {
@@ -92,8 +202,8 @@ struct SelectedPhotosView: View {
                 }
             }
         )
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.horizontal, 24)
+        .padding(.vertical, 8)
     }
     
     // MARK: - Center Image Preview
@@ -114,7 +224,13 @@ struct SelectedPhotosView: View {
                                     dragOffset: Binding(
                                         get: { dragOffsets[asset] ?? .zero },
                                         set: { dragOffsets[asset] = $0 }
-                                    )
+                                    ),
+                                    isCurrentlyVisible: asset == scrollPosition,
+                                    viewModel: viewModel,
+                                    collectionStore: collectionStore,
+                                    onCollectionTap: {
+                                        activeSheet = .chooseCollection
+                                    }
                                 )
                                 .containerRelativeFrame(.horizontal)
                                 .id(asset)
@@ -175,13 +291,27 @@ struct SelectedPhotosView: View {
                 .padding(.vertical, 12)
             }
             .frame(height: 80)
-            .background(Color.theme.surfacesElevatedPrimary)
             .onChange(of: currentIndex) { _, newValue in
                 withAnimation {
                     proxy.scrollTo(newValue, anchor: .center)
                 }
             }
         }
+    }
+
+    // MARK: - Upload Button
+    private var uploadButton: some View {
+        CliqueButton(
+            type: .primary,
+            text: viewModel.selectedCollectionId == nil ? "Add to collection" : "Upload \(pluralizeWithCount(count: viewModel.selectedAssets.count, singular: "Flick"))",
+            fullWidth: true,
+            isLoading: isProcessing
+        ) {
+            handleUpload()
+        }
+        .padding(.horizontal, 24)
+        .padding(.bottom, 16)
+        .disabled(isProcessing)
     }
 }
 
@@ -192,40 +322,49 @@ struct CarouselThumbnail: View {
     let isSelected: Bool
     let index: Int
     let onTap: () -> Void
-    
+
     @Environment(PhotoPickerContext.self) var context
     @State private var carouselImage: UIImage?
-    
+
     var body: some View {
         Button(action: onTap) {
             ZStack {
-                if let image = carouselImage {
+                if let image = carouselImage ?? context.thumbnailCache[asset] {
                     Image(uiImage: image)
                         .resizable()
                         .aspectRatio(contentMode: .fill)
                         .frame(width: 60, height: 60)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .roundCorners(8)
                 } else {
                     RoundedRectangle(cornerRadius: 8)
                         .fill(Color.theme.surfacesElevatedBlur)
                         .frame(width: 60, height: 60)
-                        .onAppear {
-                            // Load smaller carousel-specific thumbnail
-                            context.loadCarouselThumbnail(for: asset) { image in
-                                carouselImage = image
-                            }
-                        }
                 }
-                
+
+                // Media type badges
+                MediaTypeBadge(asset: asset, style: .carousel)
+                    .frame(width: 60, height: 60)
+
                 if isSelected {
                     RoundedRectangle(cornerRadius: 8)
                         .stroke(Color.theme.buttonCTA, lineWidth: 3)
                         .frame(width: 60, height: 60)
                 }
             }
+            .task {
+                // Try to use cached thumbnail first, otherwise load it
+                if let cached = context.thumbnailCache[asset] {
+                    carouselImage = cached
+                } else {
+                    context.loadCarouselThumbnail(for: asset) { image in
+                        carouselImage = image
+                    }
+                }
+            }
         }
         .buttonStyle(.plain)
     }
+
 }
 
 struct PhotoGalleryItem: View {
@@ -233,24 +372,101 @@ struct PhotoGalleryItem: View {
     let geometry: GeometryProxy
     @Binding var zoomScale: CGFloat
     @Binding var dragOffset: CGSize
-    
+    let isCurrentlyVisible: Bool
+    let viewModel: CreateViewModel
+    let collectionStore: CollectionStore
+    let onCollectionTap: () -> Void
+
     @Environment(PhotoPickerContext.self) var context
-    
+
+    /// Whether this asset is a Live Photo
+    private var isLivePhoto: Bool {
+        asset.isLivePhoto
+    }
+
+    /// Whether this asset is a video
+    private var isVideo: Bool {
+        asset.isVideo
+    }
+
+    /// Video duration formatted as string (e.g., "1:23")
+    private var videoDuration: String? {
+        guard asset.isVideo else { return nil }
+        let duration = Int(asset.duration)
+        let minutes = duration / 60
+        let seconds = duration % 60
+        return String(format: "%d:%02d", minutes, seconds)
+    }
+
     var body: some View {
         ZStack {
             PhotoZoomContainer(
                 maxScale: 5.0,
+                isInteractive: !asset.isLivePhoto && !isVideo,
                 scale: $zoomScale,
                 dragOffset: $dragOffset
             ) {
-                // Use TwoStageImageLoader for progressive quality enhancement
-                TwoStageImageLoader(
-                    asset: asset,
-                    thumbnail: context.thumbnailCache[asset],
-                    contentMode: .fit
-                )
-                .frame(maxWidth: geometry.size.width)
-                .frame(maxHeight: geometry.size.height)
+                if isLivePhoto {
+                    // Use Live Photo preview for tap-and-hold playback
+                    LivePhotoPreviewView(
+                        asset: asset,
+                        thumbnail: context.thumbnailCache[asset],
+                        contentMode: .fit
+                    )
+                    .frame(maxWidth: geometry.size.width)
+                    .frame(maxHeight: geometry.size.height)
+                    .id(asset.localIdentifier) // Force recreation when same asset is selected again
+                } else if asset.isVideo {
+                    // Use VideoPreviewView for videos
+                    VideoPreviewView(
+                        asset: asset,
+                        thumbnail: context.thumbnailCache[asset],
+                        contentMode: .fit,
+                        isVisible: isCurrentlyVisible
+                    )
+                    .frame(maxWidth: geometry.size.width)
+                    .frame(maxHeight: geometry.size.height)
+                } else {
+                    // Use TwoStageImageLoader for regular photos
+                    TwoStageImageLoader(
+                        asset: asset,
+                        thumbnail: context.thumbnailCache[asset],
+                        contentMode: .fit
+                    )
+                    .frame(maxWidth: geometry.size.width)
+                    .frame(maxHeight: geometry.size.height)
+                }
+            }
+            .overlay(alignment: .topLeading) {
+                if let cid = viewModel.selectedCollectionClique?.id {
+                    CliquePill(cid: cid, type: .newCollection)
+                        .padding(16)
+                }
+            }
+            .overlay(alignment: .bottomLeading) {
+                if let collectionId = viewModel.selectedCollectionId {
+                    Button(action: onCollectionTap) {
+                        HStack(spacing: 6) {
+                            IconImage(name: "collections", color: .theme.iconPrimary, size: 12)
+                            
+                            if let name = collectionStore.collections[collectionId]?.name {
+                                Text(name)
+                                    .font(.caption.bold())
+                                    .textPrimary()
+                            }
+                            
+                            if viewModel.newCollectionVisibility == .priv {
+                                IconImage(name: "lock", color: .theme.iconPrimary, size: 12)
+                            }
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Color.theme.surfacesPrimary)
+                        .roundCorners(32)
+                        .padding(16)
+                        .contentShape(.rect)
+                    }.noHighlight()
+                }
             }
             .onTapGesture(count: 2) {
                 withAnimation(.spring(response: 0.3)) {

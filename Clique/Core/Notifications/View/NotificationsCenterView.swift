@@ -56,7 +56,7 @@ struct NotificationsCenterView: View {
 //                    Button {
 //                        showInboxSheet = true
 //                    } label: {
-//                        IconImage("message", color: .theme.iconPrimary, size: 24)
+//                        IconImage(name: "message", color: .theme.iconPrimary, size: 24)
 //                            .overlayTopRightNotification(when: hasInboxNotification)
 //                    }.buttonStyle(.noHighlight)
                 }
@@ -148,7 +148,7 @@ struct NotificationsCenterView: View {
                         .fill(Color.theme.cliquePink.opacity(0.3))
                         .frame(44)
                     
-                    IconImage("add-user", color: .theme.cliquePink, size: 24)
+                    IconImage(name: "add-user", color: .theme.cliquePink, size: 24)
                 }
                 
                 VStack(alignment: .leading, spacing: 2) {

@@ -11,7 +11,7 @@ import SwiftUI
 struct TopTitle: View {
     let title: String
     let description: String
-    
+
     var body: some View {
         VStack(spacing: 8) {
             Text(title)

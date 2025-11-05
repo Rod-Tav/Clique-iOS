@@ -37,23 +37,19 @@ import SwiftUI
         )
         
         // Step 3: If new pfp is provided, upload all variants using URLs from updatedUser.profilePic
-        // Step 3: If new pfp is provided, upload all variants using URLs from updatedUser.profilePic
-        if let pfp = pfp, let profilePicUrls = updatedUser.profilePic {
-            // ✅ Prepare image data and variants
+        // Step 3: If new pfp is provided, upload using URL from updatedUser.profilePic (original quality - backend handles conversion)
+        if let pfp = pfp, let profilePicUrl = updatedUser.profilePic?.url {
+            // ✅ Prepare image data
             guard let preparedPfp = prepareUIImage(pfp) else { return updatedUser }
-            
-            // ✅ Upload high/med/low variants using exact prepared data
-            async let highUpload: () = PhotoHelper.uploadImageData(preparedPfp.imageVariants.high.data, to: profilePicUrls.highQualityUrl)
-            async let medUpload: () = PhotoHelper.uploadImageData(preparedPfp.imageVariants.medium.data, to: profilePicUrls.medQualityUrl)
-            async let lowUpload: () = PhotoHelper.uploadImageData(preparedPfp.imageVariants.low.data, to: profilePicUrls.lowQualityUrl)
-            
+
+            // ✅ Upload original quality (backend handles quality conversion)
             do {
-                _ = try await (highUpload, medUpload, lowUpload)
-                print("🎉 All profile pic variants uploaded")
+                try await PhotoHelper.uploadImageData(preparedPfp.imageVariant.data, to: profilePicUrl)
+                print("🎉 Profile pic uploaded")
             } catch {
-                print("❌ Failed to upload one or more profile pic variants: \(error.localizedDescription)")
+                print("❌ Failed to upload profile pic: \(error.localizedDescription)")
             }
-            
+
             return try await UserService.getUserById(updatedUser.id)
         }
         

@@ -16,8 +16,8 @@ func mapToClique(_ clique: Components.Schemas.Clique) -> Clique {
         name: clique.name!,
         creation: convertToDate(clique.dateCreated),
         bio: clique.bio!,
-        cliquePic: clique.cliqueProfilePic == nil ? nil : mapToPhotoUrls(clique.cliqueProfilePic!),
-        cliqueBanner: clique.cliqueBanner == nil ? nil : mapToPhotoUrls(clique.cliqueBanner!),
+        cliquePic: clique.cliqueProfilePic == nil ? nil : mapToMediaUrls(clique.cliqueProfilePic!),
+        cliqueBanner: clique.cliqueBanner == nil ? nil : mapToMediaUrls(clique.cliqueBanner!),
         numMembers: clique.memberCount ?? 0,
         numFlicks: clique.flickCount ?? 0
     )

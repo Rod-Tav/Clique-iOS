@@ -8,33 +8,23 @@
 import SwiftUI
 import Kingfisher
 
+/// Feed cell image for collections - thin wrapper around UnifiedCollectionImageView
 struct CollectionFeedCellAsyncImage: View {
     let urls: PhotoUrls?
     let width: CGFloat
     let quality: ImageQuality
-    
-    var body: some View {
-        GenericAsyncImage(urls: urls, quality: quality, performanceMode: true) { image in
-            image
-                .contentConfigure { image in
-                    image
-                        .resizable()
-                        .scaledToFill()
-                        .format(width)
-                }
-        } placeholder: {
-            Rectangle()
-                .fill(.gray)
-                .format(width)
-        }
-    }
-}
+    var uploadStatus: UploadStatus? = nil
+    var itemId: String? = nil
+    var onRefresh: (() -> Void)? = nil
 
-private extension View {
-    func format(_ width: CGFloat) -> some View {
-        self
-            .aspectRatio(1, contentMode: .fill)
-            .frame(width)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+    var body: some View {
+        UnifiedCollectionImageView(
+            urls: urls,
+            uploadStatus: uploadStatus,
+            itemId: itemId,
+            quality: quality,
+            sizing: .width(width),
+            performanceMode: true
+        )
     }
 }

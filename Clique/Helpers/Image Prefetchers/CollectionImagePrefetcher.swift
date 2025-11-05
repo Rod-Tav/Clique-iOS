@@ -24,18 +24,18 @@
 ///
 /// ## Prefetching Strategies
 ///
-/// ### Context-Based Loading
-/// - **Feed Scrolling**: Low quality, first 2-4 images
-/// - **Detail Viewing**: Medium quality, visible + adjacent
-/// - **Grid Browsing**: Low quality, visible rows + 1
-/// - **Fullscreen**: High quality, current + next/prev
+/// ### Context-Based Loading (Optimized to reduce network congestion)
+/// - **Feed Scrolling**: Medium quality, first 2 images
+/// - **Detail Viewing**: High quality, first 3 images
+/// - **Grid Browsing**: Low quality, first 3 images
+/// - **Background Refresh**: Medium quality, 1 image only
 ///
-/// ### Network Adaptation
+/// ### Network Adaptation (Conservative thresholds to prioritize videos/Live Photos)
 /// ```swift
-/// Excellent (80-100%): Full prefetch all qualities
-/// Good (50-80%): Skip high quality prefetch
-/// Poor (20-50%): Only critical images
-/// Very Poor (0-20%): Skip all prefetching
+/// Excellent (90-100%): Full prefetch all qualities
+/// Good (70-90%): Normal prefetching
+/// Poor (40-70%): Skip all except detail view
+/// Very Poor (0-40%): Skip all except currently visible in detail view
 /// ```
 ///
 /// ## Performance Optimizations
@@ -45,9 +45,10 @@
 /// - Prevents excessive operations during fast scrolling
 /// - Batches multiple requests together
 ///
-/// ### Concurrent Limits
-/// - Maximum 2 concurrent prefetch operations
-/// - Prevents UI thread blocking
+/// ### Concurrent Limits (Optimized to prevent network congestion)
+/// - Maximum 1 concurrent prefetch operation
+/// - Prevents network bandwidth saturation that blocks videos/Live Photos
+/// - Shorter timeouts (5-8s) to fail fast and free up network
 /// - Cancels old operations for new ones
 ///
 /// ### Memory Management
@@ -122,7 +123,7 @@ final class CollectionImagePrefetcher {
 
     // Track active prefetch operations for smarter management
     private var activePrefetchCount = 0
-    private let maxConcurrentPrefetches = 2  // Reduced from 3 to prevent UI blocking
+    private let maxConcurrentPrefetches = 1  // Reduced to 1 to prevent network congestion blocking videos/Live Photos
 
     // Network quality tracking
     private var recentPrefetchResults: [Bool] = [] // Track last 20 results
@@ -182,13 +183,13 @@ final class CollectionImagePrefetcher {
         // Calculate overall success rate
         let recentSuccessRate = Double(recentPrefetchResults.filter { $0 }.count) / Double(max(1, recentPrefetchResults.count))
 
-        // Update network quality assessment (less aggressive thresholds)
+        // Update network quality assessment (more conservative thresholds to detect poor network earlier)
         switch recentSuccessRate {
-        case 0.8...1.0:
+        case 0.9...1.0:
             networkQuality = .excellent
-        case 0.5..<0.8:
+        case 0.7..<0.9:
             networkQuality = .good
-        case 0.2..<0.5:
+        case 0.4..<0.7:
             networkQuality = .poor
         default:
             networkQuality = .veryPoor
@@ -210,17 +211,23 @@ final class CollectionImagePrefetcher {
         }
     }
 
-    /// Skip prefetching entirely if network is too poor
+    /// Skip prefetching entirely if network is too poor (more aggressive to prioritize videos/Live Photos)
     private func shouldSkipPrefetch(for context: PrefetchContext) -> Bool {
         switch (networkQuality, context) {
         case (.veryPoor, .detailView):
-            // Still try for detail view even in very poor network
+            // Only prefetch currently visible image in detail view during very poor network
             return false
         case (.veryPoor, _):
-            // Skip other prefetching in very poor network
+            // Skip all other prefetching in very poor network to free up bandwidth for videos
             return true
         case (.poor, .backgroundRefresh):
             // Skip background refresh in poor network
+            return true
+        case (.poor, .feedScroll):
+            // Skip feed prefetching in poor network to prioritize detail view and videos
+            return true
+        case (.poor, .gridView):
+            // Skip grid prefetching in poor network - let images load on-demand
             return true
         default:
             return false
@@ -320,21 +327,21 @@ final class CollectionImagePrefetcher {
 
             switch context {
             case .feedScroll:
-                // For feed scrolling, prefetch only medium quality for visible items
-                self.prefetchMediumQuality(collectionId: collectionId, images: Array(images.prefix(6)))
+                // For feed scrolling, prefetch only medium quality for visible items (reduced to prevent network congestion)
+                self.prefetchMediumQuality(collectionId: collectionId, images: Array(images.prefix(2)))
 
             case .detailView:
-                // For detail view, prefetch high quality for current and adjacent images
-                self.prefetchHighQuality(collectionId: collectionId, images: Array(images.prefix(5)))
+                // For detail view, prefetch high quality for current and adjacent images (reduced to free up bandwidth for videos)
+                self.prefetchHighQuality(collectionId: collectionId, images: Array(images.prefix(3)))
 
             case .gridView:
-                // For grid view, prefetch low quality for fewer items to avoid blocking
+                // For grid view, prefetch low quality for fewer items to avoid blocking (reduced significantly)
                 // Grid thumbnails should load on-demand as user scrolls
-                self.prefetchLowQuality(collectionId: collectionId, images: Array(images.prefix(8)))
+                self.prefetchLowQuality(collectionId: collectionId, images: Array(images.prefix(3)))
 
             case .backgroundRefresh:
-                // Background refresh - prefetch medium quality for first few items
-                self.prefetchMediumQuality(collectionId: collectionId, images: Array(images.prefix(3)))
+                // Background refresh - prefetch medium quality for first few items (reduced to 1)
+                self.prefetchMediumQuality(collectionId: collectionId, images: Array(images.prefix(1)))
             }
         }
     }
@@ -511,19 +518,21 @@ final class CollectionImagePrefetcher {
             processorSize = CGSize(width: screenSize.width * scale * 1.2, height: screenSize.height * scale * 1.2)
         }
 
-        // Adjust timeout based on network quality and context
+        // Adjust timeout based on network quality and context (reduced to fail faster and free up network for videos)
         let timeoutInterval: TimeInterval = {
             switch (networkQuality, quality) {
             case (.veryPoor, _):
-                return 10 // Fail fast in very poor conditions
+                return 5 // Fail very fast in poor conditions
             case (.poor, .high):
-                return 15 // Reduced timeout for high quality in poor network
+                return 6 // Shorter timeout for high quality in poor network
             case (.poor, _):
-                return 12
+                return 5
             case (_, .low):
-                return 15 // Thumbnails should load fast
+                return 6 // Thumbnails should load fast
+            case (_, .medium):
+                return 7
             default:
-                return 20 // Normal timeout for decent network
+                return 8 // Reduced from 20s to free up network bandwidth for videos
             }
         }()
 

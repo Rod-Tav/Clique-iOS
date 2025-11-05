@@ -11,6 +11,8 @@ import Toasts
 
 struct FlicksFeedView: View {
     @AppStorage("hasSwipedUpToOpenComments") private var hasSwipedUpToOpenComments: Bool = false
+    @AppStorage("videoQualityPreference") private var videoQualityPreference: VideoQualityPreference = .auto
+    @AppStorage("flicksGridColumns") private var gridColumns: Int = 3
     
     @Environment(\.presentToast) private var presentToast
     
@@ -42,10 +44,11 @@ struct FlicksFeedView: View {
     @State private var showCliqueMembers: Bool = false
     
     @State var loadedImage: UIImage?
-    
-    // Grid view state
-    @State private var showGrid: Bool = true  // Default to grid view
-    @AppStorage("flicksGridColumns") private var gridColumns: Int = 3
+
+
+    /// Live Photo save state
+    @State private var isSavingLivePhoto: Bool = false
+
     @State private var gridScrollPosition: String? = nil
     @State private var gridReaderProxy: ScrollViewProxy? = nil
 
@@ -61,14 +64,17 @@ struct FlicksFeedView: View {
     init(_ collectionStore: CollectionStore, _ collectionImageStore: CollectionImageStore, _ cliqueStore: CliqueStore, _ userStore: UserStore) {
         self.viewModel = .init(collectionStore, collectionImageStore, userStore, cliqueStore)
     }
-    
+
     var body: some View {
         Group {
-            if showGrid {
+            if tabViewCoordinator.flicksShowGrid {
                 gridView
             } else {
                 existingCarouselView
             }
+        }
+        .onChange(of: gridColumns, initial: true) { oldValue, newValue in
+            viewModel.gridColumns = newValue
         }
     }
     
@@ -107,7 +113,7 @@ struct FlicksFeedView: View {
                                idx + 1 < viewModel.items.count {
                                 let nextItem = viewModel.items[idx + 1]
                                 if let nextImage = collectionImageStore.images[nextItem.id] {
-                                    CollectionDetailImageAsyncView(urls: nextImage.imageUrl, quality: .high)
+                                    CollectionDetailImageAsyncView(image: nextImage, quality: .high)
                                         .opacity(0)
                                         .allowsHitTesting(false)
                                 }
@@ -151,7 +157,14 @@ struct FlicksFeedView: View {
             }
             .background {
                 if let currentImage {
-                    CollectionDetailBackgroundAsyncImage(urls: currentImage.imageUrl, quality: .low)
+                    CollectionDetailBackgroundAsyncImage(
+                        urls: currentImage.imageUrl,
+                        quality: .low,
+                        uploadStatus: currentImage.uploadStatus,
+                        itemId: currentImage.id,
+                        isLivePhoto: currentImage.isLivePhoto,
+                        isVideo: currentImage.isVideo
+                    )
                         .blur(radius: 12.5, opaque: true)
                         .overlay(Color.theme.surfacesImageBgDarkOverlay)
                         .overlay(.black.opacity(0.2))
@@ -206,15 +219,17 @@ struct FlicksFeedView: View {
             }
             .primaryBackground()
         }
-        .task {
-            guard listState == .loading else { return }
-            await updateFlicks(.loadFirstPage)
-            if let first = viewModel.items.first {
-                currentFlickId = first.id
-                gridScrollPosition = first.id
+        .onAppear {
+            Task {
+                guard listState == .loading else { return }
+                await updateFlicks(.loadFirstPage)
+                if let first = viewModel.items.first {
+                    currentFlickId = first.id
+                    gridScrollPosition = first.id
+                }
             }
         }
-        .onChange(of: showGrid) { oldValue, newValue in
+        .onChange(of: tabViewCoordinator.flicksShowGrid) { oldValue, newValue in
             if newValue == true {
                 // Switching TO grid: sync grid position from carousel and scroll to it
                 gridScrollPosition = currentFlickId
@@ -233,6 +248,14 @@ struct FlicksFeedView: View {
                 }
             }
         }
+        .onChange(of: tabViewCoordinator.triggerScrollToTopOfFlicksGrid) { oldValue, newValue in
+            // Scroll to top when trigger changes
+            if let firstItem = viewModel.items.first, let proxy = gridReaderProxy {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    proxy.scrollTo(firstItem.id, anchor: .top)
+                }
+            }
+        }
         .onReceive(of: .refreshFlicksFeed) { _ in
             refreshFeed()
         }
@@ -243,34 +266,43 @@ struct FlicksFeedView: View {
         TopAppBar(
             type: .medium,
             leadingIcon: { },
-            header: { HeaderTextStar("Flicks") },
+            header: { HeaderTextStar(title: "Flicks") },
             trailingIcon: {
-                Menu {
-                    ForEach([2, 3, 4], id: \.self) { count in
-                        Button {
-                            gridColumns = count
-                        } label: {
-                            HStack {
-                                Text("\(count) columns")
-                                if gridColumns == count {
-                                    Spacer()
-                                    Image(systemName: "checkmark")
+                HStack(spacing: 12) {
+                    Menu {
+                        ForEach([2, 3, 4], id: \.self) { count in
+                            Button {
+                                gridColumns = count
+                            } label: {
+                                HStack {
+                                    Text("\(count) columns")
+                                    if gridColumns == count {
+                                        Spacer()
+                                        Image(systemName: "checkmark")
+                                    }
                                 }
                             }
                         }
+                    } label: {
+                        IconImage(name: "filter", color: .theme.white, size: 26)
+                        
+//                        HStack(spacing: 4) {
+//                            Image(systemName: "square.grid.3x3")
+//                                .font(.callout)
+//                            Image(systemName: "chevron.down")
+//                                .font(.caption2)
+//                        }
+//                        .textSecondary()
+//                        .padding(.horizontal, 8)
+//                        .padding(.vertical, 4)
+//                        .background(Color.theme.textSecondary.opacity(0.1))
+//                        .roundCorners(6)
                     }
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "square.grid.3x3")
-                            .font(.callout)
-                        Image(systemName: "chevron.down")
-                            .font(.caption2)
+                    
+                    NavigationLink(value: "NotificationsCenter") {
+                        IconImage(name: "inbox", color: .theme.iconPrimary, size: 26)
+                            .overlayTopRightNotification(when: tabViewCoordinator.hasNotification)
                     }
-                    .textSecondary()
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.theme.textSecondary.opacity(0.1))
-                    .roundCorners(6)
                 }
             }
         )
@@ -286,6 +318,21 @@ struct FlicksFeedView: View {
                 content: items
             )
             .scrollTargetLayout()
+            
+            if paginationState == .loading {
+                CliqueProgressView()
+                    .padding()
+            }
+        }
+        .refreshable {
+            guard paginationState == .idle else { return }
+            viewModel.refreshing = true
+
+            await CacheControl.shared.refreshFlicksFeed()
+            await updateFlicks(.refresh)
+            currentFlickId = viewModel.items.first?.id
+
+            viewModel.refreshing = false
         }
     }
     
@@ -294,14 +341,19 @@ struct FlicksFeedView: View {
             .overlayCollectionPreviewStats(
                 likes: item.flick.numLikes,
                 comments: item.flick.numComments,
-                hasLiked: item.flick.hasLiked
+                hasLiked: item.flick.hasLiked,
+                isLivePhoto: item.flick.isLivePhoto,
+                isVideo: item.flick.isVideo,
+                videoDuration: item.flick.videoDuration,
+                videoUrl: item.flick.videoUrls?.videoUrl(for: .medium),
+                compact: gridColumns >= 4
             )
             .id(item.flick.id)
             .contentShape(.rect)
             .onTapGesture {
                 gridScrollPosition = item.flick.id  // Update grid position
                 currentFlickId = item.flick.id      // Update carousel position
-                showGrid = false                    // Switch to carousel
+                tabViewCoordinator.flicksShowGrid = false  // Switch to carousel
             }
     }
     
@@ -336,6 +388,29 @@ struct FlicksFeedView: View {
                         Spacer()
                         
                         Menu {
+                            // Video quality selector (only for videos)
+                            if currentImage?.isVideo == true {
+                                Menu {
+                                    ForEach(VideoQualityPreference.allCases, id: \.self) { quality in
+                                        Button {
+                                            videoQualityPreference = quality
+                                            print("🎬 [QUALITY] User selected: \(quality.displayName)")
+                                        } label: {
+                                            HStack {
+                                                Text(quality.displayName)
+                                                if videoQualityPreference == quality {
+                                                    Image(systemName: "checkmark")
+                                                }
+                                            }
+                                        }
+                                    }
+                                } label: {
+                                    Text("Video Quality")
+                                    Image(systemName: "video.badge.waveform")
+                                        .color(.theme.iconPrimary)
+                                }
+                            }
+
                             if let cid = currentCollection?.cliqueId, isInClique(cid: cid, cliqueStore), let loadedImage {
                                 ShareLink(
                                     item: Image(uiImage: loadedImage),
@@ -347,19 +422,44 @@ struct FlicksFeedView: View {
                                         .color(.theme.iconPrimary)
                                 }
                                 
-                                Button {
-                                    Task {
-                                        guard let imageUrl = currentImage?.imageUrl, let url = imageUrl.highQualityUrl, let date = currentImage?.date, let loadedImage = await fetchImageWithKingfisher(from: url) else { return }
-                                        
-                                        let imageSaver = ImageSaver()
-                                        imageSaver.writeToPhotoAlbum(image: loadedImage, date: date) { success in
-                                            presentToast(success ? Toasts.savedImage : Toasts.somethingWentWrong)
+                                // Save button (conditional based on media type)
+                                if let currentImage = currentImage {
+                                    if currentImage.isLivePhoto {
+                                        // Save Live Photo with metadata injection (falls back to video if metadata fails)
+                                        Button {
+                                            handleSaveLivePhoto()
+                                        } label: {
+                                            HStack {
+                                                Text(isSavingLivePhoto ? "Saving..." : "Save Live Photo")
+                                                if !isSavingLivePhoto {
+                                                    Image("download")
+                                                        .color(.theme.iconPrimary)
+                                                } else {
+                                                    ProgressView()
+                                                        .tint(.theme.iconPrimary)
+                                                }
+                                            }
+                                        }
+                                        .disabled(isSavingLivePhoto)
+                                    } else if currentImage.isVideo {
+                                        // Save Video
+                                        Button {
+                                            handleSaveVideo()
+                                        } label: {
+                                            Text("Save Video")
+                                            Image("download")
+                                                .color(.theme.iconPrimary)
+                                        }
+                                    } else {
+                                        // Save static image
+                                        Button {
+                                            handleSaveImage()
+                                        } label: {
+                                            Text("Save Image")
+                                            Image("download")
+                                                .color(.theme.iconPrimary)
                                         }
                                     }
-                                } label: {
-                                    Text("Save Image")
-                                    Image("download")
-                                        .color(.theme.iconPrimary)
                                 }
                                 
                                 DeleteButton {
@@ -383,22 +483,7 @@ struct FlicksFeedView: View {
                                 title: Text("Are you sure you want to delete this flick?"),
                                 message: Text("This action cannot be undone."),
                                 primaryButton: .destructive(Text("Delete")) {
-                                    guard let currentFlickId, let currentCollection else { return }
-                                    
-                                    Task {
-                                        do {
-                                            try await CollectionService.deleteCollectionItem(.init(path: .init(collectionItemId: currentFlickId)))
-                                            
-                                            viewModel.items.removeAll(where: { $0.id == currentFlickId })
-                                            collectionStore.collections[currentCollection.id]?.images.removeAll(where: { $0.id == currentFlickId })
-                                            collectionStore.collections[currentCollection.id]?.numFlicks -= 1
-                                            collectionImageStore.images.removeValue(forKey: currentFlickId)
-                                            
-                                            trigger(.refreshCollectionCells, object: [currentCollection.id])
-                                        } catch {
-                                            presentToast(Toasts.somethingWentWrong)
-                                        }
-                                    }
+                                    handleDeleteFlick()
                                 },
                                 secondaryButton: .cancel()
                             )
@@ -411,7 +496,7 @@ struct FlicksFeedView: View {
             Spacer()
             
             Button {
-                showGrid = true
+                tabViewCoordinator.flicksShowGrid = true
                 // currentFlickId is already synced automatically
             } label: {
                 Image(systemName: "square.grid.3x3")
@@ -433,21 +518,25 @@ struct FlicksFeedView: View {
                                     Text(currentCollection.name)
                                         .font(.callout.bold())
                                         .foregroundStyle(Color.theme.shadesWhite95)
-                                    
+
                                     if currentCollection.visibility == .priv {
-                                        IconImage("lock", color: .theme.shadesWhite95, size: 16)
+                                        IconImage(name: "lock", color: .theme.shadesWhite95, size: 16)
                                             .padding(.leading, 2)
                                     }
-                                    
-                                    IconImage("chevron-right", color: .theme.shadesWhite95, size: 16)
+
+                                    IconImage(name: "chevron-right", color: .theme.shadesWhite95, size: 16)
                                 }
-                                
-                                Text("\(formatDateMMMMdd(currentImage.date)) • \(formatDateHHmm(currentImage.date))")
-                                    .font(.caption2)
-                                    .foregroundStyle(Color.theme.shadesWhite95)
+
+                                // Date, time, and media type inline
+                                DateMediaTypeLabel(
+                                    image: currentImage,
+                                    dateFormat: .short,
+                                    fontSize: .caption2,
+                                    textColor: .theme.shadesWhite95
+                                )
                             }
                             .maxWidth(.leading)
-                            
+
                         }
                         .contentShape(.rect)
                     }.noHighlight()
@@ -504,7 +593,7 @@ struct FlicksFeedView: View {
                             haptics(.medium)
                             handleLikeTapped()
                         } label: {
-                            IconImage("heart-filled", color: currentImage.hasLiked ? .theme.red : .theme.white, size: 28)
+                            IconImage(name: "heart-filled", color: currentImage.hasLiked ? .theme.red : .theme.white, size: 28)
                         }
                         
                         Button {
@@ -525,7 +614,7 @@ struct FlicksFeedView: View {
                         showCommentSheet = true
                     } label: {
                         HStack(spacing: 4) {
-                            IconImage("comment-filled", color: .theme.white, size: 28)
+                            IconImage(name: "comment-filled", color: .theme.white, size: 28)
                             
                             Text(formatNumber(currentImage.numComments))
                                 .font(.footnote)
@@ -559,13 +648,76 @@ struct FlicksFeedView: View {
             }
         }
     }
+
+    /// Handles saving a Live Photo with metadata injection
+    private func handleSaveLivePhoto() {
+        guard !isSavingLivePhoto, let currentImage else { return }
+
+        Task {
+            await CollectionImageSaveHelpers.saveLivePhoto(
+                image: currentImage,
+                collectionImageStore: collectionImageStore,
+                isSavingLivePhoto: &isSavingLivePhoto,
+                presentToast: presentToast
+            )
+        }
+    }
+
+    /// Handles saving a standalone video
+    private func handleSaveVideo() {
+        guard let currentImage else { return }
+
+        Task {
+            await CollectionImageSaveHelpers.saveVideo(
+                image: currentImage,
+                presentToast: presentToast
+            )
+        }
+    }
+
+    /// Handles saving a static image
+    private func handleSaveImage() {
+        guard let currentImage else { return }
+
+        Task {
+            await CollectionImageSaveHelpers.saveImage(
+                image: currentImage,
+                presentToast: presentToast
+            )
+        }
+    }
+
+    /// Handles deleting the current flick
+    private func handleDeleteFlick() {
+        guard let currentFlickId, let currentCollection else { return }
+
+        Task {
+            await CollectionImageSaveHelpers.deleteCollectionItem(
+                imageId: currentFlickId,
+                collectionId: currentCollection.id,
+                collectionStore: collectionStore,
+                collectionImageStore: collectionImageStore,
+                presentToast: presentToast,
+                onSuccess: {
+                    viewModel.items.removeAll(where: { $0.id == currentFlickId })
+                }
+            )
+        }
+    }
     
     // MARK: Flick Image
     private func FlickImage(_ image: CollectionImage) -> some View {
-        CollectionDetailImageAsyncView(urls: image.imageUrl, quality: .high)
+        CollectionDetailImageAsyncView(
+            image: image,
+            quality: videoQualityPreference.imageQuality,
+            forceQuality: videoQualityPreference != .auto,
+            isVisible: currentFlickId == image.id
+        )
             .contentShape(.rect)
             .id(image.id)
-            .pinchZoom()
+            .if(!image.isVideo && !image.isLivePhoto) { view in
+                view.pinchZoom()  // Only apply pinch zoom to static photos
+            }
             .scrollTransition { content, phase in
                 content
                     .opacity(phase.isIdentity ? 1 : 0.7)
@@ -575,7 +727,7 @@ struct FlicksFeedView: View {
                 handleLikeTapped()
             }
             .overlay {
-                IconImage("heart-filled", color: .theme.red, size: 70)
+                IconImage(name: "heart-filled", color: .theme.red, size: 70)
                     .likeAnimation($likeAnimation)
             }
             .swipeUpToOpenCommentsTutorial()
@@ -588,7 +740,8 @@ struct FlicksFeedView: View {
                         showCommentSheet = true
                         hasSwipedUpToOpenComments = true
                     }
-                }
+                },
+                onEnded: { _, _ in }  // Required for CompatibleDragGestureModifier signature
             )
     }
     
@@ -610,7 +763,7 @@ extension FlicksFeedView {
     @ViewBuilder private func EmptyStateView() -> some View {
         VStack(spacing: 16) { // TODO: DRY
             VStack(spacing: 8) {
-                IconImage("search", color: .primaryIcon, size: 32)
+                IconImage(name: "search", color: .primaryIcon, size: 32)
                 
                 Text("Clique is way more fun with friends. Let’s add some?")
                     .textPrimary()
@@ -667,7 +820,7 @@ extension FlicksFeedView {
             viewModel.first = true
             viewModel.seed = Int(Int32.random(in: Int32.min..<Int32.max))
         }
-        
+
         await PaginationHelper.updateItems(
             operation,
             viewModel: viewModel,

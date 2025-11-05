@@ -25,13 +25,12 @@ struct LibraryCreateFlow: View {
     @State private var showChooseCollectionSheet: Bool = false
     @State private var buttonLoading: Bool = false
     @State private var currentImageIndex: Int = 0
-    @State private var isProcessingPhotos: Bool = false
-    @State private var shouldTriggerProcessing: Bool = false
+    @State internal var showClearConfirmation: Bool = false
     
     private var unprocessedCount: Int { viewModel.selectedAssets.subtracting(viewModel.processedAssets).count
     }
     
-    private var totalCount: Int {
+    internal var totalCount: Int {
         viewModel.selectedImages.count + unprocessedCount
     }
     
@@ -46,11 +45,8 @@ struct LibraryCreateFlow: View {
                 
                 // Photo picker as root view
                 PhotoPickerContainer { context in
-                    CollectionPhotosPicker(
-                        shouldProcess: $shouldTriggerProcessing,
-                        isProcessing: $isProcessingPhotos
-                    )
-                    .environment(context)
+                    CollectionPhotosPicker()
+                        .environment(context)
                 }
             }
             .primaryBackground()
@@ -90,13 +86,26 @@ struct LibraryCreateFlow: View {
                 .bottomSheetModifiers()
                 .presentationDetents([.fraction(0.999)])
         }
-        .onChange(of: tabViewCoordinator.createFlowInitialCollection) { _, newValue in
+        .onChange(of: tabViewCoordinator.createFlowInitialCollection, initial: true) { _, newValue in
+            // Handle collection context (fires on initial value and changes)
             guard let newValue else { return }
             viewModel.collectionToGoTo = newValue
             viewModel.selectedCollectionId = newValue.id
             viewModel.selectedCollectionClique = cliqueStore.cliques[newValue.cliqueId]
             tabViewCoordinator.createFlowInitialCollection = nil
             tabViewCoordinator.shouldOpenLibrary = false
+        }
+        .confirmationDialog(
+            "Clear \(totalCount) selected photos?",
+            isPresented: $showClearConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Clear All", role: .destructive) {
+                clearAllSelections()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will remove all selected photos and any processed data.")
         }
     }
     
@@ -128,36 +137,18 @@ struct LibraryCreateFlow: View {
             }
         )
         .padding(.horizontal, 24)
-        .padding(.vertical, 12)
+        .padding(.vertical, 8)
     }
     
     @ViewBuilder private func TrailingIcon() -> some View {
-        // Show count of unprocessed selections + already processed images
         if totalCount > 0 {
-            // Add button
-            Button {
-                shouldTriggerProcessing = true
-            } label: {
-                HStack(spacing: 8) {
-                    // Photo count
-                    HStack(spacing: 4) {
-                        Text("\(totalCount)")
-                        
-                        IconImage("images-posts", color: .theme.iconPrimary, size: 20)
-                    }
-                    
-                    Text("Add")
-                }
-                .font(.caption.bold())
-                .textPrimary()
-            }
-            .font(.callout)
-            .disabled(isProcessingPhotos)
+            ClearPhotosButton(count: totalCount, action: handleClearTap)
         } else {
+            // Show camera icon to switch flows
             Button {
                 tabViewCoordinator.createFlowMode = .camera
             } label: {
-                IconImage("camera", color: .theme.iconPrimary, size: 24)
+                IconImage(name: "camera", color: .theme.iconPrimary, size: 24)
             }
         }
     }
