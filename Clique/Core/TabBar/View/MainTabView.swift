@@ -8,6 +8,7 @@
 import SwiftUI
 import Toasts
 import Photos
+import ActivityKit
 
 /// The main authenticated app experience with tab-based navigation.
 ///
@@ -232,6 +233,45 @@ struct MainTabView: View {
 
             isUploading = true
             showUploading = true
+
+            // Start Live Activity for upload progress
+            Task { @MainActor in
+                // Don't start Live Activity for empty uploads
+                guard photoDatePairs.count > 0 else {
+                    print("⚠️ No items to upload - skipping Live Activity")
+                    return
+                }
+
+                guard LiveActivityManager.shared.areActivitiesEnabled else {
+                    print("Live Activities not enabled")
+                    return
+                }
+
+                let attributes = UploadActivityAttributes(
+                    collectionName: collection.name,
+                    totalPhotos: photoDatePairs.count,
+                    cliqueId: collection.cliqueId ?? ""
+                )
+
+                let initialState = UploadActivityAttributes.ContentState(
+                    uploadedPhotos: 0,
+                    totalProgress: 0.0,
+                    currentStatus: .processing,
+                    currentFileName: "",
+                    uploadSpeed: nil,
+                    estimatedTimeRemaining: nil
+                )
+
+                do {
+                    let activity = try await LiveActivityManager.shared.startActivity(
+                        attributes: attributes,
+                        contentState: initialState
+                    )
+                    print("Live Activity started: \(activity.id)")
+                } catch {
+                    print("Failed to start Live Activity: \(error)")
+                }
+            }
 
             Task {
                 do {

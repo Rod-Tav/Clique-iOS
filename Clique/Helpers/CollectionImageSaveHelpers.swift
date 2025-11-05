@@ -16,13 +16,14 @@ struct CollectionImageSaveHelpers {
     /// - Parameters:
     ///   - image: The collection image to save
     ///   - collectionImageStore: Store for accessing cached timezone data
-    ///   - setSaving: Closure to update saving state
     ///   - presentToast: Toast presentation closure
+    ///   - onStateChange: Optional closure called when save state changes
+    @MainActor
     static func saveLivePhoto(
         image: CollectionImage,
         collectionImageStore: CollectionImageStore,
-        setSaving: @escaping (Bool) -> Void,
-        presentToast: @escaping (ToastValue) -> Void
+        presentToast: @escaping (ToastValue) -> Void,
+        onStateChange: ((Bool) -> Void)? = nil
     ) async {
         guard let imageUrl = image.imageUrl?.highQualityUrl,
               let videoUrl = image.videoUrls?.highQualityUrl else { return }
@@ -32,7 +33,7 @@ struct CollectionImageSaveHelpers {
 
         // Check store cache (timezone may have been extracted during display)
         if timezoneOffset == nil {
-            timezoneOffset = await collectionImageStore.getCachedTimezoneOffset(for: image.id)
+            timezoneOffset = collectionImageStore.getCachedTimezoneOffset(for: image.id)
             print("📅 [SAVE] Checked store cache: \(timezoneOffset ?? "nil")")
         }
 
@@ -48,7 +49,7 @@ struct CollectionImageSaveHelpers {
             print("   It will be saved in the device's current timezone")
         }
 
-        setSaving(true)
+        onStateChange?(true)
 
         let saver = LivePhotoSaver()
         let success = await saver.saveLivePhoto(
@@ -65,17 +66,17 @@ struct CollectionImageSaveHelpers {
                 break
             case .completed:
                 presentToast(Toasts.savedLivePhoto)
-                setSaving(false)
+                onStateChange?(false)
             case .failed:
                 // Fallback already happened, show video saved toast
                 presentToast(Toasts.savedVideo)
-                setSaving(false)
+                onStateChange?(false)
             }
         }
 
         if !success {
             presentToast(Toasts.somethingWentWrong)
-            setSaving(false)
+            onStateChange?(false)
         }
     }
 

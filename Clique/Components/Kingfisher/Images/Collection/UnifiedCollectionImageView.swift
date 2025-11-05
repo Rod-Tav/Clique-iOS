@@ -34,6 +34,7 @@ struct UnifiedCollectionImageView: View {
     var isLivePhoto: Bool = false
     var isVideo: Bool = false
     var performanceMode: Bool = true
+    var context: ImageLoadingContext = .detail
 
     @State private var deviceAsset: PHAsset?
     @State private var deviceMediaType: MediaType?
@@ -108,6 +109,7 @@ struct UnifiedCollectionImageView: View {
             urls: urls,
             quality: quality,
             shouldFixSize: sizing.shouldFixSize,
+            context: context,
             performanceMode: performanceMode
         ) { image in
             image.contentConfigure { img in

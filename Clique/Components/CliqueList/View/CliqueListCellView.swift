@@ -44,8 +44,13 @@ struct CliqueListCellView: View {
     var body: some View {
         if let clique {
             HStack(spacing: 0) {
-                CliquePfpAsyncView(pfp: clique.cliquePic, type: .cliqueListCell, quality: .low)
-                    .padding(.trailing, 16)
+                CliquePfpAsyncView(
+                    pfp: clique.cliquePic,
+                    type: .cliqueListCell,
+                    quality: .low,
+                    context: .list
+                )
+                .padding(.trailing, 16)
                 
                 VStack(alignment: .leading, spacing: 4) {
                     switch type {

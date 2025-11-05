@@ -811,8 +811,10 @@ extension CollectionDetailView {
             await CollectionImageSaveHelpers.saveLivePhoto(
                 image: selectedImage,
                 collectionImageStore: collectionImageStore,
-                setSaving: { isSavingLivePhoto = $0 },
-                presentToast: { toast in presentToast(toast) }
+                presentToast: { toast in presentToast(toast) },
+                onStateChange: { isSaving in
+                    isSavingLivePhoto = isSaving
+                }
             )
         }
     }

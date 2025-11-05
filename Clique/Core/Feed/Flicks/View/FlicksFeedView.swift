@@ -657,8 +657,10 @@ struct FlicksFeedView: View {
             await CollectionImageSaveHelpers.saveLivePhoto(
                 image: currentImage,
                 collectionImageStore: collectionImageStore,
-                setSaving: { isSavingLivePhoto = $0 },
-                presentToast: { toast in presentToast(toast) }
+                presentToast: { toast in presentToast(toast) },
+                onStateChange: { isSaving in
+                    isSavingLivePhoto = isSaving
+                }
             )
         }
     }

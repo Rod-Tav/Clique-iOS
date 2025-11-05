@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import ActivityKit
 
 struct UploadProgressView: View {
     @Environment(CollectionStore.self) private var collectionStore
@@ -27,7 +28,7 @@ struct UploadProgressView: View {
 
     @State private var tapped: Bool = false
     @State private var isSwiping: Bool = false
-    
+
     var body: some View {
         ZStack(alignment: .topLeading) {
             Button {
@@ -115,8 +116,16 @@ struct UploadProgressView: View {
         }
         .frame(height: 48)
         .swipeDownToDismiss(isPresented: $showUploading, isSwiping: $isSwiping)
+        .onChange(of: showUploading) { oldValue, newValue in
+            // If user dismisses via swipe down after upload is complete, end Live Activity immediately
+            if !newValue && showNav {
+                Task { @MainActor in
+                    await LiveActivityManager.shared.cancelActivity()
+                }
+            }
+        }
     }
-    
+
     private func navAction() {
         guard !tapped else {
             print("⚠️ navAction blocked: already tapped")
@@ -137,6 +146,10 @@ struct UploadProgressView: View {
 
                 collectionStore.updateCollection(collectionToNav, collectionImageStore)
                 tabViewCoordinator.navigate(to: collectionToNav)
+
+                // End Live Activity immediately when user navigates to collection
+                await LiveActivityManager.shared.cancelActivity()
+
                 showUploading = false
 
                 print("✅ Navigation completed")
