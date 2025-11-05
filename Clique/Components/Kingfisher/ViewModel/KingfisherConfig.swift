@@ -18,7 +18,7 @@ struct KingfisherConfig {
         let isProDevice = UIDevice.current.userInterfaceIdiom == .phone && totalMemory > 6_000_000_000 // 6GB+ RAM
         let isIPad = UIDevice.current.userInterfaceIdiom == .pad
 
-        #if DEBUG
+        #if false // TEMPORARILY DISABLED - Testing production mode on simulator
         // ⚠️ DEBUG MODE: Simplified configuration for Xcode performance
         // When running from Xcode, debug overhead (Metal validation, logging, etc.)
         // makes production-level config unresponsive. Use minimal settings.
