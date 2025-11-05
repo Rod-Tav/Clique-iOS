@@ -141,7 +141,6 @@ struct ContentView: View {
                     // Full authenticated app experience
                     MainTabView()
                         .environment(authService)
-                        .environment(LiveActivityManager.shared)
                         .onReceive(of: .toast404) { _ in
                             presentToast(Toasts.somethingWentWrong)
                         }

@@ -73,12 +73,13 @@ import SwiftUI
 /// 3. **Update**: Updates the activity's content state as upload progresses
 /// 4. **End**: Finalizes the activity with dismissal policy
 @MainActor
-class LiveActivityManager: ObservableObject {
+@Observable
+class LiveActivityManager {
     /// Shared singleton instance
     static let shared = LiveActivityManager()
 
     /// Current active upload activity (nil if no activity is running)
-    @Published private(set) var currentActivity: Activity<UploadActivityAttributes>?
+    private(set) var currentActivity: Activity<UploadActivityAttributes>?
 
     /// Private initializer to enforce singleton pattern
     private init() {}

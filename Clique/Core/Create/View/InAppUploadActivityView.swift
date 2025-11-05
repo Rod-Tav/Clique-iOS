@@ -20,14 +20,13 @@ struct InAppUploadActivityView: View {
     var retryAction: () -> Void
 
     @Environment(TabViewCoordinator.self) private var tabViewCoordinator
-    @Environment(LiveActivityManager.self) private var liveActivityManager
 
     // MARK: - Body
 
     var body: some View {
         VStack(spacing: 12) {
             // Show custom progress UI with Live Activity data
-            if let activity = liveActivityManager.currentActivity {
+            if let activity = LiveActivityManager.shared.currentActivity {
                 customProgressView(activity: activity)
             } else {
                 // Fallback if Live Activity isn't available
