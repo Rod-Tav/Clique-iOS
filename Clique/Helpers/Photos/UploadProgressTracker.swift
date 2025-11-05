@@ -68,7 +68,8 @@ final class UploadProgressTracker {
             estimatedTimeRemaining = Int(remainingSeconds.rounded())
         } else if remainingItems > 0, totalElapsedTime > 0 {
             // Fallback: estimate based on average time per item
-            let itemsCompleted = max(1, totalBytesUploaded / max(1, averageBytesPerItem ?? 1))
+            let avgBytes = max(1, averageBytesPerItem ?? 1)
+            let itemsCompleted = max(1, totalBytesUploaded / avgBytes)
             let averageTimePerItem = totalElapsedTime / Double(itemsCompleted)
             estimatedTimeRemaining = Int((averageTimePerItem * Double(remainingItems)).rounded())
         } else {
