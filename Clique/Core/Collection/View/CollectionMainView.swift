@@ -280,7 +280,7 @@ extension CollectionMainView {
             /// banner and toolbar
             ZStack(alignment: .top) {
                 if let coverPhoto {
-                    ExpandedBannerAsyncImage(banner: coverPhoto, type: .collection, quality: .high)
+                    ExpandedBannerAsyncImage(banner: coverPhoto, type: .collection, quality: .medium)
                         .onTapGesture {
                             showCollectionBanner = true
                         }

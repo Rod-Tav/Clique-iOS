@@ -101,8 +101,15 @@ struct CollectionPreviewSlideView: View {
                     )
                 } else {
                     // Regular static image
-                    CollectionFeedCellAsyncImage(urls: collectionImage.imageUrl, width: UIScreen.width - 32, quality: previewQuality, uploadStatus: collectionImage.uploadStatus, itemId: collectionImage.id, onRefresh: onRefresh)
-                        .pinchZoom()
+                    CollectionFeedCellAsyncImage(
+                        urls: collectionImage.imageUrl,
+                        width: UIScreen.width - 32,
+                        quality: previewQuality,
+                        uploadStatus: collectionImage.uploadStatus,
+                        itemId: collectionImage.id,
+                        onRefresh: onRefresh
+                    )
+                    .pinchZoom()
                 }
             }
             .roundCorners(8)
