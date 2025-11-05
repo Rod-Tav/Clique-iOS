@@ -8,50 +8,50 @@
 import SwiftUI
 import Photos
 
+enum BadgeStyle {
+    case grid    // Larger badges for photo grid cells
+    case carousel // Smaller badges for carousel thumbnails
+
+    var iconSize: CGFloat {
+        switch self {
+        case .grid: return 10
+        case .carousel: return 6
+        }
+    }
+
+    var livePhotoIconSize: CGFloat {
+        switch self {
+        case .grid: return 14
+        case .carousel: return 8
+        }
+    }
+
+    var textSize: CGFloat {
+        switch self {
+        case .grid: return 12
+        case .carousel: return 8
+        }
+    }
+
+    var spacing: CGFloat {
+        switch self {
+        case .grid: return 4
+        case .carousel: return 2
+        }
+    }
+
+    var padding: CGFloat {
+        switch self {
+        case .grid: return 6
+        case .carousel: return 3
+        }
+    }
+}
+
 /// Reusable badge component for displaying media type indicators on photo thumbnails
 struct MediaTypeBadge: View {
     let asset: PHAsset
     let style: BadgeStyle
-
-    enum BadgeStyle {
-        case grid    // Larger badges for photo grid cells
-        case carousel // Smaller badges for carousel thumbnails
-
-        var iconSize: CGFloat {
-            switch self {
-            case .grid: return 10
-            case .carousel: return 6
-            }
-        }
-
-        var livePhotoIconSize: CGFloat {
-            switch self {
-            case .grid: return 14
-            case .carousel: return 8
-            }
-        }
-
-        var textSize: CGFloat {
-            switch self {
-            case .grid: return 12
-            case .carousel: return 8
-            }
-        }
-
-        var spacing: CGFloat {
-            switch self {
-            case .grid: return 4
-            case .carousel: return 2
-            }
-        }
-
-        var padding: CGFloat {
-            switch self {
-            case .grid: return 6
-            case .carousel: return 3
-            }
-        }
-    }
 
     var body: some View {
         Group {

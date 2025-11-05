@@ -11,6 +11,9 @@ struct WhatsNewView: View {
     @Binding var isPresented: Bool
     
     private let releases: [(version: String, changes: [String])] = [
+        ("1.7.1 – November 5th, 2025", [
+            "Live Activity for uploading"
+        ]),
         ("1.7.0 – November 3rd, 2025", [
             "Live Photos and Videos with associated functionality",
             "CDN (Content Delivery Network) for faster image and video loading",

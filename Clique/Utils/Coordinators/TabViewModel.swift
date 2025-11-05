@@ -6,6 +6,7 @@
 //
 
 import Photos
+import ActivityKit
 
 @Observable final class TabViewModel {
     var successfulImages: Double = 0.0
@@ -143,10 +144,36 @@ import Photos
             videoUrls: videoUrls,
             videoContentTypes: videoContentTypes,
             totalItems: preparedImages.count,
-            onProgress: { completed, total in
+            onProgress: { completed, total, speed, eta, filename in
                 self.successfulImages = completed
                 self.totalImages = total
-                print("✅ Upload \(completed)/\(total) complete")
+
+                let speedStr = speed.map { String(format: "%.1f MB/s", $0) } ?? "calculating..."
+                print("✅ Upload \(completed)/\(total) complete • \(speedStr) • \(filename)")
+
+                // Update Live Activity with progress
+                Task { @MainActor in
+                    // Format speed for display
+                    let speedDisplay = speed.map { speed -> String in
+                        if speed >= 1.0 {
+                            return String(format: "%.1f MB/s", speed)
+                        } else {
+                            let kbps = speed * 1024
+                            return String(format: "%.0f KB/s", kbps)
+                        }
+                    }
+
+                    let updatedState = UploadActivityAttributes.ContentState(
+                        uploadedPhotos: Int(completed),
+                        totalProgress: Double(completed) / Double(total),
+                        currentStatus: .uploading,
+                        currentFileName: filename,
+                        uploadSpeed: speedDisplay,
+                        estimatedTimeRemaining: eta
+                    )
+
+                    await LiveActivityManager.shared.updateActivity(updatedState)
+                }
             },
             failedUpload: { index, quality in
                 print("❌ Failed upload at index \(index) for quality \(quality.rawValue)")
@@ -204,10 +231,44 @@ import Photos
                         }
 
                         self.reset()
+
+                        // End Live Activity on success
+                        Task { @MainActor in
+                            let finalState = UploadActivityAttributes.ContentState(
+                                uploadedPhotos: self.totalImages,
+                                totalProgress: 1.0,
+                                currentStatus: .completed,
+                                currentFileName: "",
+                                uploadSpeed: nil,
+                                estimatedTimeRemaining: nil
+                            )
+
+                            await LiveActivityManager.shared.endActivity(
+                                finalState: finalState,
+                                dismissalPolicy: .after(.now + 4.0)
+                            )
+                        }
                     }
                 } else  {
                     // failure
                     self.uploadFailed = true
+
+                    // Update Live Activity to show failure
+                    Task { @MainActor in
+                        let errorState = UploadActivityAttributes.ContentState(
+                            uploadedPhotos: Int(self.successfulImages),
+                            totalProgress: Double(self.successfulImages) / Double(self.totalImages),
+                            currentStatus: .failed("Upload failed"),
+                            currentFileName: "",
+                            uploadSpeed: nil,
+                            estimatedTimeRemaining: nil
+                        )
+
+                        await LiveActivityManager.shared.endActivity(
+                            finalState: errorState,
+                            dismissalPolicy: .after(.now + 4.0)
+                        )
+                    }
                     let retryImages = failedUploadIndices.map { preparedImages[$0] }
                     let retryAssets = failedUploadIndices.map { livePhotoAssets[$0] }
                     let retryVideos = failedUploadIndices.map { transcodedVideoUrls[$0] }
@@ -255,10 +316,12 @@ import Photos
             videoUrls: videoUrls,
             videoContentTypes: videoContentTypes,
             totalItems: retryImages.count,
-            onProgress: { completed, total in
+            onProgress: { completed, total, speed, eta, filename in
                 self.successfulImages = completed
                 self.totalImages = total
-                print("✅ Retry Upload \(completed)/\(total) complete")
+
+                let speedStr = speed.map { String(format: "%.1f MB/s", $0) } ?? "calculating..."
+                print("✅ Retry Upload \(completed)/\(total) complete • \(speedStr) • \(filename)")
             },
             failedUpload: { index, quality in
                 print("❌ Retry failed at index \(index) for quality \(quality.rawValue)")

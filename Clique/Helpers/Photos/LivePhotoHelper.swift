@@ -9,6 +9,7 @@ import Foundation
 import Photos
 import UIKit
 import AVFoundation
+import UniformTypeIdentifiers
 
 /// Helper class for extracting and processing Live Photos
 struct LivePhotoHelper {
@@ -114,7 +115,7 @@ struct LivePhotoHelper {
                 // Extract metadata from original file
                 Task {
                     do {
-                        let metadata = try extractVideoMetadata(from: tempURL)
+                        let metadata = try await extractVideoMetadata(from: tempURL)
                         let sizeMB = Double(metadata.fileSize) / 1_048_576
                         print("✅ [UPLOAD-READY] Video extracted without conversion")
                         print("   Format: \(fileExtension.uppercased())")
@@ -198,29 +199,32 @@ struct LivePhotoHelper {
 
 
     /// Extracts metadata from a video file
-    private static func extractVideoMetadata(from url: URL) throws -> VideoMetadata {
+    private static func extractVideoMetadata(from url: URL) async throws -> VideoMetadata {
         let asset = AVURLAsset(url: url)
 
-        // Get duration
-        let duration = CMTimeGetSeconds(asset.duration)
+        // Get duration using modern async API
+        let duration = try await CMTimeGetSeconds(asset.load(.duration))
 
-        // Get video track
-        guard let videoTrack = asset.tracks(withMediaType: .video).first else {
+        // Get video track using modern async API
+        let videoTracks = try await asset.loadTracks(withMediaType: .video)
+        guard let videoTrack = videoTracks.first else {
             throw LivePhotoError.failedToExtractVideoMetadata
         }
 
-        // Get video size
-        let size = videoTrack.naturalSize.applying(videoTrack.preferredTransform)
+        // Get video size using modern async API
+        let naturalSize = try await videoTrack.load(.naturalSize)
+        let preferredTransform = try await videoTrack.load(.preferredTransform)
+        let size = naturalSize.applying(preferredTransform)
         let videoSize = CGSize(width: abs(size.width), height: abs(size.height))
 
         // Get file size
         let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
         let fileSize = attributes[.size] as? Int64 ?? 0
 
-        // Get codec
+        // Get codec using modern async API
         var codec: String?
-        if let formatDescriptions = videoTrack.formatDescriptions as? [CMFormatDescription],
-           let formatDescription = formatDescriptions.first {
+        let formatDescriptions = try await videoTrack.load(.formatDescriptions) as [CMFormatDescription]
+        if let formatDescription = formatDescriptions.first {
             let mediaSubType = CMFormatDescriptionGetMediaSubType(formatDescription)
             codec = fourCharCodeToString(mediaSubType)
         }
