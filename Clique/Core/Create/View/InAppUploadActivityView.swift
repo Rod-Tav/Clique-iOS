@@ -25,88 +25,156 @@ struct InAppUploadActivityView: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(spacing: 12) {
+        Group {
+            if showNav {
+                // Upload completed - show completion view
+                completionView
+            } else if showRetry {
+                // Upload failed - show retry view
+                retryView
+            } else {
+                // Upload in progress - show progress view
+                progressView
+            }
+        }
+        .swipeDownToDismiss(isPresented: $showUploading)
+    }
+
+    // MARK: - State Views
+
+    /// Completion view shown when upload successfully finishes
+    private var completionView: some View {
+        VStack(spacing: 20) {
+            Spacer()
+
+            // Success icon
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 60))
+                .foregroundStyle(.green)
+
+            VStack(spacing: 8) {
+                Text("Upload Complete!")
+                    .font(.title3.bold())
+                    .textPrimary()
+
+                Text("Your photos have been uploaded successfully")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            Spacer()
+
+            // Full-width View Collection button
+            Button {
+                showUploading = false
+
+                // Fetch collection from store and navigate
+                if let collection = collectionStore.collections[collectionId] {
+                    tabViewCoordinator.navigate(to: collection)
+                } else {
+                    // Fallback: navigate to profile tab
+                    tabViewCoordinator.selectTab(.profile)
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "photo.on.rectangle.angled")
+                        .font(.system(size: 16, weight: .semibold))
+                    Text("View Collection")
+                        .font(.callout.weight(.semibold))
+                }
+                .frame(maxWidth: .infinity)
+                .foregroundStyle(.white)
+                .padding(.vertical, 16)
+                .background(Color.theme.cliquePink)
+                .roundCorners(12)
+            }
+        }
+        .padding(24)
+        .primaryBackground()
+    }
+
+    /// Retry view shown when upload fails
+    private var retryView: some View {
+        VStack(spacing: 20) {
+            Spacer()
+
+            // Error icon
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 60))
+                .foregroundStyle(.orange)
+
+            VStack(spacing: 8) {
+                Text("Upload Failed")
+                    .font(.title3.bold())
+                    .textPrimary()
+
+                Text("Some photos couldn't be uploaded")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            Spacer()
+
+            // Full-width Retry button
+            Button {
+                retryAction()
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 16, weight: .semibold))
+                    Text("Retry Upload")
+                        .font(.callout.weight(.semibold))
+                }
+                .frame(maxWidth: .infinity)
+                .foregroundStyle(.white)
+                .padding(.vertical, 16)
+                .background(Color.theme.cliquePink)
+                .roundCorners(12)
+            }
+        }
+        .padding(24)
+        .primaryBackground()
+    }
+
+    /// Progress view shown during active upload
+    private var progressView: some View {
+        VStack(spacing: 16) {
             // Informational message
             Text("You can leave the app - we'll continue uploading in the background")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
-                .padding(.top, 4)
 
-            // Show custom progress UI with Live Activity data
+            // Show Live Activity data or loading state
             if let activity = LiveActivityManager.shared.currentActivity {
                 customProgressView(activity: activity)
             } else {
-                // Fallback if Live Activity isn't available
-                fallbackProgressView
+                // Initial loading state
+                HStack(spacing: 12) {
+                    CliqueProgressView(size: 24)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Starting upload...")
+                            .font(.callout.bold())
+                            .textPrimary()
+
+                        Text("Preparing your photos")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+                }
+                .padding(16)
+                .primaryBackground()
+                .roundCorners(16)
+                .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 4)
             }
-
-            // Action buttons (stacked vertically, full width)
-            VStack(spacing: 12) {
-                // Navigate to collection button
-                if showNav {
-                    Button {
-                        showUploading = false
-
-                        // Fetch collection from store and navigate
-                        if let collection = collectionStore.collections[collectionId] {
-                            tabViewCoordinator.navigate(to: collection)
-                        } else {
-                            // Fallback: navigate to profile tab
-                            tabViewCoordinator.selectTab(.profile)
-                        }
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "photo.on.rectangle.angled")
-                                .font(.system(size: 14, weight: .semibold))
-                            Text("View Collection")
-                                .font(.callout.weight(.semibold))
-                        }
-                        .frame(maxWidth: .infinity)
-                        .foregroundStyle(.white)
-                        .padding(.vertical, 12)
-                        .background(Color.theme.cliquePink)
-                        .roundCorners(12)
-                    }
-                }
-
-                // Retry button
-                if showRetry {
-                    Button {
-                        retryAction()
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "arrow.clockwise")
-                                .font(.system(size: 14, weight: .semibold))
-                            Text("Retry Upload")
-                                .font(.callout.weight(.semibold))
-                        }
-                        .frame(maxWidth: .infinity)
-                        .foregroundStyle(.white)
-                        .padding(.vertical, 12)
-                        .background(Color.theme.cliquePink)
-                        .roundCorners(12)
-                    }
-                }
-
-                // Dismiss button (if no other buttons showing)
-                if !showNav && !showRetry {
-                    Button {
-                        showUploading = false
-                    } label: {
-                        HStack {
-                            Spacer()
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 24))
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-            }
-            .padding(.horizontal, 8)
         }
-        .padding(.horizontal, 8)
+        .padding(.horizontal, 16)
     }
 
     // MARK: - Custom Progress View
@@ -197,29 +265,6 @@ struct InAppUploadActivityView: View {
                     Spacer()
                 }
             }
-        }
-        .padding(16)
-        .primaryBackground()
-        .roundCorners(16)
-        .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 4)
-    }
-
-    /// Fallback view when Live Activity is not available
-    private var fallbackProgressView: some View {
-        HStack(spacing: 12) {
-            CliqueProgressView(size: 24)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Uploading...")
-                    .font(.callout.bold())
-                    .textPrimary()
-
-                Text("Processing your photos")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer()
         }
         .padding(16)
         .primaryBackground()
