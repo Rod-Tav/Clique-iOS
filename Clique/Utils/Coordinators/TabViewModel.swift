@@ -165,7 +165,7 @@ import ActivityKit
 
                     let updatedState = UploadActivityAttributes.ContentState(
                         uploadedPhotos: Int(completed),
-                        totalProgress: Double(completed) / Double(total),
+                        totalProgress: total > 0 ? Double(completed) / Double(total) : 0.0,
                         currentStatus: .uploading,
                         currentFileName: filename,
                         uploadSpeed: speedDisplay,
@@ -322,6 +322,30 @@ import ActivityKit
 
                 let speedStr = speed.map { String(format: "%.1f MB/s", $0) } ?? "calculating..."
                 print("✅ Retry Upload \(completed)/\(total) complete • \(speedStr) • \(filename)")
+
+                // Update Live Activity with progress
+                Task { @MainActor in
+                    // Format speed for display
+                    let speedDisplay = speed.map { speed -> String in
+                        if speed >= 1.0 {
+                            return String(format: "%.1f MB/s", speed)
+                        } else {
+                            let kbps = speed * 1024
+                            return String(format: "%.0f KB/s", kbps)
+                        }
+                    }
+
+                    let updatedState = UploadActivityAttributes.ContentState(
+                        uploadedPhotos: Int(completed),
+                        totalProgress: total > 0 ? Double(completed) / Double(total) : 0.0,
+                        currentStatus: .uploading,
+                        currentFileName: filename,
+                        uploadSpeed: speedDisplay,
+                        estimatedTimeRemaining: eta
+                    )
+
+                    await LiveActivityManager.shared.updateActivity(updatedState)
+                }
             },
             failedUpload: { index, quality in
                 print("❌ Retry failed at index \(index) for quality \(quality.rawValue)")

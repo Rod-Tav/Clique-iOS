@@ -26,7 +26,12 @@ class LivePhoto {
     /// Generates a PHLivePhoto from an image and video.  Also returns the paired image and video.
     public class func generate(from imageURL: URL?, videoURL: URL, progress: @escaping (CGFloat) -> Void, completion: @escaping (PHLivePhoto?, LivePhotoResources?) -> Void) {
         queue.async {
-            shared.generate(from: imageURL, videoURL: videoURL, progress: progress, completion: completion)
+            Task {
+                let result = await shared.generate(from: imageURL, videoURL: videoURL, progress: progress)
+                DispatchQueue.main.async {
+                    completion(result.0, result.1)
+                }
+            }
         }
     }
     /// Save a Live Photo to the Photo Library by passing the paired image and video.
@@ -42,6 +47,14 @@ class LivePhoto {
             }
             completion(success)
         })
+    }
+
+    /// Explicitly clears the cache directory. Call this periodically to prevent memory buildup.
+    /// Since LivePhoto.shared is a singleton, deinit won't execute during app lifetime.
+    public class func clearCache() {
+        queue.async {
+            shared.clearCache()
+        }
     }
     
     // MARK: PRIVATE
@@ -85,43 +98,35 @@ class LivePhoto {
         }
     }
     
-    private func generate(from imageURL: URL?, videoURL: URL, progress: @escaping (CGFloat) -> Void, completion: @escaping (PHLivePhoto?, LivePhotoResources?) -> Void) {
-        Task {
-            guard let cacheDirectory = cacheDirectory else {
-                DispatchQueue.main.async {
-                    completion(nil, nil)
+    private func generate(from imageURL: URL?, videoURL: URL, progress: @escaping (CGFloat) -> Void) async -> (PHLivePhoto?, LivePhotoResources?) {
+        guard let cacheDirectory = cacheDirectory else {
+            return (nil, nil)
+        }
+
+        let assetIdentifier = UUID().uuidString
+        let keyPhotoURL: URL?
+        if let imageURL = imageURL {
+            keyPhotoURL = imageURL
+        } else {
+            keyPhotoURL = await generateKeyPhoto(from: videoURL)
+        }
+
+        guard let keyPhotoURL = keyPhotoURL,
+              let pairedImageURL = addAssetID(assetIdentifier, toImage: keyPhotoURL, saveTo: cacheDirectory.appendingPathComponent(assetIdentifier).appendingPathExtension("jpg")) else {
+            return (nil, nil)
+        }
+
+        guard let pairedVideoURL = await addAssetIDAsync(assetIdentifier, toVideo: videoURL, saveTo: cacheDirectory.appendingPathComponent(assetIdentifier).appendingPathExtension("mov"), progress: progress) else {
+            return (nil, nil)
+        }
+
+        return await withCheckedContinuation { continuation in
+            _ = PHLivePhoto.request(withResourceFileURLs: [pairedVideoURL, pairedImageURL], placeholderImage: nil, targetSize: CGSize.zero, contentMode: PHImageContentMode.aspectFit, resultHandler: { (livePhoto: PHLivePhoto?, info: [AnyHashable : Any]) -> Void in
+                if let isDegraded = info[PHLivePhotoInfoIsDegradedKey] as? Bool, isDegraded {
+                    return
                 }
-                return
-            }
-            let assetIdentifier = UUID().uuidString
-            let _keyPhotoURL: URL?
-            if let imageURL = imageURL {
-                _keyPhotoURL = imageURL
-            } else {
-                _keyPhotoURL = await generateKeyPhoto(from: videoURL)
-            }
-            guard let keyPhotoURL = _keyPhotoURL, let pairedImageURL = addAssetID(assetIdentifier, toImage: keyPhotoURL, saveTo: cacheDirectory.appendingPathComponent(assetIdentifier).appendingPathExtension("jpg")) else {
-                DispatchQueue.main.async {
-                    completion(nil, nil)
-                }
-                return
-            }
-            addAssetID(assetIdentifier, toVideo: videoURL, saveTo: cacheDirectory.appendingPathComponent(assetIdentifier).appendingPathExtension("mov"), progress: progress) { (_videoURL) in
-                if let pairedVideoURL = _videoURL {
-                    _ = PHLivePhoto.request(withResourceFileURLs: [pairedVideoURL, pairedImageURL], placeholderImage: nil, targetSize: CGSize.zero, contentMode: PHImageContentMode.aspectFit, resultHandler: { (livePhoto: PHLivePhoto?, info: [AnyHashable : Any]) -> Void in
-                        if let isDegraded = info[PHLivePhotoInfoIsDegradedKey] as? Bool, isDegraded {
-                            return
-                        }
-                        DispatchQueue.main.async {
-                            completion(livePhoto, (pairedImageURL, pairedVideoURL))
-                        }
-                    })
-                } else {
-                    DispatchQueue.main.async {
-                        completion(nil, nil)
-                    }
-                }
-            }
+                continuation.resume(returning: (livePhoto, (pairedImageURL, pairedVideoURL)))
+            })
         }
     }
     
@@ -203,9 +208,8 @@ class LivePhoto {
     var videoReader: AVAssetReader?
     var assetWriter: AVAssetWriter?
     
-    func addAssetID(_ assetIdentifier: String, toVideo videoURL: URL, saveTo destinationURL: URL, progress: @escaping (CGFloat) -> Void, completion: @escaping (URL?) -> Void) {
-        Task {
-            do {
+    func addAssetIDAsync(_ assetIdentifier: String, toVideo videoURL: URL, saveTo destinationURL: URL, progress: @escaping (CGFloat) -> Void) async -> URL? {
+        do {
                 var audioWriterInput: AVAssetWriterInput?
                 var audioReaderOutput: AVAssetReaderOutput?
                 let videoAsset = AVURLAsset(url: videoURL)
@@ -214,8 +218,7 @@ class LivePhoto {
                 // Use modern async API for loading tracks
                 let videoTracks = try await videoAsset.loadTracks(withMediaType: .video)
                 guard let videoTrack = videoTracks.first else {
-                    completion(nil)
-                    return
+                    return nil
                 }
 
                 // Load video track properties using modern async API
@@ -290,63 +293,67 @@ class LivePhoto {
                 let stillImageTimeRange = await videoAsset.makeStillImageTimeRange(percent: _stillImagePercent, inFrameCount: frameCount)
                 stillImageTimeMetadataAdapter.append(AVTimedMetadataGroup(items: [metadataItemForStillImageTime()], timeRange: stillImageTimeRange))
                 // For end of writing / progress
-                var writingVideoFinished = false
-                var writingAudioFinished = false
-                var currentFrameCount = 0
-                func didCompleteWriting() {
-                    guard writingAudioFinished && writingVideoFinished else { return }
-                    assetWriter?.finishWriting {
-                        if self.assetWriter?.status == .completed {
-                            completion(destinationURL)
-                        } else {
-                            completion(nil)
-                        }
-                    }
-                }
-                // Start writing video
-                if videoReader?.startReading() ?? false {
-                    videoWriterInput.requestMediaDataWhenReady(on: DispatchQueue(label: "videoWriterInputQueue")) {
-                        while videoWriterInput.isReadyForMoreMediaData {
-                            if let sampleBuffer = videoReaderOutput.copyNextSampleBuffer()  {
-                                currentFrameCount += 1
-                                let percent:CGFloat = CGFloat(currentFrameCount)/CGFloat(frameCount)
-                                progress(percent)
-                                if !videoWriterInput.append(sampleBuffer) {
-                                    print("Cannot write: \(String(describing: self.assetWriter?.error?.localizedDescription))")
-                                    self.videoReader?.cancelReading()
-                                }
+                return await withCheckedContinuation { continuation in
+                    var writingVideoFinished = false
+                    var writingAudioFinished = false
+                    var currentFrameCount = 0
+
+                    func didCompleteWriting() {
+                        guard writingAudioFinished && writingVideoFinished else { return }
+                        assetWriter?.finishWriting {
+                            if self.assetWriter?.status == .completed {
+                                continuation.resume(returning: destinationURL)
                             } else {
-                                videoWriterInput.markAsFinished()
-                                writingVideoFinished = true
-                                didCompleteWriting()
+                                continuation.resume(returning: nil)
                             }
                         }
                     }
-                } else {
-                    writingVideoFinished = true
-                    didCompleteWriting()
-                }
-                // Start writing audio
-                if audioReader?.startReading() ?? false {
-                    audioWriterInput?.requestMediaDataWhenReady(on: DispatchQueue(label: "audioWriterInputQueue")) {
-                        while audioWriterInput?.isReadyForMoreMediaData ?? false {
-                            guard let sampleBuffer = audioReaderOutput?.copyNextSampleBuffer() else {
-                                audioWriterInput?.markAsFinished()
-                                writingAudioFinished = true
-                                didCompleteWriting()
-                                return
+
+                    // Start writing video
+                    if videoReader?.startReading() ?? false {
+                        videoWriterInput.requestMediaDataWhenReady(on: DispatchQueue(label: "videoWriterInputQueue")) {
+                            while videoWriterInput.isReadyForMoreMediaData {
+                                if let sampleBuffer = videoReaderOutput.copyNextSampleBuffer()  {
+                                    currentFrameCount += 1
+                                    let percent:CGFloat = CGFloat(currentFrameCount)/CGFloat(frameCount)
+                                    progress(percent)
+                                    if !videoWriterInput.append(sampleBuffer) {
+                                        print("Cannot write: \(String(describing: self.assetWriter?.error?.localizedDescription))")
+                                        self.videoReader?.cancelReading()
+                                    }
+                                } else {
+                                    videoWriterInput.markAsFinished()
+                                    writingVideoFinished = true
+                                    didCompleteWriting()
+                                }
                             }
-                            audioWriterInput?.append(sampleBuffer)
                         }
+                    } else {
+                        writingVideoFinished = true
+                        didCompleteWriting()
                     }
-                } else {
-                    writingAudioFinished = true
-                    didCompleteWriting()
+
+                    // Start writing audio
+                    if audioReader?.startReading() ?? false {
+                        audioWriterInput?.requestMediaDataWhenReady(on: DispatchQueue(label: "audioWriterInputQueue")) {
+                            while audioWriterInput?.isReadyForMoreMediaData ?? false {
+                                guard let sampleBuffer = audioReaderOutput?.copyNextSampleBuffer() else {
+                                    audioWriterInput?.markAsFinished()
+                                    writingAudioFinished = true
+                                    didCompleteWriting()
+                                    return
+                                }
+                                audioWriterInput?.append(sampleBuffer)
+                            }
+                        }
+                    } else {
+                        writingAudioFinished = true
+                        didCompleteWriting()
+                    }
                 }
-            } catch {
-                print(error)
-                completion(nil)
-            }
+        } catch {
+            print(error)
+            return nil
         }
     }
     
