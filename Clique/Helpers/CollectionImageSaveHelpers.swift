@@ -22,7 +22,7 @@ struct CollectionImageSaveHelpers {
         image: CollectionImage,
         collectionImageStore: CollectionImageStore,
         isSavingLivePhoto: inout Bool,
-        presentToast: @escaping (Toast) -> Void
+        presentToast: @escaping (ToastValue) -> Void
     ) async {
         guard let imageUrl = image.imageUrl?.highQualityUrl,
               let videoUrl = image.videoUrls?.highQualityUrl else { return }
@@ -32,7 +32,7 @@ struct CollectionImageSaveHelpers {
 
         // Check store cache (timezone may have been extracted during display)
         if timezoneOffset == nil {
-            timezoneOffset = collectionImageStore.getCachedTimezoneOffset(for: image.id)
+            timezoneOffset = await collectionImageStore.getCachedTimezoneOffset(for: image.id)
             print("📅 [SAVE] Checked store cache: \(timezoneOffset ?? "nil")")
         }
 
@@ -84,7 +84,7 @@ struct CollectionImageSaveHelpers {
     ///   - presentToast: Toast presentation closure
     static func saveVideo(
         image: CollectionImage,
-        presentToast: @escaping (Toast) -> Void
+        presentToast: @escaping (ToastValue) -> Void
     ) async {
         guard let videoUrl = image.videoUrls?.highQualityUrl else { return }
 
@@ -112,7 +112,7 @@ struct CollectionImageSaveHelpers {
     ///   - presentToast: Toast presentation closure
     static func saveImage(
         image: CollectionImage,
-        presentToast: @escaping (Toast) -> Void
+        presentToast: @escaping (ToastValue) -> Void
     ) async {
         guard let imageUrl = image.imageUrl,
               let url = imageUrl.highQualityUrl,
@@ -132,12 +132,13 @@ struct CollectionImageSaveHelpers {
     ///   - collectionImageStore: Image store for updating state
     ///   - presentToast: Toast presentation closure
     ///   - onSuccess: Optional closure called after successful deletion
+    @MainActor
     static func deleteCollectionItem(
         imageId: String,
         collectionId: String,
         collectionStore: CollectionStore,
         collectionImageStore: CollectionImageStore,
-        presentToast: @escaping (Toast) -> Void,
+        presentToast: @escaping (ToastValue) -> Void,
         onSuccess: (() -> Void)? = nil
     ) async {
         do {
