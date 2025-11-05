@@ -245,7 +245,7 @@ import ActivityKit
 
                             await LiveActivityManager.shared.endActivity(
                                 finalState: finalState,
-                                dismissalPolicy: .default
+                                dismissalPolicy: .after(.now + 4.0)
                             )
                         }
                     }
@@ -266,7 +266,7 @@ import ActivityKit
 
                         await LiveActivityManager.shared.endActivity(
                             finalState: errorState,
-                            dismissalPolicy: .default  // User dismisses manually
+                            dismissalPolicy: .after(.now + 4.0)
                         )
                     }
                     let retryImages = failedUploadIndices.map { preparedImages[$0] }

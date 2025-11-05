@@ -7,6 +7,7 @@
 
 import Foundation
 import ActivityKit
+import SwiftUI
 
 /// Defines the data structure for upload progress Live Activities.
 ///
@@ -130,13 +131,13 @@ enum LiveActivityUploadStatus: Codable, Hashable {
     var statusColor: String {
         switch self {
         case .processing:
-            return "blue"
+            return "pink"
         case .uploading:
-            return "blue"
+            return "pink"
         case .finalizing:
-            return "green"
+            return "pink"
         case .completed:
-            return "green"
+            return "pink"
         case .failed:
             return "red"
         }
@@ -221,4 +222,16 @@ enum LiveActivityUploadStatus: Codable, Hashable {
             return false
         }
     }
+}
+
+// MARK: - Shared Colors
+
+extension Color {
+    /// Clique brand pink color (#FF00B8 in Display P3)
+    /// Shared between main app and widget extensions
+    static let cliquePink = Color(
+        red: 255 / 255,
+        green: 0 / 255,
+        blue: 184 / 255
+    )
 }

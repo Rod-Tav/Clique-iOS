@@ -18,7 +18,7 @@ struct CompactLeadingView: View {
     var body: some View {
         Image(systemName: context.state.currentStatus.systemImage)
             .font(.system(size: 14, weight: .semibold))
-            .foregroundStyle(.blue)
+            .foregroundStyle(Color.cliquePink)
     }
 }
 
@@ -43,7 +43,7 @@ struct MinimalView: View {
     var body: some View {
         Image(systemName: context.state.currentStatus.systemImage)
             .font(.system(size: 16, weight: .semibold))
-            .foregroundStyle(.blue)
+            .foregroundStyle(Color.cliquePink)
     }
 }
 
@@ -74,7 +74,7 @@ struct ExpandedLeadingView: View {
     var body: some View {
         Image(systemName: context.state.currentStatus.systemImage)
             .font(.system(size: 24, weight: .semibold))
-            .foregroundStyle(.blue)
+            .foregroundStyle(Color.cliquePink)
     }
 }
 
@@ -106,9 +106,9 @@ struct ExpandedBottomView: View {
         case .failed:
             return .red
         case .completed:
-            return .green
+            return Color.cliquePink
         default:
-            return .blue
+            return Color.cliquePink
         }
     }
 
@@ -122,7 +122,7 @@ struct ExpandedBottomView: View {
                         .fill(.quaternary)
                         .frame(height: 6)
 
-                    // Progress (blue for uploading, red for failed, green for completed)
+                    // Progress (pink for uploading, red for failed, pink for completed)
                     RoundedRectangle(cornerRadius: 4)
                         .fill(progressBarColor)
                         .frame(width: geometry.size.width * context.state.totalProgress, height: 6)

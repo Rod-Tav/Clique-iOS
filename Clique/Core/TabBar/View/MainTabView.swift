@@ -178,11 +178,13 @@ struct MainTabView: View {
                 
                 // Overlay UI (upload progress + tab bar)
                 VStack(spacing: 8) {
-                    // Upload progress indicator - shows Live Activity UI in-app
+                    // Upload progress indicator
                     if showUploading {
-                        InAppUploadActivityView(
+                        UploadProgressView(
                             collectionId: viewModel.collectionId,
-                            uploadedCount: viewModel.totalImages,
+                            totalFlicks: viewModel.totalImages,
+                            successfulFlicks: viewModel.successfulImages,
+                            failedFlicks: viewModel.retryImages?.count ?? 0,
                             showUploading: $showUploading,
                             showNav: !isUploading && !viewModel.collectionId.isEmpty,
                             showRetry: viewModel.uploadFailed,
@@ -198,6 +200,7 @@ struct MainTabView: View {
                                 }
                             }
                         )
+                        .padding(.horizontal, 8)
                     }
                     
                     // Custom tab bar with smooth animations

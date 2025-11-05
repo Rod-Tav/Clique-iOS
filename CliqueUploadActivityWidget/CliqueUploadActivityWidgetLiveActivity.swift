@@ -74,7 +74,7 @@ struct LockScreenUploadView: View {
             HStack(spacing: 12) {
                 Image(systemName: context.state.currentStatus.systemImage)
                     .font(.system(size: 20))
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(Color.cliquePink)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Uploading to \(context.attributes.collectionName)")
@@ -95,21 +95,14 @@ struct LockScreenUploadView: View {
 
             // Progress bar
             ProgressView(value: context.state.totalProgress)
-                .tint(.blue)
+                .tint(Color.cliquePink)
 
             // Details row
-            HStack {
-                Text("\(context.state.uploadedPhotos) of \(context.attributes.totalPhotos) photos")
+            if let eta = context.state.estimatedTimeRemaining {
+                Text("\(formatTimeRemaining(eta)) left")
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
-
-                Spacer()
-
-                if let eta = context.state.estimatedTimeRemaining {
-                    Text("\(formatTimeRemaining(eta)) left")
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-                }
+                    .frame(maxWidth: .infinity, alignment: .trailing)
             }
         }
         .padding(16)

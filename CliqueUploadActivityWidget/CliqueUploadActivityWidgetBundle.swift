@@ -11,7 +11,6 @@ import SwiftUI
 @main
 struct CliqueUploadActivityWidgetBundle: WidgetBundle {
     var body: some Widget {
-        CliqueUploadActivityWidget()
         CliqueUploadActivityWidgetLiveActivity()
     }
 }
