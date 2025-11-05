@@ -182,6 +182,7 @@ struct MainTabView: View {
                     if showUploading {
                         InAppUploadActivityView(
                             collectionId: viewModel.collectionId,
+                            uploadedCount: viewModel.totalImages,
                             showUploading: $showUploading,
                             showNav: !isUploading && !viewModel.collectionId.isEmpty,
                             showRetry: viewModel.uploadFailed,

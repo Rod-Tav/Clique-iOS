@@ -14,6 +14,7 @@ struct InAppUploadActivityView: View {
     // MARK: - Properties
 
     let collectionId: String
+    let uploadedCount: Int
     @Binding var showUploading: Bool
     var showNav: Bool = false
     var showRetry: Bool = false
@@ -57,7 +58,7 @@ struct InAppUploadActivityView: View {
                     .font(.title3.bold())
                     .textPrimary()
 
-                Text("Your photos have been uploaded successfully")
+                Text("\(uploadedCount) of \(uploadedCount) flicks uploaded successfully")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
