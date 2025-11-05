@@ -349,7 +349,7 @@ struct PhotoHelper {
     ///   - livePhotoAssets: Optional array of PHAsset references for Live Photos (video extracted just-in-time)
     ///   - videoUrls: Optional array of video URLs for uploading video components
     ///   - totalItems: Total number of media items (for display - not upload task count)
-    ///   - onProgress: Progress callback (fractional progress [0.0-totalItems], total items)
+    ///   - onProgress: Progress callback (fractional progress [0.0-totalItems], total items, upload speed (MB/s), ETA (seconds), current filename)
     ///   - failedUpload: Failure callback (index, quality)
     ///   - onCompletion: Completion callback (success)
     static func uploadImages(
@@ -360,7 +360,7 @@ struct PhotoHelper {
         videoUrls: [String?]? = nil,
         videoContentTypes: [String?]? = nil,
         totalItems: Int,
-        onProgress: @escaping (Double, Int) -> Void,
+        onProgress: @escaping (Double, Int, Double?, Int?, String) -> Void,
         failedUpload: @escaping (Int, ImageQuality) -> Void,
         onCompletion: @escaping (Bool) -> Void
     ) async {
@@ -377,6 +377,16 @@ struct PhotoHelper {
         let itemCompletionTracker = ItemCompletionTracker(totalItems: totalItems)
         let semaphore = AsyncSemaphore(value: 6)
         let failedTracker = FailedVariantTracker()
+        let progressTracker = UploadProgressTracker()
+
+        // Calculate average file size for ETA estimates
+        let totalBytes = preparedImages.reduce(Int64(0)) { $0 + Int64($1.data.count) }
+        let averageBytesPerItem = totalBytes / max(1, Int64(preparedImages.count))
+
+        // Start progress tracking
+        await MainActor.run {
+            progressTracker.start()
+        }
 
         // Register which items have videos before starting uploads
         if let transcodedVideoUrls = transcodedVideoUrls {
@@ -399,8 +409,27 @@ struct PhotoHelper {
 
                         // Mark photo as complete for this item and report fractional progress
                         let fractionalProgress = await itemCompletionTracker.markPhotoComplete(index: index)
+
+                        // Update progress tracker
+                        let bytesUploaded = Int64(data.count)
+                        let remainingItems = totalItems - Int(fractionalProgress.rounded(.down))
+                        let filename = "Image \(index + 1)"
+
                         await MainActor.run {
-                            onProgress(fractionalProgress, totalItems)
+                            progressTracker.updateProgress(
+                                bytesUploaded: bytesUploaded,
+                                filename: filename,
+                                remainingItems: remainingItems,
+                                averageBytesPerItem: averageBytesPerItem
+                            )
+
+                            onProgress(
+                                fractionalProgress,
+                                totalItems,
+                                progressTracker.uploadSpeed,
+                                progressTracker.estimatedTimeRemaining,
+                                progressTracker.currentFilename
+                            )
                         }
                     } catch {
                         await failedTracker.insert(index, quality: quality)
@@ -426,8 +455,27 @@ struct PhotoHelper {
 
                         // Mark video as complete for this item and report fractional progress
                         let fractionalProgress = await itemCompletionTracker.markVideoComplete(index: index)
+
+                        // Update progress tracker for video
+                        let videoSize = (try? FileManager.default.attributesOfItem(atPath: videoFileUrl.path)[.size] as? Int64) ?? 0
+                        let remainingItems = totalItems - Int(fractionalProgress.rounded(.down))
+                        let filename = "Video \(index + 1)"
+
                         await MainActor.run {
-                            onProgress(fractionalProgress, totalItems)
+                            progressTracker.updateProgress(
+                                bytesUploaded: videoSize,
+                                filename: filename,
+                                remainingItems: remainingItems,
+                                averageBytesPerItem: averageBytesPerItem
+                            )
+
+                            onProgress(
+                                fractionalProgress,
+                                totalItems,
+                                progressTracker.uploadSpeed,
+                                progressTracker.estimatedTimeRemaining,
+                                progressTracker.currentFilename
+                            )
                         }
                         print("✅ Video uploaded for index \(index)")
                     } catch {

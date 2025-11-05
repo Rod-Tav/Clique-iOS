@@ -89,5 +89,7 @@
 	<string>e4c863cc3e457e493acd99cb68449ff0</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<false/>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 </dict>
 </plist>

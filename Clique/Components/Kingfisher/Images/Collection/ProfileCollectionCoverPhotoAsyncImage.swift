@@ -16,6 +16,7 @@ struct ProfileCollectionCoverPhotoAsyncImage: View {
     var uploadStatus: UploadStatus? = nil
     var itemId: String? = nil
     var onRefresh: (() -> Void)? = nil
+    var context: ImageLoadingContext = .list
 
     var body: some View {
         UnifiedCollectionImageView(
@@ -24,7 +25,8 @@ struct ProfileCollectionCoverPhotoAsyncImage: View {
             itemId: itemId,
             quality: quality,
             sizing: .side(side),
-            performanceMode: true
+            performanceMode: true,
+            context: context
         )
     }
 }

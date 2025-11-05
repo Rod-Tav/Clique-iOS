@@ -15,6 +15,9 @@
 		550620C82D793C72000E5F2F /* PhoneNumberKit-Static in Frameworks */ = {isa = PBXBuildFile; productRef = 550620C72D793C72000E5F2F /* PhoneNumberKit-Static */; };
 		552D73632D4B42BB004D1A44 /* Toasts in Frameworks */ = {isa = PBXBuildFile; productRef = 552D73622D4B42BB004D1A44 /* Toasts */; };
 		552D736A2D4B4D0E004D1A44 /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 552D73692D4B4D0E004D1A44 /* Kingfisher */; };
+		556470DA2EB8897600B87DAC /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 556470D92EB8897600B87DAC /* WidgetKit.framework */; };
+		556470DC2EB8897600B87DAC /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 556470DB2EB8897600B87DAC /* SwiftUI.framework */; };
+		556470ED2EB8897700B87DAC /* CliqueUploadActivityWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 556470D82EB8897600B87DAC /* CliqueUploadActivityWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		55714B032D507A6D00C6A10F /* openapi-generator-config.yaml in Resources */ = {isa = PBXBuildFile; fileRef = 55714B022D507A6D00C6A10F /* openapi-generator-config.yaml */; };
 		557E81522CB5980B00842496 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 557E81512CB5980B00842496 /* FirebaseAuth */; };
 		557E81582CB5A24500842496 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 557E81572CB5A24500842496 /* FirebaseCore */; };
@@ -27,8 +30,35 @@
 		55FCDB6F2D779985004F3375 /* MarkdownUI in Frameworks */ = {isa = PBXBuildFile; productRef = 55FCDB6E2D779985004F3375 /* MarkdownUI */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		556470EB2EB8897700B87DAC /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 55D235542C16D178004E6602 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 556470D72EB8897600B87DAC;
+			remoteInfo = CliqueUploadActivityWidgetExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		556470F22EB8897700B87DAC /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				556470ED2EB8897700B87DAC /* CliqueUploadActivityWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		5506200B2D78D0BB000E5F2F /* openapi.yaml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = openapi.yaml; sourceTree = "<group>"; };
+		556470D82EB8897600B87DAC /* CliqueUploadActivityWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = CliqueUploadActivityWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		556470D92EB8897600B87DAC /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		556470DB2EB8897600B87DAC /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		55714B022D507A6D00C6A10F /* openapi-generator-config.yaml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = "openapi-generator-config.yaml"; sourceTree = "<group>"; };
 		55D2355C2C16D178004E6602 /* Clique.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Clique.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -41,14 +71,38 @@
 			);
 			target = 55D2355B2C16D178004E6602 /* Clique */;
 		};
+		556470F12EB8897700B87DAC /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 556470D72EB8897600B87DAC /* CliqueUploadActivityWidgetExtension */;
+		};
+		556471172EB890BA00B87DAC /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Shared/Models/UploadActivityAttributes.swift,
+			);
+			target = 556470D72EB8897600B87DAC /* CliqueUploadActivityWidgetExtension */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		553AF0332D30D83500D8001A /* Clique */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (553AF0EE2D30D83500D8001A /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Clique; sourceTree = "<group>"; };
+		553AF0332D30D83500D8001A /* Clique */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (553AF0EE2D30D83500D8001A /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 556471172EB890BA00B87DAC /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Clique; sourceTree = "<group>"; };
+		556470DD2EB8897600B87DAC /* CliqueUploadActivityWidget */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (556470F12EB8897700B87DAC /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = CliqueUploadActivityWidget; sourceTree = "<group>"; };
 		55B237192D74C57B00CB5FC1 /* ci_scripts */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = ci_scripts; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		556470D52EB8897600B87DAC /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				556470DC2EB8897600B87DAC /* SwiftUI.framework in Frameworks */,
+				556470DA2EB8897600B87DAC /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		55D235592C16D178004E6602 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -82,6 +136,7 @@
 				55714B022D507A6D00C6A10F /* openapi-generator-config.yaml */,
 				5506200B2D78D0BB000E5F2F /* openapi.yaml */,
 				553AF0332D30D83500D8001A /* Clique */,
+				556470DD2EB8897600B87DAC /* CliqueUploadActivityWidget */,
 				55FCDB542D778F99004F3375 /* Frameworks */,
 				55D2355D2C16D178004E6602 /* Products */,
 			);
@@ -91,6 +146,7 @@
 			isa = PBXGroup;
 			children = (
 				55D2355C2C16D178004E6602 /* Clique.app */,
+				556470D82EB8897600B87DAC /* CliqueUploadActivityWidgetExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -98,6 +154,8 @@
 		55FCDB542D778F99004F3375 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				556470D92EB8897600B87DAC /* WidgetKit.framework */,
+				556470DB2EB8897600B87DAC /* SwiftUI.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -105,6 +163,28 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		556470D72EB8897600B87DAC /* CliqueUploadActivityWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 556470EE2EB8897700B87DAC /* Build configuration list for PBXNativeTarget "CliqueUploadActivityWidgetExtension" */;
+			buildPhases = (
+				556470D42EB8897600B87DAC /* Sources */,
+				556470D52EB8897600B87DAC /* Frameworks */,
+				556470D62EB8897600B87DAC /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				556470DD2EB8897600B87DAC /* CliqueUploadActivityWidget */,
+			);
+			name = CliqueUploadActivityWidgetExtension;
+			packageProductDependencies = (
+			);
+			productName = CliqueUploadActivityWidgetExtension;
+			productReference = 556470D82EB8897600B87DAC /* CliqueUploadActivityWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		55D2355B2C16D178004E6602 /* Clique */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 55D2356A2C16D178004E6602 /* Build configuration list for PBXNativeTarget "Clique" */;
@@ -112,11 +192,13 @@
 				55D235582C16D178004E6602 /* Sources */,
 				55D235592C16D178004E6602 /* Frameworks */,
 				55D2355A2C16D178004E6602 /* Resources */,
+				556470F22EB8897700B87DAC /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				55E810E92D3FDC7D00594253 /* PBXTargetDependency */,
+				556470EC2EB8897700B87DAC /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				553AF0332D30D83500D8001A /* Clique */,
@@ -152,9 +234,12 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 1540;
+				LastSwiftUpdateCheck = 2600;
 				LastUpgradeCheck = 1640;
 				TargetAttributes = {
+					556470D72EB8897600B87DAC = {
+						CreatedOnToolsVersion = 26.0.1;
+					};
 					55D2355B2C16D178004E6602 = {
 						CreatedOnToolsVersion = 15.4;
 					};
@@ -190,11 +275,19 @@
 			projectRoot = "";
 			targets = (
 				55D2355B2C16D178004E6602 /* Clique */,
+				556470D72EB8897600B87DAC /* CliqueUploadActivityWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		556470D62EB8897600B87DAC /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		55D2355A2C16D178004E6602 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -207,6 +300,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		556470D42EB8897600B87DAC /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		55D235582C16D178004E6602 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -217,6 +317,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		556470EC2EB8897700B87DAC /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 556470D72EB8897600B87DAC /* CliqueUploadActivityWidgetExtension */;
+			targetProxy = 556470EB2EB8897700B87DAC /* PBXContainerItemProxy */;
+		};
 		55E810E92D3FDC7D00594253 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			productRef = 55E810E82D3FDC7D00594253 /* OpenAPIGenerator */;
@@ -224,6 +329,67 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		556470EF2EB8897700B87DAC /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = CliqueUploadActivityWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = CliqueUploadActivityWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.cliquellc.clique.CliqueUploadActivityWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		556470F02EB8897700B87DAC /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = CliqueUploadActivityWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = CliqueUploadActivityWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.cliquellc.clique.CliqueUploadActivityWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		55D235682C16D178004E6602 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -373,7 +539,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.7.0;
+				MARKETING_VERSION = 1.7.1;
 				OTHER_LDFLAGS = "-ObjC";
 				OTHER_SWIFT_FLAGS = "";
 				PRODUCT_BUNDLE_IDENTIFIER = com.cliquellc.clique;
@@ -416,7 +582,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.7.0;
+				MARKETING_VERSION = 1.7.1;
 				OTHER_LDFLAGS = "-ObjC";
 				OTHER_SWIFT_FLAGS = "";
 				PRODUCT_BUNDLE_IDENTIFIER = com.cliquellc.clique;
@@ -434,6 +600,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		556470EE2EB8897700B87DAC /* Build configuration list for PBXNativeTarget "CliqueUploadActivityWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				556470EF2EB8897700B87DAC /* Debug */,
+				556470F02EB8897700B87DAC /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		55D235572C16D178004E6602 /* Build configuration list for PBXProject "Clique" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

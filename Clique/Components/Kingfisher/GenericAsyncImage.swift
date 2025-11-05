@@ -402,8 +402,11 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
 
     private var shouldShowLowQuality: Bool {
         switch loadingState {
-        case .showingLow, .loadingMedium(fallback: .low), .loadingHigh(fallback: .low):
+        case .showingLow, .loadingLow, .loadingMedium(fallback: .low), .loadingHigh(fallback: .low):
             return true
+        case .showingHigh, .showingMedium:
+            // Don't show low when higher quality is already showing
+            return false
         default:
             return hasCachedLow && !loadingState.isShowingAny
         }
@@ -411,15 +414,25 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
 
     private var shouldShowMediumQuality: Bool {
         switch loadingState {
-        case .showingMedium, .loadingHigh(fallback: .medium):
+        case .showingMedium, .loadingMedium, .loadingHigh(fallback: .medium):
             return true
+        case .showingHigh:
+            // Don't show medium when high is already showing
+            return false
         default:
-            return hasCachedMedium && !loadingState.isShowingAny
+            // Only show cached medium if medium quality was explicitly requested
+            // Don't show medium when high quality is requested (skip medium tier)
+            return hasCachedMedium && !loadingState.isShowingAny && quality == .medium
         }
     }
 
     private var shouldShowHighQuality: Bool {
-        loadingState == .showingHigh
+        switch loadingState {
+        case .showingHigh, .loadingHigh:
+            return true
+        default:
+            return false
+        }
     }
 
 
@@ -539,48 +552,55 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
         }
     }
 
-    // MARK: - Standard Mode View (Multi-Layer)
+    // MARK: - Standard Mode View (Conditional Rendering)
 
     @ViewBuilder
     private var standardModeView: some View {
-        // Placeholder layer
-        placeholder
-            .opacity(shouldShowPlaceholder ? 1 : 0)
-            .allowsHitTesting(false)
+        // Placeholder layer - only shown when no image is visible
+        if shouldShowPlaceholder {
+            placeholder
+                .allowsHitTesting(false)
+                .transition(.opacity)
+        }
 
-        // All image layers persistent - controlled by opacity
+        // Conditional image layers - only create/download when needed
+        // This prevents unnecessary downloads by not initializing hidden KFImage views
+
         // Low quality layer
-        qualityImageView(
-            url: urls?.lowQualityUrl,
-            shouldFade: false, // Never fade fallback
-            onSuccess: { handleImageLoaded(.low) },
-            onFailure: { handleImageFailed(urls?.lowQualityUrl) }
-        )
-        .opacity(shouldShowLowQuality ? 1 : 0)
-        .allowsHitTesting(false) // Never allow interaction on background layers
-        .animation(.easeInOut(duration: 0.15), value: shouldShowLowQuality)
+        if shouldShowLowQuality {
+            qualityImageView(
+                url: urls?.lowQualityUrl,
+                shouldFade: false, // Never fade fallback
+                onSuccess: { handleImageLoaded(.low) },
+                onFailure: { handleImageFailed(urls?.lowQualityUrl) }
+            )
+            .allowsHitTesting(false) // Never allow interaction on background layers
+            .transition(.opacity.animation(.easeInOut(duration: 0.15)))
+        }
 
         // Medium quality layer
-        qualityImageView(
-            url: urls?.medQualityUrl,
-            shouldFade: loadingState == .loadingMedium(fallback: nil), // Only fade when directly requested
-            onSuccess: { handleImageLoaded(.medium) },
-            onFailure: { handleImageFailed(urls?.medQualityUrl) }
-        )
-        .opacity(shouldShowMediumQuality ? 1 : 0)
-        .allowsHitTesting(false) // Never allow interaction on background layers
-        .animation(.easeInOut(duration: 0.15), value: shouldShowMediumQuality)
+        if shouldShowMediumQuality {
+            qualityImageView(
+                url: urls?.medQualityUrl,
+                shouldFade: loadingState == .loadingMedium(fallback: nil), // Only fade when directly requested
+                onSuccess: { handleImageLoaded(.medium) },
+                onFailure: { handleImageFailed(urls?.medQualityUrl) }
+            )
+            .allowsHitTesting(false) // Never allow interaction on background layers
+            .transition(.opacity.animation(.easeInOut(duration: 0.15)))
+        }
 
         // High quality layer
-        qualityImageView(
-            url: urls?.highQualityUrl,
-            shouldFade: loadingState == .loadingHigh(fallback: nil), // Only fade when directly requested
-            onSuccess: { handleImageLoaded(.high) },
-            onFailure: { handleImageFailed(urls?.highQualityUrl) }
-        )
-        .opacity(shouldShowHighQuality ? 1 : 0)
-        .allowsHitTesting(shouldShowHighQuality) // Only top layer can receive touches
-        .animation(.easeInOut(duration: 0.15), value: shouldShowHighQuality)
+        if shouldShowHighQuality {
+            qualityImageView(
+                url: urls?.highQualityUrl,
+                shouldFade: loadingState == .loadingHigh(fallback: nil), // Only fade when directly requested
+                onSuccess: { handleImageLoaded(.high) },
+                onFailure: { handleImageFailed(urls?.highQualityUrl) }
+            )
+            .allowsHitTesting(shouldShowHighQuality) // Only top layer can receive touches
+            .transition(.opacity.animation(.easeInOut(duration: 0.15)))
+        }
     }
 
     // MARK: - Helper Methods
@@ -652,6 +672,9 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
 
         // Set initial state based on cached content
         updateStateForCachedContent()
+
+        // Mark cache check as completed to prevent duplicate checks
+        cacheCheckCompleted = true
     }
 
     private func updateStateForCachedContent() {
@@ -659,12 +682,16 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
         case .low:
             if hasCachedLow {
                 loadingState = .showingLow
+            } else {
+                loadingState = .loadingLow
             }
         case .medium:
             if hasCachedMedium {
                 loadingState = .showingMedium
             } else if hasCachedLow {
                 loadingState = .loadingMedium(fallback: .low)
+            } else {
+                loadingState = .loadingMedium(fallback: nil)
             }
         case .high:
             if hasCachedHigh {
@@ -673,6 +700,8 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
                 loadingState = .loadingHigh(fallback: .medium)
             } else if hasCachedLow {
                 loadingState = .loadingHigh(fallback: .low)
+            } else {
+                loadingState = .loadingHigh(fallback: nil)
             }
         }
     }
@@ -791,10 +820,12 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
                 loadingState = .showingLow
             }
         case .medium:
+            // Match both .loadingMedium (no fallback) and .loadingMedium(fallback: _)
             if case .loadingMedium = loadingState {
                 loadingState = .showingMedium
             }
         case .high:
+            // Match both .loadingHigh (no fallback) and .loadingHigh(fallback: _)
             if case .loadingHigh = loadingState {
                 loadingState = .showingHigh
             }
