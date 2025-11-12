@@ -213,7 +213,7 @@ struct SelectedPhotosView: View {
                 ScrollViewReader { proxy in
                     ScrollView(.horizontal) {
                         HStack(spacing: 0) {
-                            ForEach(selectedAssetsArray, id: \.self) { asset in
+                            ForEach(Array(selectedAssetsArray.enumerated()), id: \.element) { index, asset in
                                 PhotoGalleryItem(
                                     asset: asset,
                                     geometry: geometry,
@@ -226,6 +226,7 @@ struct SelectedPhotosView: View {
                                         set: { dragOffsets[asset] = $0 }
                                     ),
                                     isCurrentlyVisible: asset == scrollPosition,
+                                    shouldLoad: shouldLoadPhoto(at: index),
                                     viewModel: viewModel,
                                     collectionStore: collectionStore,
                                     onCollectionTap: {
@@ -261,6 +262,13 @@ struct SelectedPhotosView: View {
                 }
             }
         }
+    }
+
+    /// Determines if a photo at the given index should be loaded
+    /// Loads current photo + 2 adjacent photos on each side for smooth swiping
+    private func shouldLoadPhoto(at index: Int) -> Bool {
+        let distance = abs(index - currentIndex)
+        return distance <= 2  // Load current + 2 on each side (5 photos total max)
     }
     
     // MARK: - Bottom Carousel
@@ -373,6 +381,7 @@ struct PhotoGalleryItem: View {
     @Binding var zoomScale: CGFloat
     @Binding var dragOffset: CGSize
     let isCurrentlyVisible: Bool
+    let shouldLoad: Bool
     let viewModel: CreateViewModel
     let collectionStore: CollectionStore
     let onCollectionTap: () -> Void
@@ -411,7 +420,8 @@ struct PhotoGalleryItem: View {
                     LivePhotoPreviewView(
                         asset: asset,
                         thumbnail: context.thumbnailCache[asset],
-                        contentMode: .fit
+                        contentMode: .fit,
+                        isVisible: shouldLoad
                     )
                     .frame(maxWidth: geometry.size.width)
                     .frame(maxHeight: geometry.size.height)
@@ -422,7 +432,7 @@ struct PhotoGalleryItem: View {
                         asset: asset,
                         thumbnail: context.thumbnailCache[asset],
                         contentMode: .fit,
-                        isVisible: isCurrentlyVisible
+                        isVisible: shouldLoad
                     )
                     .frame(maxWidth: geometry.size.width)
                     .frame(maxHeight: geometry.size.height)
@@ -431,7 +441,8 @@ struct PhotoGalleryItem: View {
                     TwoStageImageLoader(
                         asset: asset,
                         thumbnail: context.thumbnailCache[asset],
-                        contentMode: .fit
+                        contentMode: .fit,
+                        isVisible: shouldLoad
                     )
                     .frame(maxWidth: geometry.size.width)
                     .frame(maxHeight: geometry.size.height)

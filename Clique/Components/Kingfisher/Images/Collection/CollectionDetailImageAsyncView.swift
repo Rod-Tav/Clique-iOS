@@ -43,7 +43,8 @@ struct CollectionDetailImageAsyncView: View {
                     sizing: .detailView,
                     isLivePhoto: image.isLivePhoto,
                     isVideo: image.isVideo,
-                    performanceMode: false
+                    performanceMode: false,
+                    isVisible: isVisible
                 )
             } else if image.isLivePhoto {
                 // Live Photo with native-like playback

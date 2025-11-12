@@ -42,6 +42,7 @@ struct VideoPreviewView: View {
     @State private var player: AVPlayer?
     @State private var isLoading: Bool = true
     @State private var loadingError: Error?
+    @State private var loadTask: Task<Void, Never>?
 
     var body: some View {
         Group {
@@ -72,19 +73,36 @@ struct VideoPreviewView: View {
                     }
             }
         }
-        .task {
-            await loadVideo()
-        }
         .onChange(of: isVisible) { _, newValue in
-            // Control playback based on visibility
             if newValue {
+                // Start loading video when becoming visible
+                if player == nil && loadTask == nil {
+                    loadTask = Task {
+                        await loadVideo()
+                    }
+                }
+                // Resume playback if already loaded
                 player?.play()
             } else {
+                // Cancel loading when becoming not visible
+                loadTask?.cancel()
+                loadTask = nil
+                // Pause playback
                 player?.pause()
             }
         }
+        .onAppear {
+            // Only load if currently visible
+            if isVisible {
+                loadTask = Task {
+                    await loadVideo()
+                }
+            }
+        }
         .onDisappear {
-            // Always pause when view is removed from hierarchy
+            // Cancel any ongoing load and pause
+            loadTask?.cancel()
+            loadTask = nil
             player?.pause()
         }
     }

@@ -15,6 +15,8 @@ struct TwoStageImageLoader: View {
     let asset: PHAsset
     let thumbnail: UIImage?
     let contentMode: ContentMode
+    /// Whether this image is currently visible (controls when full resolution loads)
+    var isVisible: Bool = true
 
     @State private var fullImage: UIImage?
     @State private var isLoadingFull = false
@@ -42,8 +44,20 @@ struct TwoStageImageLoader: View {
                     .transition(.opacity.animation(.easeIn(duration: 0.2)))
             }
         }
+        .onChange(of: isVisible) { _, newValue in
+            if newValue {
+                // Load full resolution when becoming visible
+                loadFullResolution()
+            } else {
+                // Cancel loading when becoming not visible
+                cancelRequest()
+            }
+        }
         .onAppear {
-            loadFullResolution()
+            // Only load if currently visible
+            if isVisible {
+                loadFullResolution()
+            }
         }
         .onDisappear {
             cancelRequest()

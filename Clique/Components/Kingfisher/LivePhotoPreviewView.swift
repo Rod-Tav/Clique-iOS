@@ -35,11 +35,14 @@ struct LivePhotoPreviewView: View {
     let thumbnail: UIImage?
     /// Content mode for the image
     let contentMode: SwiftUI.ContentMode
+    /// Whether this Live Photo is currently visible (controls when loading occurs)
+    var isVisible: Bool = true
 
     @State private var livePhoto: PHLivePhoto?
     @State private var fullImage: UIImage?
     @State private var isLoading: Bool = true
     @State private var loadingError: Error?
+    @State private var loadTask: Task<Void, Never>?
 
     var body: some View {
         Group {
@@ -74,8 +77,30 @@ struct LivePhotoPreviewView: View {
                     }
             }
         }
-        .task {
-            await loadLivePhoto()
+        .onChange(of: isVisible) { _, newValue in
+            if newValue {
+                // Load Live Photo when becoming visible
+                loadTask = Task {
+                    await loadLivePhoto()
+                }
+            } else {
+                // Cancel loading when becoming not visible
+                loadTask?.cancel()
+                loadTask = nil
+            }
+        }
+        .onAppear {
+            // Only load if currently visible
+            if isVisible {
+                loadTask = Task {
+                    await loadLivePhoto()
+                }
+            }
+        }
+        .onDisappear {
+            // Cancel any ongoing load
+            loadTask?.cancel()
+            loadTask = nil
         }
     }
     
