@@ -104,12 +104,18 @@ struct VideoPreviewView: View {
         do {
             let playerItem = try await loadPlayerItem(from: asset)
 
+            // Check if task was cancelled before updating state
+            guard !Task.isCancelled else { return }
+
             await MainActor.run {
                 let avPlayer = AVPlayer(playerItem: playerItem)
                 self.player = avPlayer
                 self.isLoading = false
             }
         } catch {
+            // Check if task was cancelled before error handling
+            guard !Task.isCancelled else { return }
+
             print("❌ Failed to load video: \(error)")
             await MainActor.run {
                 self.isLoading = false

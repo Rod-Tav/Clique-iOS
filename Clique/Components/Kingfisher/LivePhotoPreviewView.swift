@@ -99,23 +99,36 @@ struct LivePhotoPreviewView: View {
             // First, try to load as Live Photo
             let (livePhoto, fullImage) = try await LivePhotoHelper.loadLivePhotoForPreview(from: asset)
 
+            // Check if task was cancelled before updating state
+            guard !Task.isCancelled else { return }
+
             await MainActor.run {
                 self.livePhoto = livePhoto
                 self.fullImage = fullImage
                 self.isLoading = false
             }
         } catch {
+            // Check if task was cancelled before fallback
+            guard !Task.isCancelled else { return }
+
             // If Live Photo loading fails, load static image
             print("⚠️ Live Photo loading failed, falling back to static image: \(error)")
 
             do {
                 let (_, image) = try await PhotoProcessingHelper.loadImageFromAsset(asset)
+
+                // Check if task was cancelled before updating state
+                guard !Task.isCancelled else { return }
+
                 await MainActor.run {
                     self.fullImage = image
                     self.isLoading = false
                     self.loadingError = error
                 }
             } catch {
+                // Check if task was cancelled before error handling
+                guard !Task.isCancelled else { return }
+
                 print("❌ Failed to load static image: \(error)")
                 await MainActor.run {
                     self.isLoading = false
