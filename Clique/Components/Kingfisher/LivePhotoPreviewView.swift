@@ -80,8 +80,11 @@ struct LivePhotoPreviewView: View {
         .loadWhenVisible(
             isVisible: isVisible,
             onLoad: {
-                loadTask = Task {
-                    await loadLivePhoto()
+                // Only start loading if not already loaded or loading
+                if livePhoto == nil && loadTask == nil {
+                    loadTask = Task {
+                        await loadLivePhoto()
+                    }
                 }
             },
             onCancel: {

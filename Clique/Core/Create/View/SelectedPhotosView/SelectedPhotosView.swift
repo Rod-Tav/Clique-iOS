@@ -213,7 +213,7 @@ struct SelectedPhotosView: View {
                 ScrollViewReader { proxy in
                     ScrollView(.horizontal) {
                         HStack(spacing: 0) {
-                            ForEach(Array(selectedAssetsArray.enumerated()), id: \.offset) { index, asset in
+                            ForEach(Array(selectedAssetsArray.enumerated()), id: \.element) { index, asset in
                                 PhotoGalleryItem(
                                     asset: asset,
                                     geometry: geometry,
