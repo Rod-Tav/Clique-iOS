@@ -86,6 +86,8 @@ struct TwoStageImageLoader: View {
     private func cancelRequest() {
         if let requestID = requestID {
             PHImageManager.default().cancelImageRequest(requestID)
+            self.requestID = nil
         }
+        isLoadingFull = false
     }
 }
