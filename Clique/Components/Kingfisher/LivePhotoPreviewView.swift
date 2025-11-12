@@ -90,6 +90,7 @@ struct LivePhotoPreviewView: View {
             onCancel: {
                 loadTask?.cancel()
                 loadTask = nil
+                isLoading = false
             }
         )
     }

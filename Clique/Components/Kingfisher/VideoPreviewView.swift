@@ -89,6 +89,7 @@ struct VideoPreviewView: View {
                 // Cancel loading
                 loadTask?.cancel()
                 loadTask = nil
+                isLoading = false
                 // Pause player but keep it alive for potential resume
                 // Full cleanup happens automatically when view is deallocated
                 player?.pause()
