@@ -213,7 +213,7 @@ struct SelectedPhotosView: View {
                 ScrollViewReader { proxy in
                     ScrollView(.horizontal) {
                         HStack(spacing: 0) {
-                            ForEach(Array(selectedAssetsArray.enumerated()), id: \.element) { index, asset in
+                            ForEach(Array(selectedAssetsArray.enumerated()), id: \.offset) { index, asset in
                                 PhotoGalleryItem(
                                     asset: asset,
                                     geometry: geometry,
@@ -264,13 +264,6 @@ struct SelectedPhotosView: View {
         }
     }
 
-    /// Determines if a photo at the given index should be loaded
-    /// Loads current photo + 2 adjacent photos on each side for smooth swiping
-    private func shouldLoadPhoto(at index: Int) -> Bool {
-        let distance = abs(index - currentIndex)
-        return distance <= 2  // Load current + 2 on each side (5 photos total max)
-    }
-    
     // MARK: - Bottom Carousel
     private var bottomCarousel: some View {
         ScrollViewReader { proxy in
@@ -492,5 +485,3 @@ struct PhotoGalleryItem: View {
         }
     }
 }
-
-// PhotoPreviewLoader removed - replaced by TwoStageImageLoader

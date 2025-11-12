@@ -73,9 +73,10 @@ struct VideoPreviewView: View {
                     }
             }
         }
-        .onChange(of: isVisible) { _, newValue in
-            if newValue {
-                // Start loading video when becoming visible
+        .loadWhenVisible(
+            isVisible: isVisible,
+            onLoad: {
+                // Only start loading if not already loaded or loading
                 if player == nil && loadTask == nil {
                     loadTask = Task {
                         await loadVideo()
@@ -83,28 +84,17 @@ struct VideoPreviewView: View {
                 }
                 // Resume playback if already loaded
                 player?.play()
-            } else {
-                // Cancel loading when becoming not visible
+            },
+            onCancel: {
+                // Cancel loading
                 loadTask?.cancel()
                 loadTask = nil
-                // Pause playback
+                // Pause and cleanup player
                 player?.pause()
+                player?.replaceCurrentItem(with: nil)
+                player = nil
             }
-        }
-        .onAppear {
-            // Only load if currently visible
-            if isVisible {
-                loadTask = Task {
-                    await loadVideo()
-                }
-            }
-        }
-        .onDisappear {
-            // Cancel any ongoing load and pause
-            loadTask?.cancel()
-            loadTask = nil
-            player?.pause()
-        }
+        )
     }
 
     /// Load video from PHAsset

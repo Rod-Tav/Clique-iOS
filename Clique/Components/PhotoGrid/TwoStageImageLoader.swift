@@ -44,24 +44,11 @@ struct TwoStageImageLoader: View {
                     .transition(.opacity.animation(.easeIn(duration: 0.2)))
             }
         }
-        .onChange(of: isVisible) { _, newValue in
-            if newValue {
-                // Load full resolution when becoming visible
-                loadFullResolution()
-            } else {
-                // Cancel loading when becoming not visible
-                cancelRequest()
-            }
-        }
-        .onAppear {
-            // Only load if currently visible
-            if isVisible {
-                loadFullResolution()
-            }
-        }
-        .onDisappear {
-            cancelRequest()
-        }
+        .loadWhenVisible(
+            isVisible: isVisible,
+            onLoad: { loadFullResolution() },
+            onCancel: { cancelRequest() }
+        )
     }
     
     private func loadFullResolution() {

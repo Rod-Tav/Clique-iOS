@@ -77,31 +77,18 @@ struct LivePhotoPreviewView: View {
                     }
             }
         }
-        .onChange(of: isVisible) { _, newValue in
-            if newValue {
-                // Load Live Photo when becoming visible
+        .loadWhenVisible(
+            isVisible: isVisible,
+            onLoad: {
                 loadTask = Task {
                     await loadLivePhoto()
                 }
-            } else {
-                // Cancel loading when becoming not visible
+            },
+            onCancel: {
                 loadTask?.cancel()
                 loadTask = nil
             }
-        }
-        .onAppear {
-            // Only load if currently visible
-            if isVisible {
-                loadTask = Task {
-                    await loadLivePhoto()
-                }
-            }
-        }
-        .onDisappear {
-            // Cancel any ongoing load
-            loadTask?.cancel()
-            loadTask = nil
-        }
+        )
     }
     
     /// Load Live Photo from PHAsset
