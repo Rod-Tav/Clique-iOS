@@ -479,9 +479,9 @@ func formatDateInOriginalTimezone(
        let timezone = TimeZone(offsetString: offset) {
         formatter.timeZone = timezone
     } else {
-        // When no timezone info available, use UTC to preserve the local time value
-        // (EXIF DateTimeOriginal is local time, stored as UTC to preserve the time value)
-        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        // When no timezone info available, display in user's current timezone
+        // This handles backend dates that don't preserve timezone information
+        formatter.timeZone = .current
     }
 
     return formatter.string(from: date)

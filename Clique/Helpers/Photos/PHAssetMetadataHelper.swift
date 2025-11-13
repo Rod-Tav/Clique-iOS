@@ -134,9 +134,10 @@ struct PHAssetMetadataHelper {
             formatter.timeZone = timezone
             print("📅 [PARSE] Parsing DateTimeOriginal in original timezone \(offset)")
         } else {
-            // Fallback to UTC if timezone unknown
-            formatter.timeZone = TimeZone(secondsFromGMT: 0)
-            print("📅 [PARSE] Parsing DateTimeOriginal as UTC (no timezone info)")
+            // Fallback to device's current timezone if EXIF timezone unknown
+            // (DateTimeOriginal is in local time, not UTC)
+            formatter.timeZone = TimeZone.current
+            print("📅 [PARSE] Parsing DateTimeOriginal in device's current timezone (no EXIF timezone info)")
         }
 
         return formatter.date(from: dateTimeOriginal)
