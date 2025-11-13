@@ -213,7 +213,7 @@ struct SelectedPhotosView: View {
                 ScrollViewReader { proxy in
                     ScrollView(.horizontal) {
                         HStack(spacing: 0) {
-                            ForEach(selectedAssetsArray, id: \.self) { asset in
+                            ForEach(Array(selectedAssetsArray.enumerated()), id: \.element) { index, asset in
                                 PhotoGalleryItem(
                                     asset: asset,
                                     geometry: geometry,
@@ -226,6 +226,7 @@ struct SelectedPhotosView: View {
                                         set: { dragOffsets[asset] = $0 }
                                     ),
                                     isCurrentlyVisible: asset == scrollPosition,
+                                    shouldLoad: shouldLoadPhoto(at: index),
                                     viewModel: viewModel,
                                     collectionStore: collectionStore,
                                     onCollectionTap: {
@@ -262,7 +263,7 @@ struct SelectedPhotosView: View {
             }
         }
     }
-    
+
     // MARK: - Bottom Carousel
     private var bottomCarousel: some View {
         ScrollViewReader { proxy in
@@ -373,6 +374,7 @@ struct PhotoGalleryItem: View {
     @Binding var zoomScale: CGFloat
     @Binding var dragOffset: CGSize
     let isCurrentlyVisible: Bool
+    let shouldLoad: Bool
     let viewModel: CreateViewModel
     let collectionStore: CollectionStore
     let onCollectionTap: () -> Void
@@ -411,7 +413,8 @@ struct PhotoGalleryItem: View {
                     LivePhotoPreviewView(
                         asset: asset,
                         thumbnail: context.thumbnailCache[asset],
-                        contentMode: .fit
+                        contentMode: .fit,
+                        isVisible: shouldLoad
                     )
                     .frame(maxWidth: geometry.size.width)
                     .frame(maxHeight: geometry.size.height)
@@ -422,7 +425,7 @@ struct PhotoGalleryItem: View {
                         asset: asset,
                         thumbnail: context.thumbnailCache[asset],
                         contentMode: .fit,
-                        isVisible: isCurrentlyVisible
+                        isVisible: shouldLoad
                     )
                     .frame(maxWidth: geometry.size.width)
                     .frame(maxHeight: geometry.size.height)
@@ -431,7 +434,8 @@ struct PhotoGalleryItem: View {
                     TwoStageImageLoader(
                         asset: asset,
                         thumbnail: context.thumbnailCache[asset],
-                        contentMode: .fit
+                        contentMode: .fit,
+                        isVisible: shouldLoad
                     )
                     .frame(maxWidth: geometry.size.width)
                     .frame(maxHeight: geometry.size.height)
@@ -481,5 +485,3 @@ struct PhotoGalleryItem: View {
         }
     }
 }
-
-// PhotoPreviewLoader removed - replaced by TwoStageImageLoader

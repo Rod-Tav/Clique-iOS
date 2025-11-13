@@ -15,6 +15,8 @@ struct TwoStageImageLoader: View {
     let asset: PHAsset
     let thumbnail: UIImage?
     let contentMode: ContentMode
+    /// Whether this image is currently visible (controls when full resolution loads)
+    var isVisible: Bool = true
 
     @State private var fullImage: UIImage?
     @State private var isLoadingFull = false
@@ -42,12 +44,11 @@ struct TwoStageImageLoader: View {
                     .transition(.opacity.animation(.easeIn(duration: 0.2)))
             }
         }
-        .onAppear {
-            loadFullResolution()
-        }
-        .onDisappear {
-            cancelRequest()
-        }
+        .loadWhenVisible(
+            isVisible: isVisible,
+            onLoad: { loadFullResolution() },
+            onCancel: { cancelRequest() }
+        )
     }
     
     private func loadFullResolution() {
@@ -85,6 +86,8 @@ struct TwoStageImageLoader: View {
     private func cancelRequest() {
         if let requestID = requestID {
             PHImageManager.default().cancelImageRequest(requestID)
+            self.requestID = nil
         }
+        isLoadingFull = false
     }
 }
