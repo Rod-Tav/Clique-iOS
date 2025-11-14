@@ -42,7 +42,8 @@ struct FlicksFeedView: View {
     @State private var showDeleteFlickAlert: Bool = false
     @State private var showReportCover: Bool = false
     @State private var showCliqueMembers: Bool = false
-    
+    @State private var isZoomed: Bool = false
+
     @State var loadedImage: UIImage?
 
 
@@ -103,6 +104,8 @@ struct FlicksFeedView: View {
                         .ignoresSafeArea(.keyboard)
                         .onChange(of: currentFlickId, initial: true) {
                             guard currentFlickId == item.flick.id else { return }
+                            // Reset zoom state when changing flicks
+                            isZoomed = false
                             currentRelevantUser = item.flick.owner
                             currentCollection = item.collection
                             currentCliqueMembers = item.cliqueMembers
@@ -718,7 +721,7 @@ struct FlicksFeedView: View {
             .contentShape(.rect)
             .id(image.id)
             .if(!image.isVideo && !image.isLivePhoto) { view in
-                view.pinchZoom()  // Only apply pinch zoom to static photos
+                view.pinchZoom(isZoomed: $isZoomed)  // Only apply pinch zoom to static photos
             }
             .scrollTransition { content, phase in
                 content

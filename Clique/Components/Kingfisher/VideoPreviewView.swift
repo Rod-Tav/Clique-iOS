@@ -42,6 +42,7 @@ struct VideoPreviewView: View {
     @State private var player: AVPlayer?
     @State private var isLoading: Bool = true
     @State private var loadingError: Error?
+    @State private var loadTask: Task<Void, Never>?
 
     var body: some View {
         Group {
@@ -72,21 +73,28 @@ struct VideoPreviewView: View {
                     }
             }
         }
-        .task {
-            await loadVideo()
-        }
-        .onChange(of: isVisible) { _, newValue in
-            // Control playback based on visibility
-            if newValue {
+        .loadWhenVisible(
+            isVisible: isVisible,
+            onLoad: {
+                // Only start loading if not already loaded or loading
+                if player == nil && loadTask == nil {
+                    loadTask = Task {
+                        await loadVideo()
+                    }
+                }
+                // Resume playback if already loaded
                 player?.play()
-            } else {
+            },
+            onCancel: {
+                // Cancel loading
+                loadTask?.cancel()
+                loadTask = nil
+                isLoading = false
+                // Pause player but keep it alive for potential resume
+                // Full cleanup happens automatically when view is deallocated
                 player?.pause()
             }
-        }
-        .onDisappear {
-            // Always pause when view is removed from hierarchy
-            player?.pause()
-        }
+        )
     }
 
     /// Load video from PHAsset
@@ -96,12 +104,18 @@ struct VideoPreviewView: View {
         do {
             let playerItem = try await loadPlayerItem(from: asset)
 
+            // Check if task was cancelled before updating state
+            guard !Task.isCancelled else { return }
+
             await MainActor.run {
                 let avPlayer = AVPlayer(playerItem: playerItem)
                 self.player = avPlayer
                 self.isLoading = false
             }
         } catch {
+            // Check if task was cancelled before error handling
+            guard !Task.isCancelled else { return }
+
             print("❌ Failed to load video: \(error)")
             await MainActor.run {
                 self.isLoading = false
