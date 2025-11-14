@@ -95,7 +95,10 @@ struct DateMediaTypeLabel: View {
                 timezoneOffset = cached
             }
             // Priority 3: For Live Photos/videos, extract from video metadata as fallback
-            else if (image.isLivePhoto || image.isVideo), let url = image.videoUrls?.videoUrl(for: .medium) {
+            // Skip for PENDING uploads (CloudFront URL not ready yet, use device metadata instead)
+            else if (image.isLivePhoto || image.isVideo),
+                    image.uploadStatus != .PENDING,
+                    let url = image.videoUrls?.videoUrl(for: .medium) {
                 if let offset = await VideoMetadataHelper.extractTimezoneOffset(from: url) {
                     timezoneOffset = offset
                     // Cache for future use
@@ -106,7 +109,11 @@ struct DateMediaTypeLabel: View {
             }
 
             // Fetch video duration if not already available (for videos only)
-            if image.isVideo, image.videoDuration == nil, let url = image.videoUrls?.videoUrl(for: .medium) {
+            // Skip for PENDING uploads (CloudFront URL not ready yet)
+            if image.isVideo,
+               image.uploadStatus != .PENDING,
+               image.videoDuration == nil,
+               let url = image.videoUrls?.videoUrl(for: .medium) {
                 fetchedDuration = await VideoDurationHelper.getDuration(from: url)
             }
         }
