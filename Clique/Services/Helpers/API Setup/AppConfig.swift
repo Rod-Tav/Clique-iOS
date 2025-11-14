@@ -24,5 +24,5 @@ struct AppConfig {
     static let currentEnvironment: ServerEnvironment = .development
     static let serverURL: URL = currentEnvironment.serverURL
     
-    static let currentVersion: String = "1.7.1"
+    static let currentVersion: String = "1.7.2"
 }
