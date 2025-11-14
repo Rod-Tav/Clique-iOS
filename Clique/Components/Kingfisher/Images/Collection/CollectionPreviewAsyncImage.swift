@@ -27,7 +27,8 @@ struct CollectionPreviewAsyncImage: View {
             sizing: .collectionPreview,
             isLivePhoto: isLivePhoto,
             isVideo: isVideo,
-            performanceMode: true
+            performanceMode: true,
+            context: .grid  // Grid context: load small thumbnails for PENDING uploads
         )
     }
 }
