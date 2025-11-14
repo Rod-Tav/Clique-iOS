@@ -94,28 +94,7 @@ struct DateMediaTypeLabel: View {
             else if let cached = collectionImageStore.getCachedTimezoneOffset(for: image.id) {
                 timezoneOffset = cached
             }
-            // Priority 3: For Live Photos/videos, extract from video metadata as fallback
-            // Skip for PENDING uploads (CloudFront URL not ready yet, use device metadata instead)
-            else if (image.isLivePhoto || image.isVideo),
-                    image.uploadStatus != .PENDING,
-                    let url = image.videoUrls?.videoUrl(for: .medium) {
-                if let offset = await VideoMetadataHelper.extractTimezoneOffset(from: url) {
-                    timezoneOffset = offset
-                    // Cache for future use
-                    await MainActor.run {
-                        collectionImageStore.cacheTimezoneOffset(for: image.id, offset: offset)
-                    }
-                }
-            }
-
-            // Fetch video duration if not already available (for videos only)
-            // Skip for PENDING uploads (CloudFront URL not ready yet)
-            if image.isVideo,
-               image.uploadStatus != .PENDING,
-               image.videoDuration == nil,
-               let url = image.videoUrls?.videoUrl(for: .medium) {
-                fetchedDuration = await VideoDurationHelper.getDuration(from: url)
-            }
+            // If no timezone available, date formatting will use device timezone (graceful degradation)
         }
     }
 
