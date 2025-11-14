@@ -33,8 +33,9 @@ struct CollectionDetailView: View {
     
     @State private var opacity: CGFloat = 1
     @State private var dismissing: Bool = false
+    @State private var isZoomed: Bool = false
 //    @State var selectedImageId: String?
-    
+
     @State private var showCommentSheet: Bool = false
     @State private var showReportCover: Bool = false
     //    @State private var scrollProgress: CGFloat = 0
@@ -394,7 +395,12 @@ extension CollectionDetailView {
                     }
                     .onChange(of: selectedImageId) { oldValue, newValue in
                         guard !dismissing, let newValue else { return }
-                        
+
+                        // Reset zoom state when changing photos
+                        if oldValue != newValue {
+                            isZoomed = false
+                        }
+
                         Task {
                             try? await Task.sleep(nanoseconds: 100_000_000) // 100ms debounce
                             if newValue == selectedImageId { // Ensure the value is still the latest
@@ -425,6 +431,7 @@ extension CollectionDetailView {
             .compatibleDragGesture(
                 minimumDistance: GestureConstants.minimumRecognitionDistance,
                 onChanged: { translation in
+                    guard !isZoomed else { return }
                     guard (translation.height > GestureConstants.minimumVerticalSwipe && abs(translation.width) < GestureConstants.maximumHorizontalDeviation) || dismissing else { return }
                     dismissing = true
                     heroCoordinator.offset = fromGallery ? translation : CGSize(width: 0, height: translation.height)
@@ -509,7 +516,7 @@ extension CollectionDetailView {
             .contentShape(.rect)
             .id(image.id)
             .if(!image.isVideo && !image.isLivePhoto) { view in
-                view.pinchZoom()  // Only apply pinch zoom to static photos (not videos or Live Photos)
+                view.pinchZoom(isZoomed: $isZoomed)  // Only apply pinch zoom to static photos (not videos or Live Photos)
             }
             .scrollTransition { content, phase in
                 content

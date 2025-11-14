@@ -18,9 +18,10 @@ struct SingleFlickView: View {
     @Environment(CollectionImageStore.self) private var collectionImageStore
     
     @Environment(TabViewCoordinator.self) private var tabViewCoordinator
-    
+
     @State private var dismissing: Bool = false
     @State private var dismissOffset: CGSize = .zero
+    @State private var isZoomed: Bool = false
     
     @State private var likeAnimation: Bool = false
     
@@ -65,20 +66,7 @@ struct SingleFlickView: View {
             }
         }
     }
-    
-    private var swipeUpToOpenComments: some Gesture {
-        DragGesture(minimumDistance: GestureConstants.minimumRecognitionDistance)
-            .onChanged { value in
-                guard !dismissing else { return }
-                // Check if the swipe was mostly vertical and upwards
-                if value.translation.height < -GestureConstants.minimumUpwardSwipeForAction && abs(value.translation.width) < GestureConstants.maximumHorizontalDeviation {
-                    haptics(.light)
-                    showCommentSheet = true
-                    hasSwipedUpToOpenComments = true
-                }
-            }
-    }
-    
+
     // MARK: Top Bar
     private var topBar: some View {
         TopAppBar(
@@ -131,7 +119,7 @@ struct SingleFlickView: View {
                 .doubleTapToLike(hasLiked: currentImage?.hasLiked ?? false, likeAnimation: $likeAnimation) {
                     handleLikeTapped()
                 }
-                .pinchZoom()
+                .pinchZoom(isZoomed: $isZoomed)
                 .swipeUpToOpenCommentsTutorial()
                 .compatibleDragGesture(
                     minimumDistance: GestureConstants.minimumRecognitionDistance,
@@ -150,6 +138,7 @@ struct SingleFlickView: View {
                 .compatibleDragGesture(
                     minimumDistance: GestureConstants.minimumRecognitionDistance,
                     onChanged: { translation in
+                        guard !isZoomed else { return }
                         guard (translation.height > GestureConstants.minimumVerticalSwipe && abs(translation.width) < GestureConstants.maximumHorizontalDeviation) || dismissing else { return }
 
                         dismissing = true
@@ -260,30 +249,5 @@ private extension SingleFlickView {
         } catch {
             presentToast(Toasts.somethingWentWrong)
         }
-    }
-    
-    // TODO: DRY
-    var swipeDownToDismiss: some Gesture {
-        DragGesture(minimumDistance: GestureConstants.minimumRecognitionDistance)
-            .onChanged { value in
-                guard (value.translation.height > GestureConstants.minimumVerticalSwipe && abs(value.translation.width) < GestureConstants.maximumHorizontalDeviation) || dismissing else { return }
-                
-                dismissing = true
-                dismissOffset = CGSize(width: 0, height: value.translation.height)
-            }
-            .onEnded { value in
-                guard dismissing else { return }
-                let height = value.translation.height + (value.velocity.height / GestureConstants.velocityDampening)
-
-                if height > GestureConstants.dismissThresholdBasic {
-                    dismiss()
-                } else {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        dismissOffset = .zero
-                    } completion: {
-                        dismissing = false
-                    }
-                }
-            }
     }
 }
