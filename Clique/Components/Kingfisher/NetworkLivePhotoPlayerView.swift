@@ -217,8 +217,12 @@ struct NetworkLivePhotoPlayerView: View {
         // Create player with network URL for streaming
         // AVPlayer handles preloading and caching automatically
         await MainActor.run {
+            // Configure audio session for Live Photo playback
+            AudioSessionManager.shared.configureLivePhotoAudioSession()
+
             let avPlayer = AVPlayer(url: videoURL)
-            avPlayer.isMuted = true
+            avPlayer.isMuted = false  // Enable audio playback
+            avPlayer.volume = 1.0     // Set volume to maximum
             avPlayer.actionAtItemEnd = .none
 
             // Setup looping
@@ -247,6 +251,9 @@ struct NetworkLivePhotoPlayerView: View {
         isPlaying = true
         player.seek(to: .zero)
 
+        // Restore volume for audio playback
+        player.volume = 1.0
+
         // Haptic feedback like Apple Photos
         impactFeedback.impactOccurred()
 
@@ -269,8 +276,12 @@ struct NetworkLivePhotoPlayerView: View {
             videoOpacity = 0.0
         }
 
+        // Stop audio and video playback
         player.pause()
         player.seek(to: .zero)
+
+        // Ensure audio stops by setting volume to 0 during pause
+        player.volume = 0.0
     }
 
     /// Cleanup resources

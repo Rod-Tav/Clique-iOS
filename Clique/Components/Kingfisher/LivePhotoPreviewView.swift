@@ -149,6 +149,12 @@ struct LivePhotoPlaybackView: UIViewRepresentable {
     let contentMode: SwiftUI.ContentMode
 
     func makeUIView(context: Context) -> UIView {
+        // TODO: Device Live Photos (PHLivePhotoView) currently respect silent mode
+        // Unlike network Live Photos (AVPlayer), PHLivePhotoView doesn't ignore silent mode
+        // even with AVAudioSession .playback category configured. This appears to be a
+        // limitation of PHLivePhotoView's internal audio handling.
+        // Network Live Photos work correctly with audio in silent mode.
+
         // Use a container view to properly handle SwiftUI frame constraints
         let container = UIView()
         container.clipsToBounds = true
@@ -186,6 +192,9 @@ struct LivePhotoPlaybackView: UIViewRepresentable {
         livePhotoView.livePhoto = nil
         livePhotoView.contentMode = contentMode == .fill ? .scaleAspectFill : .scaleAspectFit
         livePhotoView.livePhoto = livePhoto
+
+        // Ensure audio is enabled (respects system silent mode)
+        livePhotoView.isMuted = false
 
         // Force layout update to ensure proper sizing
         container.setNeedsLayout()
