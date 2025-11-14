@@ -7,34 +7,48 @@
 
 import Foundation
 
-// this will be used to navigate the user to a specific screen when they tap a push notification banner
+// this will be used to navigate the user to a specific screen when they tap a push notification banner or deep link
 class DeepLinkManager {
     enum DeeplinkTarget: Equatable {
         case home
         case details(reference: String)
+        case collection(id: String)
     }
-    
+
     class DeepLinkConstants {
         static let scheme = "clique"
-        static let host = "com.cliqueapp"
-        static let detailsPath = "/details"
-        static let query = "id"
     }
-    
+
+    /// Parses a deep link URL and returns the appropriate target
+    /// - Parameter url: The URL to parse (format: clique://collection/{id})
+    /// - Returns: The parsed deep link target
     func manage(_ url: URL) -> DeeplinkTarget {
-        guard url.scheme == DeepLinkConstants.scheme,
-              url.host == DeepLinkConstants.host,
-              url.path == DeepLinkConstants.detailsPath,
-              let components = URLComponents(url: url, resolvingAgainstBaseURL: true),
-              let queryItems = components.queryItems
-        else { return .home }
-        
-        let query = queryItems.reduce(into: [String: String]()) { (result, item) in
-            result[item.name] = item.value
+        // Verify scheme
+        guard url.scheme == DeepLinkConstants.scheme else {
+            return .home
         }
-        
-        guard let id = query[DeepLinkConstants.query] else { return .home }
-        
-        return .details(reference: id)
+
+        // In clique://collection/abc-123, "collection" is the host, not the path
+        guard let host = url.host else {
+            return .home
+        }
+
+        // Extract the ID from the path (remove leading "/")
+        let path = url.path
+        let id = String(path.dropFirst()) // Remove the leading "/"
+
+        guard !id.isEmpty else {
+            return .home
+        }
+
+        // Route based on host (resource type)
+        switch host {
+        case "collection":
+            return .collection(id: id)
+        case "details":
+            return .details(reference: id)
+        default:
+            return .home
+        }
     }
 }

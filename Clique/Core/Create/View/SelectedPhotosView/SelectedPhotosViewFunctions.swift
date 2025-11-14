@@ -131,4 +131,16 @@ extension SelectedPhotosView {
     internal func processPhotosAndUploadForNewCollection() async {
         await processAndUpload()
     }
+
+    /// Determines if a photo at the given index should be loaded.
+    ///
+    /// Implements smart preloading: loads current photo + 2 adjacent photos on each side
+    /// to enable smooth swiping without overwhelming the Photos framework.
+    ///
+    /// - Parameter index: The index of the photo to check
+    /// - Returns: `true` if the photo should be loaded (within distance of 2 from current index)
+    internal func shouldLoadPhoto(at index: Int) -> Bool {
+        let distance = abs(index - currentIndex)
+        return distance <= 2  // Load current + 2 on each side (5 photos total max)
+    }
 }

@@ -9,7 +9,8 @@ import SwiftUI
 
 struct SwipeToDismissModifier: ViewModifier {
     @Environment(\.dismiss) private var dismiss
-    
+
+    var isZoomed: Binding<Bool>?
     @State private var dismissOffset: CGSize = .zero
 
     func body(content: Content) -> some View {
@@ -18,6 +19,7 @@ struct SwipeToDismissModifier: ViewModifier {
             .simultaneousGesture(
                 DragGesture(minimumDistance: GestureConstants.minimumRecognitionDistance)
                     .onChanged { value in
+                        guard isZoomed?.wrappedValue != true else { return }
                         guard value.translation.height > GestureConstants.minimumVerticalSwipe && abs(value.translation.width) < GestureConstants.maximumHorizontalDeviation else { return }
                         dismissOffset = CGSize(width: 0, height: value.translation.height)
                     }
@@ -36,14 +38,15 @@ struct SwipeToDismissModifier: ViewModifier {
 }
 
 extension View {
-    func swipeDownToDismiss() -> some View {
-        self.modifier(SwipeToDismissModifier())
+    func swipeDownToDismiss(isZoomed: Binding<Bool>? = nil) -> some View {
+        self.modifier(SwipeToDismissModifier(isZoomed: isZoomed))
     }
 }
 
 struct SwipeToDismissWithBindingModifier: ViewModifier {
     @Binding var isPresented: Bool
     var isSwiping: Binding<Bool>?
+    var isZoomed: Binding<Bool>?
 
     @State private var dismissOffset: CGFloat = 0
 
@@ -53,6 +56,7 @@ struct SwipeToDismissWithBindingModifier: ViewModifier {
             .simultaneousGesture(
                 DragGesture(minimumDistance: GestureConstants.minimumRecognitionDistance)
                     .onChanged { value in
+                        guard isZoomed?.wrappedValue != true else { return }
                         guard abs(value.translation.width) < GestureConstants.maximumHorizontalDeviation else { return }
                         // Only allow downward movement - clamp at 0 to prevent upward drift
                         dismissOffset = max(0, value.translation.height)
@@ -85,7 +89,7 @@ struct SwipeToDismissWithBindingModifier: ViewModifier {
 }
 
 extension View {
-    func swipeDownToDismiss(isPresented: Binding<Bool>, isSwiping: Binding<Bool>? = nil) -> some View {
-        self.modifier(SwipeToDismissWithBindingModifier(isPresented: isPresented, isSwiping: isSwiping))
+    func swipeDownToDismiss(isPresented: Binding<Bool>, isSwiping: Binding<Bool>? = nil, isZoomed: Binding<Bool>? = nil) -> some View {
+        self.modifier(SwipeToDismissWithBindingModifier(isPresented: isPresented, isSwiping: isSwiping, isZoomed: isZoomed))
     }
 }

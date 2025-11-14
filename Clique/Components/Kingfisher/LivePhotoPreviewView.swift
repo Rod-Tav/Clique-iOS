@@ -35,11 +35,14 @@ struct LivePhotoPreviewView: View {
     let thumbnail: UIImage?
     /// Content mode for the image
     let contentMode: SwiftUI.ContentMode
+    /// Whether this Live Photo is currently visible (controls when loading occurs)
+    var isVisible: Bool = true
 
     @State private var livePhoto: PHLivePhoto?
     @State private var fullImage: UIImage?
     @State private var isLoading: Bool = true
     @State private var loadingError: Error?
+    @State private var loadTask: Task<Void, Never>?
 
     var body: some View {
         Group {
@@ -74,9 +77,22 @@ struct LivePhotoPreviewView: View {
                     }
             }
         }
-        .task {
-            await loadLivePhoto()
-        }
+        .loadWhenVisible(
+            isVisible: isVisible,
+            onLoad: {
+                // Only start loading if not already loaded or loading
+                if livePhoto == nil && loadTask == nil {
+                    loadTask = Task {
+                        await loadLivePhoto()
+                    }
+                }
+            },
+            onCancel: {
+                loadTask?.cancel()
+                loadTask = nil
+                isLoading = false
+            }
+        )
     }
     
     /// Load Live Photo from PHAsset
@@ -87,23 +103,36 @@ struct LivePhotoPreviewView: View {
             // First, try to load as Live Photo
             let (livePhoto, fullImage) = try await LivePhotoHelper.loadLivePhotoForPreview(from: asset)
 
+            // Check if task was cancelled before updating state
+            guard !Task.isCancelled else { return }
+
             await MainActor.run {
                 self.livePhoto = livePhoto
                 self.fullImage = fullImage
                 self.isLoading = false
             }
         } catch {
+            // Check if task was cancelled before fallback
+            guard !Task.isCancelled else { return }
+
             // If Live Photo loading fails, load static image
             print("⚠️ Live Photo loading failed, falling back to static image: \(error)")
 
             do {
                 let (_, image) = try await PhotoProcessingHelper.loadImageFromAsset(asset)
+
+                // Check if task was cancelled before updating state
+                guard !Task.isCancelled else { return }
+
                 await MainActor.run {
                     self.fullImage = image
                     self.isLoading = false
                     self.loadingError = error
                 }
             } catch {
+                // Check if task was cancelled before error handling
+                guard !Task.isCancelled else { return }
+
                 print("❌ Failed to load static image: \(error)")
                 await MainActor.run {
                     self.isLoading = false
@@ -120,6 +149,12 @@ struct LivePhotoPlaybackView: UIViewRepresentable {
     let contentMode: SwiftUI.ContentMode
 
     func makeUIView(context: Context) -> UIView {
+        // TODO: Device Live Photos (PHLivePhotoView) currently respect silent mode
+        // Unlike network Live Photos (AVPlayer), PHLivePhotoView doesn't ignore silent mode
+        // even with AVAudioSession .playback category configured. This appears to be a
+        // limitation of PHLivePhotoView's internal audio handling.
+        // Network Live Photos work correctly with audio in silent mode.
+
         // Use a container view to properly handle SwiftUI frame constraints
         let container = UIView()
         container.clipsToBounds = true
@@ -157,6 +192,9 @@ struct LivePhotoPlaybackView: UIViewRepresentable {
         livePhotoView.livePhoto = nil
         livePhotoView.contentMode = contentMode == .fill ? .scaleAspectFill : .scaleAspectFit
         livePhotoView.livePhoto = livePhoto
+
+        // Ensure audio is enabled (respects system silent mode)
+        livePhotoView.isMuted = false
 
         // Force layout update to ensure proper sizing
         container.setNeedsLayout()

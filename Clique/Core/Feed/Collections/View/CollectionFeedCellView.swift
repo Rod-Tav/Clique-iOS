@@ -430,7 +430,13 @@ extension CollectionFeedCellView {
             RefreshMenuButton {
                 refresh()
             }
-            
+
+            ShareCollectionButton(
+                collectionId: collectionId,
+                collectionName: collection?.name,
+                collectionDescription: collection?.description
+            )
+
             ReportButton {
                 showReportCover = true
             }

@@ -224,11 +224,17 @@ extension CollectionMainView {
                     refreshAll()
                 }
             }
-            
+
+            ShareCollectionButton(
+                collectionId: collectionId,
+                collectionName: collection?.name,
+                collectionDescription: collection?.description
+            )
+
             ReportButton {
                 showReportCover = true
             }
-            
+
             if let collection, isInClique(cid: collection.cliqueId, cliqueStore) {
                 DeleteButton {
                     showDeleteCollectionAlert = true

@@ -35,6 +35,7 @@ struct UnifiedCollectionImageView: View {
     var isVideo: Bool = false
     var performanceMode: Bool = true
     var context: ImageLoadingContext = .detail
+    var isVisible: Bool = true
 
     @State private var deviceAsset: PHAsset?
     @State private var deviceMediaType: MediaType?
@@ -64,22 +65,22 @@ struct UnifiedCollectionImageView: View {
             if isGridView {
                 // Grid view: Always use TwoStageImageLoader for static thumbnail
                 sizing.applyToView(
-                    TwoStageImageLoader(asset: asset, thumbnail: nil, contentMode: sizing.contentMode)
+                    TwoStageImageLoader(asset: asset, thumbnail: nil, contentMode: sizing.contentMode, isVisible: isVisible)
                 )
             } else {
                 // Detail/slide view: Use appropriate component for each media type
                 switch mediaType {
                 case .PHOTO:
                     sizing.applyToView(
-                        TwoStageImageLoader(asset: asset, thumbnail: nil, contentMode: sizing.contentMode)
+                        TwoStageImageLoader(asset: asset, thumbnail: nil, contentMode: sizing.contentMode, isVisible: isVisible)
                     )
                 case .LIVE:
                     sizing.applyToView(
-                        LivePhotoPreviewView(asset: asset, thumbnail: nil, contentMode: sizing.contentMode)
+                        LivePhotoPreviewView(asset: asset, thumbnail: nil, contentMode: sizing.contentMode, isVisible: isVisible)
                     )
                 case .VIDEO:
                     sizing.applyToView(
-                        VideoPreviewView(asset: asset, thumbnail: nil, contentMode: sizing.contentMode)
+                        VideoPreviewView(asset: asset, thumbnail: nil, contentMode: sizing.contentMode, isVisible: isVisible)
                     )
                 }
             }
