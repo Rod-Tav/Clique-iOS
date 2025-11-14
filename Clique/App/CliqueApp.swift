@@ -355,7 +355,7 @@ struct CliqueApp: App {
 class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]?) -> Bool {
         FirebaseApp.configure()
-        
+
         // ✅ Set notification center delegate to handle foreground notifications
         UNUserNotificationCenter.current().delegate = self
 
@@ -429,22 +429,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     func application(_ application: UIApplication,
                      open url: URL,
                      options: [UIApplication.OpenURLOptionsKey : Any]) -> Bool {
+        // Check if Firebase Auth can handle this URL (for sign-in, password reset, etc.)
         if Auth.auth().canHandle(url) {
             return true
         }
-        // Handle other URLs if needed
+
+        // URL not recognized - return false to allow SwiftUI's .onOpenURL to handle custom deep links
         return false
     }
-    
-    // MARK: - Handle Scene-based URL (optional, if using scenes)
-    func scene(_ scene: UIScene,
-               openURLContexts URLContexts: Set<UIOpenURLContext>) {
-        for urlContext in URLContexts {
-            let url = urlContext.url
-            _ = Auth.auth().canHandle(url)
-        }
-    }
-    
+
     func applicationDidEnterBackground(_ application: UIApplication) {
         CliqueApp.scheduleBackgroundFeedRefresh()
     }
