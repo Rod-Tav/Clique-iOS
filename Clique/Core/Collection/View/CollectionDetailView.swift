@@ -506,7 +506,7 @@ extension CollectionDetailView {
             image: image,
             quality: videoQualityPreference.imageQuality,
             forceQuality: videoQualityPreference != .auto,
-            isVisible: selectedImageId == image.id,
+            isVisible: shouldLoadPhoto(imageId: image.id),
             onRefresh: refreshCollection,
             savedPosition: videoPlaybackPositions[image.id],
             onPositionSave: { time in
@@ -524,6 +524,23 @@ extension CollectionDetailView {
                     .scaleEffect(phase.isIdentity ? 1 : 0.85)
                 //                                    .blur(radius: phase.isIdentity ? 0 : 10)
             }
+    }
+
+    /// Determines if a photo should be loaded based on its distance from the selected photo
+    /// Prevents loading during carousel interaction to avoid overwhelming Photos framework
+    /// Loads current photo + 2 adjacent photos on each side for smooth swiping (max 5 photos)
+    private func shouldLoadPhoto(imageId: String) -> Bool {
+        // Don't load ANY photos while user is actively scrolling the carousel
+        guard !isScrolling else { return false }
+
+        guard let selectedImageId,
+              let currentIndex = imagesPgVM.items.firstIndex(where: { $0.id == selectedImageId }),
+              let imageIndex = imagesPgVM.items.firstIndex(where: { $0.id == imageId }) else {
+            return false
+        }
+
+        let distance = abs(imageIndex - currentIndex)
+        return distance <= 2  // Load current + 2 on each side (5 photos total max)
     }
     
     @ViewBuilder private func SelfTagButton() -> some View {

@@ -17,6 +17,8 @@ struct TwoStageImageLoader: View {
     let contentMode: ContentMode
     /// Whether this image is currently visible (controls when full resolution loads)
     var isVisible: Bool = true
+    /// Loading context determines target size (grid = small thumbnail, detail = full resolution)
+    var context: ImageLoadingContext = .detail
 
     @State private var fullImage: UIImage?
     @State private var isLoadingFull = false
@@ -62,10 +64,21 @@ struct TwoStageImageLoader: View {
         options.isSynchronous = false
         options.resizeMode = .none  // Prevents iOS green tint bug with PHImageManagerMaximumSize
 
-        // Request full resolution image
+        // Determine target size based on context
+        let targetSize: CGSize
+        switch context {
+        case .grid, .list:
+            // Grid/list: Load small thumbnail for performance (300x300 matches photo picker)
+            targetSize = CGSize(width: 300, height: 300)
+        case .detail, .hero:
+            // Detail view: Load full resolution
+            targetSize = PHImageManagerMaximumSize
+        }
+
+        // Request image at appropriate size
         requestID = PHImageManager.default().requestImage(
             for: asset,
-            targetSize: PHImageManagerMaximumSize,
+            targetSize: targetSize,
             contentMode: .aspectFit,
             options: options
         ) { image, info in

@@ -65,14 +65,14 @@ struct UnifiedCollectionImageView: View {
             if isGridView {
                 // Grid view: Always use TwoStageImageLoader for static thumbnail
                 sizing.applyToView(
-                    TwoStageImageLoader(asset: asset, thumbnail: nil, contentMode: sizing.contentMode, isVisible: isVisible)
+                    TwoStageImageLoader(asset: asset, thumbnail: nil, contentMode: sizing.contentMode, isVisible: isVisible, context: context)
                 )
             } else {
                 // Detail/slide view: Use appropriate component for each media type
                 switch mediaType {
                 case .PHOTO:
                     sizing.applyToView(
-                        TwoStageImageLoader(asset: asset, thumbnail: nil, contentMode: sizing.contentMode, isVisible: isVisible)
+                        TwoStageImageLoader(asset: asset, thumbnail: nil, contentMode: sizing.contentMode, isVisible: isVisible, context: context)
                     )
                 case .LIVE:
                     sizing.applyToView(
