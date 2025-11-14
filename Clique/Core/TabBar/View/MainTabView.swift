@@ -84,9 +84,7 @@ struct MainTabView: View {
     @State private var tabViewCoordinator = TabViewCoordinator()
     /// Upload flow management and retry logic
     @State private var viewModel = TabViewModel()
-    /// Deep link navigation target
-    @State var deeplinkTarget: DeepLinkManager.DeeplinkTarget?
-    
+
     // MARK: - UI State
     /// Whether to show "What's New" modal
     @State private var showWhatsNew = false
@@ -300,16 +298,11 @@ struct MainTabView: View {
         .environment(tabViewCoordinator)
         //        .statusBarHidden(tabViewCoordinator.hideStatusBar)
         .ignoresSafeArea(.keyboard) // prevent keyboard from moving tab bar up
-        //        .onOpenURL { url in
-        //            let deeplinkManager = DeepLinkManager()
-        //            let deeplink = deeplinkManager.manage(url)
-        //            switch deeplink {
-        //            case .home:
-        //                tabViewCoordinator.appendToPath(value: Clique.MOCK_CLIQUES[0])
-        //            case .details(let queryInfo):
-        //                print(queryInfo)
-        //            }
-        //        }
+        .handleDeepLinks(
+            tabViewCoordinator: tabViewCoordinator,
+            collectionStore: collectionStore,
+            collectionImageStore: collectionImageStore
+        )
 //        .onReceive(NotificationCenter.default.publisher(for: .didTapNotification)) { _ in
 //            tabViewCoordinator.navigate(to: "CurrentUser")
 //            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -318,7 +311,7 @@ struct MainTabView: View {
 //        }
         .onChange(of: appCoordinator.shouldOpenNotificationCenter, initial: true) { oldValue, newValue in
             guard newValue else { return }
-            
+
             tabViewCoordinator.profileNavigationPath = NavigationPath()
             tabViewCoordinator.activeTab = .profile
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {

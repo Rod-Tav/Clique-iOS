@@ -85,9 +85,38 @@ struct NavigationDestinationsModifier: ViewModifier {
                 CollectionMainView(collectionId: collection.id, cliqueId: collection.cliqueId, collectionStore, collectionImageStore)
                     .navigationBarBackButtonHidden()
             }
-            
+
+            /// Navigate to collection deep link error states
+            .navigationDestination(for: CollectionDeepLinkDestination.self) { destination in
+                Group {
+                    switch destination {
+                    case .networkError(let collectionId):
+                        CollectionRetryView(collectionId: collectionId)
+                    case .notFound:
+                        CollectionErrorStateView(
+                            iconName: "photo.on.rectangle.angled",
+                            title: "Collection Not Found",
+                            message: "This collection doesn't exist or may have been deleted"
+                        )
+                    case .accessDenied:
+                        CollectionErrorStateView(
+                            iconName: "lock.circle.fill",
+                            title: "No Access",
+                            message: "You don't have access to this collection"
+                        )
+                    case .notAuthenticated:
+                        CollectionErrorStateView(
+                            iconName: "photo.on.rectangle.angled",
+                            title: "Collection Not Found",
+                            message: "This collection doesn't exist or may have been deleted"
+                        )
+                    }
+                }
+                .navigationBarBackButtonHidden()
+            }
+
             // MARK: - String-Based Special Destinations
-            
+
             /// Special app views accessed by string identifiers
             /// - Note: Prefer domain models over strings when possible
             .navigationDestination(for: String.self) { string in
@@ -106,6 +135,64 @@ struct NavigationDestinationsModifier: ViewModifier {
                 }
                 .navigationBarBackButtonHidden()
             }
+    }
+}
+
+// MARK: - Private Helper Views
+
+/// Private helper view that handles retry logic for collection network errors
+private struct CollectionRetryView: View {
+    @Environment(TabViewCoordinator.self) private var coordinator
+    @Environment(CollectionStore.self) private var collectionStore
+    @Environment(CollectionImageStore.self) private var collectionImageStore
+
+    let collectionId: String
+    @State private var isRetrying = false
+    @State private var retryTask: Task<Void, Never>?
+
+    var body: some View {
+        CollectionErrorStateView(
+            iconName: "exclamationmark.triangle.fill",
+            title: "Unable to Load Collection",
+            message: "There was a problem loading this collection. Please check your connection and try again.",
+            retryAction: {
+                guard !isRetrying else { return }
+
+                // Cancel any existing retry task
+                retryTask?.cancel()
+
+                isRetrying = true
+
+                retryTask = Task {
+                    let result = await CollectionDeepLinkHandler.fetchCollection(
+                        collectionId: collectionId,
+                        collectionStore: collectionStore,
+                        collectionImageStore: collectionImageStore
+                    )
+
+                    // Check if task was cancelled
+                    guard !Task.isCancelled else { return }
+
+                    await MainActor.run {
+                        isRetrying = false
+
+                        // Navigate based on result
+                        coordinator.profileNavigationPath.removeLast()
+
+                        switch result {
+                        case .success(let collection):
+                            coordinator.navigate(to: collection)
+                        case .notAuthenticated:
+                            coordinator.navigate(to: CollectionDeepLinkDestination.notAuthenticated)
+                        case .notFound:
+                            coordinator.navigate(to: CollectionDeepLinkDestination.notFound)
+                        case .networkError:
+                            coordinator.navigate(to: CollectionDeepLinkDestination.networkError(collectionId: collectionId))
+                        }
+                    }
+                }
+            }
+        )
     }
 }
 
