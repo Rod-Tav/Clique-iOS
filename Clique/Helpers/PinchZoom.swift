@@ -9,8 +9,8 @@ import SwiftUI
 
 extension View {
     @ViewBuilder
-    func pinchZoom(dimsBackground: Bool = true) -> some View {
-        PinchZoomHelper(dimsBackground: dimsBackground) {
+    func pinchZoom(dimsBackground: Bool = true, isZoomed: Binding<Bool>? = nil) -> some View {
+        PinchZoomHelper(dimsBackground: dimsBackground, isZoomed: isZoomed) {
             self
         }
     }
@@ -67,6 +67,7 @@ fileprivate class ZoomContainerData {
 /// Helper View
 fileprivate struct PinchZoomHelper<Content: View>: View {
     var dimsBackground: Bool
+    var isZoomed: Binding<Bool>?
     @ViewBuilder var content: Content
     /// View Properties
     @Environment(ZoomContainerData.self) private var containerData
@@ -78,7 +79,7 @@ fileprivate struct PinchZoomHelper<Content: View>: View {
             .overlay {
                 GeometryReader {
                     let rect = $0.frame(in: .global)
-                    
+
                     Color.clear
                         .onChange(of: config.isGestureActive) { oldValue, newValue in
                             guard !containerData.isResetting else { return }
@@ -90,6 +91,10 @@ fileprivate struct PinchZoomHelper<Content: View>: View {
                                 containerData.zoomingView = .init(erasing: content)
                                 /// Hiding Source View
                                 config.hidesSourceView = true
+                                /// Set isZoomed after view is captured to prevent render conflicts
+                                DispatchQueue.main.async {
+                                    isZoomed?.wrappedValue = true
+                                }
                             } else {
                                 /// Resetting to it's Intial Position With Animation
                                 containerData.isResetting = true
@@ -103,6 +108,8 @@ fileprivate struct PinchZoomHelper<Content: View>: View {
                                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { // weird flash on collection feed cell
                                         containerData.zoomingView = nil
                                         containerData.isResetting = false
+                                        /// Reset isZoomed when zoom completes
+                                        isZoomed?.wrappedValue = false
                                     }
                                 }
                             }
@@ -191,7 +198,13 @@ fileprivate struct GestureOverlay: UIViewRepresentable {
                 return true
             }
 
-            // Allow SwiftUI gestures (no name) to work simultaneously
+            // Block ScrollView horizontal pan gestures when zoomed
+            // This prevents carousel scrolling during zoom without triggering SwiftUI state updates
+            if config.isGestureActive && otherGestureRecognizer is UIPanGestureRecognizer && otherGestureRecognizer.name == nil {
+                return false
+            }
+
+            // Allow SwiftUI gestures (no name) to work simultaneously when not zooming
             // This enables long press for Live Photos and other SwiftUI gestures
             if otherGestureRecognizer.name == nil {
                 return true
