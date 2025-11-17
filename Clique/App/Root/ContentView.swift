@@ -147,6 +147,7 @@ struct ContentView: View {
                 }
             }
         }
+        .id(authService.appViewType) // iOS 26.1 fix: Force view recreation on state change because TabView causes the application to hang with repeated AttributeGraph cycle detected messages
         .onAppear {
             // Begin authentication state evaluation
             Task {
