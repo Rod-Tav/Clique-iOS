@@ -50,9 +50,6 @@ struct CollectionDetailView: View {
     /// Video quality preference
     @AppStorage("videoQualityPreference") private var videoQualityPreference: VideoQualityPreference = .auto
 
-    /// Live Photo save state
-    @State private var isSavingLivePhoto: Bool = false
-
     /// self tagging
     @State private var confirmed: Bool = false
     @State private var shouldFadeOut: Bool = false
@@ -85,9 +82,7 @@ struct CollectionDetailView: View {
     var cid: String? {
        collection?.cliqueId
     }
-    
-    @State var loadedImage: UIImage?
-    
+
     var fromGallery: Bool = true
     
     // MARK: - Body
@@ -186,87 +181,13 @@ extension CollectionDetailView {
             header: HeaderContent,
             trailingIcon: {
                 Menu {
-                    // Video quality selector (only for videos)
-                    if selectedImage?.isVideo == true {
-                        Menu {
-                            ForEach(VideoQualityPreference.allCases, id: \.self) { quality in
-                                Button {
-                                    videoQualityPreference = quality
-                                    print("🎬 [QUALITY] User selected: \(quality.displayName)")
-                                } label: {
-                                    HStack {
-                                        Text(quality.displayName)
-                                        if videoQualityPreference == quality {
-                                            Image(systemName: "checkmark")
-                                        }
-                                    }
-                                }
-                            }
-                        } label: {
-                            Text("Video Quality")
-                            Image(systemName: "video.badge.waveform")
-                                .color(.theme.iconPrimary)
-                        }
-                    }
-
-                    if let cid, isInClique(cid: cid, cliqueStore), let loadedImage {
-                        ShareLink(
-                            item: Image(uiImage: loadedImage),
-                            preview: SharePreview("", image: Image(uiImage: loadedImage))
-                        ) {
-                            Text("Share Image")
-
-                            Image("share")
-                                .color(.theme.iconPrimary)
-                        }
-
-                        // Save button (conditional based on media type)
-                        if let selectedImage = selectedImage {
-                            if selectedImage.isLivePhoto {
-                                // Save Live Photo with metadata injection (falls back to video if metadata fails)
-                                Button {
-                                    handleSaveLivePhoto()
-                                } label: {
-                                    HStack {
-                                        Text(isSavingLivePhoto ? "Saving..." : "Save Live Photo")
-                                        if !isSavingLivePhoto {
-                                            Image("download")
-                                                .color(.theme.iconPrimary)
-                                        } else {
-                                            ProgressView()
-                                                .tint(.theme.iconPrimary)
-                                        }
-                                    }
-                                }
-                                .disabled(isSavingLivePhoto)
-                            } else if selectedImage.isVideo {
-                                // Save Video
-                                Button {
-                                    handleSaveVideo()
-                                } label: {
-                                    Text("Save Video")
-                                    Image("download")
-                                        .color(.theme.iconPrimary)
-                                }
-                            } else {
-                                // Save static image
-                                Button {
-                                    handleSaveImage()
-                                } label: {
-                                    Text("Save Image")
-                                    Image("download")
-                                        .color(.theme.iconPrimary)
-                                }
-                            }
-                        }
-
-                        DeleteButton {
-                            showDeleteFlickAlert = true
-                        }
-                    }
-
-                    ReportButton {
-                        showReportCover = true
+                    if let selectedImage {
+                        CollectionImageMenuContent(
+                            image: selectedImage,
+                            collectionId: clCoordinator.collectionId,
+                            showDeleteAlert: $showDeleteFlickAlert,
+                            showReportCover: $showReportCover
+                        )
                     }
                 } label: {
                     EllipsisImage(color: .theme.white, size: 24)
@@ -285,11 +206,6 @@ extension CollectionDetailView {
         )
         .padding(.vertical, 12)
         .padding(.horizontal, 16)
-        .task {
-            guard let url = selectedImage?.imageUrl?.highQualityUrl, let cid, isInClique(cid: cid, cliqueStore) else { return }
-            
-            loadedImage = await fetchImageWithKingfisher(from: url)
-        }
         .fullScreenCover(isPresented: $showReportCover) {
             if let selectedImage {
                 ReportView(showReport: $showReportCover, objectId: selectedImage.id, reportType: .image)
@@ -824,46 +740,6 @@ extension CollectionDetailView {
             } catch {
                 presentToast(Toasts.somethingWentWrong)
             }
-        }
-    }
-
-    /// Handles saving a Live Photo with metadata injection
-    private func handleSaveLivePhoto() {
-        guard !isSavingLivePhoto, let selectedImage else { return }
-
-        Task {
-            await CollectionImageSaveHelpers.saveLivePhoto(
-                image: selectedImage,
-                collectionImageStore: collectionImageStore,
-                presentToast: { toast in presentToast(toast) },
-                onStateChange: { isSaving in
-                    isSavingLivePhoto = isSaving
-                }
-            )
-        }
-    }
-
-    /// Handles saving a standalone video
-    private func handleSaveVideo() {
-        guard let selectedImage else { return }
-
-        Task {
-            await CollectionImageSaveHelpers.saveVideo(
-                image: selectedImage,
-                presentToast: { toast in presentToast(toast) }
-            )
-        }
-    }
-
-    /// Handles saving a static image
-    private func handleSaveImage() {
-        guard let selectedImage else { return }
-
-        Task {
-            await CollectionImageSaveHelpers.saveImage(
-                image: selectedImage,
-                presentToast: { toast in presentToast(toast) }
-            )
         }
     }
 

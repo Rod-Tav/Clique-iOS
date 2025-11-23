@@ -36,6 +36,10 @@ struct CollectionMainView: View {
     @State private var showEditCollectionSheet: Bool = false
     @State private var showDeleteCollectionAlert: Bool = false
     @State private var showCollectionBanner: Bool = false
+
+    // Context menu state
+    @State private var showDeleteFlickAlert: Bool = false
+    @State private var contextMenuImage: CollectionImage?
     
     let collectionId: String
     let gallerySortTip = GallerySortTip()
@@ -147,7 +151,35 @@ struct CollectionMainView: View {
 //                AddPhotosCover(collectionId: collectionId)
 //            }
             .fullScreenCover(isPresented: $showReportCover) {
-                ReportView(showReport: $showReportCover, objectId: collectionId, reportType: .collection)
+                if let contextMenuImage {
+                    ReportView(showReport: $showReportCover, objectId: contextMenuImage.id, reportType: .image)
+                } else {
+                    ReportView(showReport: $showReportCover, objectId: collectionId, reportType: .collection)
+                }
+            }
+            .alert(isPresented: $showDeleteFlickAlert) {
+                Alert(
+                    title: Text("Are you sure you want to delete this flick?"),
+                    message: Text("This action cannot be undone."),
+                    primaryButton: .destructive(Text("Delete")) {
+                        if let contextMenuImage {
+                            Task {
+                                await CollectionImageSaveHelpers.deleteCollectionItem(
+                                    imageId: contextMenuImage.id,
+                                    collectionId: collectionId,
+                                    collectionStore: collectionStore,
+                                    collectionImageStore: collectionImageStore,
+                                    presentToast: { toast in presentToast(toast) },
+                                    onSuccess: {
+                                        // Refresh the list after deletion
+                                        refreshAll()
+                                    }
+                                )
+                            }
+                        }
+                    },
+                    secondaryButton: .cancel()
+                )
             }
             .fullScreenCover(isPresented: $showCollectionBanner) {
                 ExpandedPfpView {
@@ -513,6 +545,30 @@ extension CollectionMainView {
             .heroSource(urls: image.imageUrl) {
                 tabCoordinator.showTabBar = false
                 clCoordinator.selectedImageId = image.id
+            }
+            .contextMenu {
+                CollectionImageMenuContent(
+                    image: image,
+                    collectionId: collectionId,
+                    showDeleteAlert: Binding(
+                        get: { showDeleteFlickAlert && contextMenuImage?.id == image.id },
+                        set: { newValue in
+                            showDeleteFlickAlert = newValue
+                            if newValue {
+                                contextMenuImage = image
+                            }
+                        }
+                    ),
+                    showReportCover: Binding(
+                        get: { showReportCover && contextMenuImage?.id == image.id },
+                        set: { newValue in
+                            showReportCover = newValue
+                            if newValue {
+                                contextMenuImage = image
+                            }
+                        }
+                    )
+                )
             }
     }
 }
