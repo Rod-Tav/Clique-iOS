@@ -155,50 +155,27 @@ struct CollectionMainView: View {
             .fullScreenCover(isPresented: $showReportCover) {
                 ReportView(showReport: $showReportCover, objectId: collectionId, reportType: .collection)
             }
-            .fullScreenCover(isPresented: Binding(
-                get: { reportImage != nil },
-                set: { if !$0 { reportImage = nil } }
-            )) {
-                if let reportImage {
-                    ReportView(showReport: .constant(true), objectId: reportImage.id, reportType: .image)
+            .collectionImageContextMenuHandlers(
+                deleteAlertImage: $deleteAlertImage,
+                reportImage: $reportImage,
+                shareItem: $shareItem,
+                showSharePreparation: $showSharePreparation,
+                onDelete: { image in
+                    await CollectionImageSaveHelpers.deleteCollectionItem(
+                        imageId: image.id,
+                        collectionId: collectionId,
+                        collectionStore: collectionStore,
+                        collectionImageStore: collectionImageStore,
+                        presentToast: { toast in presentToast(toast) },
+                        onSuccess: {
+                            refreshAll()
+                        }
+                    )
                 }
-            }
-            .alert(
-                "Are you sure you want to delete this flick?",
-                isPresented: Binding(
-                    get: { deleteAlertImage != nil },
-                    set: { if !$0 { deleteAlertImage = nil } }
-                ),
-                presenting: deleteAlertImage
-            ) { image in
-                Button("Delete", role: .destructive) {
-                    Task {
-                        await CollectionImageSaveHelpers.deleteCollectionItem(
-                            imageId: image.id,
-                            collectionId: collectionId,
-                            collectionStore: collectionStore,
-                            collectionImageStore: collectionImageStore,
-                            presentToast: { toast in presentToast(toast) },
-                            onSuccess: {
-                                // Refresh the list after deletion
-                                refreshAll()
-                            }
-                        )
-                    }
-                }
-                Button("Cancel", role: .cancel) { }
-            } message: { _ in
-                Text("This action cannot be undone.")
-            }
-            .shareSheet(item: $shareItem)
+            )
             .fullScreenCover(isPresented: $showCollectionBanner) {
                 ExpandedPfpView {
                     ExpandedBannerAsyncImage(banner: coverPhoto, type: .clique, quality: .high, showGradient: false)
-                }
-            }
-            .overlay {
-                if showSharePreparation {
-                    ProcessingOverlay(message: "Preparing to share...")
                 }
             }
             .onAppear {

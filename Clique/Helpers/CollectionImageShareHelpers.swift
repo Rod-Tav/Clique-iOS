@@ -26,7 +26,8 @@ struct CollectionImageShareHelpers {
         presentShareSheet: @escaping (URL) -> Void
     ) async {
         guard let imageUrl = image.imageUrl,
-              let url = imageUrl.highQualityUrl else { return }
+              let urlString = imageUrl.highQualityUrl,
+              let url = URL(string: urlString) else { return }
 
         guard let loadedImage = await fetchImageWithKingfisher(from: url) else {
             presentToast(Toasts.somethingWentWrong)
