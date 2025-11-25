@@ -62,7 +62,6 @@ struct AVPlayerViewControllerWrapper: UIViewControllerRepresentable {
         private var rateObserver: AnyCancellable?
         private var isScrubbing = false
         private var muteStateBeforeScrub = false
-        private var wasPlayingBeforeScrub = false
         private var hasStartedPlaying = false
 
         func setupObservation(for player: AVPlayer) {
@@ -144,7 +143,6 @@ struct AVPlayerViewControllerWrapper: UIViewControllerRepresentable {
             guard !isScrubbing else { return }
 
             isScrubbing = true
-            wasPlayingBeforeScrub = player.rate > 0
             // Store current mute state and mute the player
             muteStateBeforeScrub = player.isMuted
             player.isMuted = true
