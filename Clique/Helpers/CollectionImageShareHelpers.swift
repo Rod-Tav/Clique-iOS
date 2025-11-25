@@ -2,15 +2,12 @@
 //  CollectionImageShareHelpers.swift
 //  Clique
 //
-//  Created by Assistant for shared image/video/live photo sharing functionality.
+//  Created by Assistant for shared image/video sharing functionality.
 //
 
 import Foundation
 import SwiftUI
 import Toasts
-import Photos
-import PhotosUI
-import UniformTypeIdentifiers
 import Kingfisher
 
 /// Shared helper functions for sharing collection images
@@ -101,172 +98,15 @@ struct CollectionImageShareHelpers {
 
     // MARK: - Private Helpers
 
-    /// Downloads image and saves to temporary file
-    private static func downloadImageToFile(from url: URL) async throws -> URL {
-        return try await withCheckedThrowingContinuation { continuation in
+    /// Fetches an image using Kingfisher
+    private static func fetchImageWithKingfisher(from url: URL) async -> UIImage? {
+        return await withCheckedContinuation { continuation in
             KingfisherManager.shared.retrieveImage(with: url) { result in
                 switch result {
                 case .success(let imageResult):
-                    if let data = imageResult.image.jpegData(compressionQuality: 1.0) {
-                        let tempDir = FileManager.default.temporaryDirectory
-                        let imageURL = tempDir.appendingPathComponent("\(UUID().uuidString).jpg")
-
-                        do {
-                            try data.write(to: imageURL)
-                            continuation.resume(returning: imageURL)
-                        } catch {
-                            continuation.resume(throwing: error)
-                        }
-                    } else {
-                        continuation.resume(throwing: NSError(domain: "ShareHelper", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to get image data"]))
-                    }
-                case .failure(let error):
-                    continuation.resume(throwing: error)
-                }
-            }
-        }
-    }
-
-    /// Generates Live Photo with metadata injection
-    /// Returns both the PHLivePhoto object and the resource files
-    private static func generateLivePhoto(
-        imageURL: URL,
-        videoURL: URL
-    ) async throws -> (livePhoto: PHLivePhoto, pairedImage: URL, pairedVideo: URL) {
-        return try await withCheckedThrowingContinuation { continuation in
-            LivePhoto.generate(from: imageURL, videoURL: videoURL) { progress in
-                // Progress callback
-            } completion: { livePhoto, resources in
-                if let livePhoto = livePhoto, let resources = resources {
-                    continuation.resume(returning: (livePhoto, resources.pairedImage, resources.pairedVideo))
-                } else {
-                    continuation.resume(throwing: NSError(domain: "ShareHelper", code: -1, userInfo: [NSLocalizedDescriptionKey: "LivePhoto generation failed"]))
-                }
-            }
-        }
-    }
-
-    /// Generates Live Photo resources with metadata injection (for saving)
-    private static func generateLivePhotoResources(
-        imageURL: URL,
-        videoURL: URL
-    ) async throws -> (pairedImage: URL, pairedVideo: URL) {
-        let result = try await generateLivePhoto(imageURL: imageURL, videoURL: videoURL)
-        return (result.pairedImage, result.pairedVideo)
-    }
-
-    /// Creates PHLivePhoto specifically for sharing (more lenient than save version)
-    /// Accepts degraded Live Photos since sharing should work even with lower quality
-    private static func createPHLivePhotoForSharing(
-        imageURL: URL,
-        videoURL: URL
-    ) async throws -> PHLivePhoto {
-        return try await withCheckedThrowingContinuation { continuation in
-            var resumed = false
-
-            print("🔴 [LIVE PHOTO SHARE] Requesting PHLivePhoto...")
-
-            PHLivePhoto.request(
-                withResourceFileURLs: [imageURL, videoURL],
-                placeholderImage: nil,
-                targetSize: .zero,
-                contentMode: .aspectFit
-            ) { livePhoto, info in
-                guard !resumed else {
-                    print("🔴 [LIVE PHOTO SHARE] Skipping duplicate callback")
-                    return
-                }
-
-                let isDegraded = (info[PHLivePhotoInfoIsDegradedKey] as? Bool) ?? false
-                let isCancelled = (info[PHLivePhotoInfoCancelledKey] as? Bool) ?? false
-
-                print("🔴 [LIVE PHOTO SHARE] Callback - degraded: \(isDegraded), cancelled: \(isCancelled), hasPhoto: \(livePhoto != nil)")
-
-                // Check for error
-                if let error = info[PHLivePhotoInfoErrorKey] as? Error {
-                    print("🔴 [LIVE PHOTO SHARE] ❌ Error: \(error)")
-                    resumed = true
-                    continuation.resume(throwing: error)
-                    return
-                }
-
-                // Check if cancelled
-                if isCancelled {
-                    print("🔴 [LIVE PHOTO SHARE] ❌ Cancelled")
-                    resumed = true
-                    continuation.resume(throwing: NSError(domain: "ShareHelper", code: -1, userInfo: [NSLocalizedDescriptionKey: "Live Photo creation cancelled"]))
-                    return
-                }
-
-                // For sharing, accept even degraded Live Photos
-                // We just need ANY valid PHLivePhoto object
-                if let livePhoto = livePhoto {
-                    print("🔴 [LIVE PHOTO SHARE] ✅ Got Live Photo (degraded: \(isDegraded))")
-                    resumed = true
-                    continuation.resume(returning: livePhoto)
-                }
-            }
-        }
-    }
-
-    /// Creates PHLivePhoto object from paired resource files
-    /// Handles multiple callbacks by checking isDegraded flag
-    private static func createPHLivePhotoSafely(
-        imageURL: URL,
-        videoURL: URL
-    ) async throws -> PHLivePhoto {
-        return try await withCheckedThrowingContinuation { continuation in
-            var resumed = false
-
-            print("🔴 [LIVE PHOTO] Requesting PHLivePhoto with:")
-            print("   Image: \(imageURL.lastPathComponent)")
-            print("   Video: \(videoURL.lastPathComponent)")
-
-            PHLivePhoto.request(
-                withResourceFileURLs: [imageURL, videoURL],
-                placeholderImage: nil,
-                targetSize: .zero,
-                contentMode: .aspectFit
-            ) { livePhoto, info in
-                guard !resumed else {
-                    print("🔴 [LIVE PHOTO] Callback skipped (already resumed)")
-                    return
-                }
-
-                let isDegraded = (info[PHLivePhotoInfoIsDegradedKey] as? Bool) ?? false
-                let isCancelled = (info[PHLivePhotoInfoCancelledKey] as? Bool) ?? false
-
-                print("🔴 [LIVE PHOTO] Callback received:")
-                print("   isDegraded: \(isDegraded)")
-                print("   isCancelled: \(isCancelled)")
-                print("   livePhoto: \(livePhoto != nil ? "✅" : "❌")")
-                print("   info keys: \(info.keys)")
-
-                // Handle error first
-                if let error = info[PHLivePhotoInfoErrorKey] as? Error {
-                    print("🔴 [LIVE PHOTO] ❌ Error: \(error)")
-                    resumed = true
-                    continuation.resume(throwing: error)
-                    return
-                }
-
-                // Check if cancelled
-                if isCancelled {
-                    print("🔴 [LIVE PHOTO] ❌ Live Photo creation was cancelled")
-                    resumed = true
-                    continuation.resume(throwing: NSError(domain: "ShareHelper", code: -1, userInfo: [NSLocalizedDescriptionKey: "Live Photo creation was cancelled"]))
-                    return
-                }
-
-                // Only resume with a non-degraded Live Photo
-                if let livePhoto = livePhoto, !isDegraded {
-                    print("🔴 [LIVE PHOTO] ✅ Success - resuming with Live Photo")
-                    resumed = true
-                    continuation.resume(returning: livePhoto)
-                } else if !isDegraded && livePhoto == nil {
-                    print("🔴 [LIVE PHOTO] ❌ No Live Photo and no error")
-                    resumed = true
-                    continuation.resume(throwing: NSError(domain: "ShareHelper", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to create Live Photo"]))
+                    continuation.resume(returning: imageResult.image)
+                case .failure:
+                    continuation.resume(returning: nil)
                 }
             }
         }
