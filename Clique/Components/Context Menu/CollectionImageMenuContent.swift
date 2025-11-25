@@ -16,6 +16,8 @@ struct CollectionImageMenuContent: View {
 
     @Binding var showDeleteAlert: Bool
     @Binding var showReportCover: Bool
+    @Binding var shareItem: ShareItem?
+    @Binding var showSharePreparation: Bool
 
     @Environment(\.presentToast) private var presentToast
     @Environment(UserStore.self) private var userStore
@@ -35,10 +37,53 @@ struct CollectionImageMenuContent: View {
     var body: some View {
         // MEMBER-ONLY ACTIONS (requires user to be in the clique)
         if isUserInClique {
-            // Share action
-            if let highQualityUrl = image.imageUrl?.highQualityUrl,
-               let url = URL(string: highQualityUrl) {
-                ShareLink(item: url) {
+            // Share action (on-demand loading)
+            if image.isLivePhoto {
+                Button {
+                    Task {
+                        showSharePreparation = true
+                        await CollectionImageShareHelpers.shareLivePhoto(
+                            image: image,
+                            presentToast: { toast in presentToast(toast) },
+                            presentShareSheet: { url in
+                                showSharePreparation = false
+                                shareItem = .url(url)
+                            }
+                        )
+                    }
+                } label: {
+                    Text("Share")
+                    Image("share")
+                        .color(.theme.iconPrimary)
+                }
+            } else if image.isVideo {
+                Button {
+                    Task {
+                        await CollectionImageShareHelpers.shareVideo(
+                            image: image,
+                            presentToast: { toast in presentToast(toast) },
+                            presentShareSheet: { url in
+                                shareItem = .url(url)
+                            }
+                        )
+                    }
+                } label: {
+                    Text("Share Video")
+                    Image("share")
+                        .color(.theme.iconPrimary)
+                }
+            } else {
+                Button {
+                    Task {
+                        await CollectionImageShareHelpers.shareImage(
+                            image: image,
+                            presentToast: { toast in presentToast(toast) },
+                            presentShareSheet: { url in
+                                shareItem = .url(url)
+                            }
+                        )
+                    }
+                } label: {
                     Text("Share")
                     Image("share")
                         .color(.theme.iconPrimary)

@@ -37,10 +37,12 @@ struct CollectionMainView: View {
     @State private var showDeleteCollectionAlert: Bool = false
     @State private var showCollectionBanner: Bool = false
 
-    // Context menu state
-    @State private var showDeleteFlickAlert: Bool = false
-    @State private var contextMenuImage: CollectionImage?
-    
+    // Context menu state (simplified)
+    @State private var deleteAlertImage: CollectionImage?
+    @State private var reportImage: CollectionImage?
+    @State private var shareItem: ShareItem?
+    @State private var showSharePreparation: Bool = false
+
     let collectionId: String
     let gallerySortTip = GallerySortTip()
     
@@ -151,39 +153,52 @@ struct CollectionMainView: View {
 //                AddPhotosCover(collectionId: collectionId)
 //            }
             .fullScreenCover(isPresented: $showReportCover) {
-                if let contextMenuImage {
-                    ReportView(showReport: $showReportCover, objectId: contextMenuImage.id, reportType: .image)
-                } else {
-                    ReportView(showReport: $showReportCover, objectId: collectionId, reportType: .collection)
+                ReportView(showReport: $showReportCover, objectId: collectionId, reportType: .collection)
+            }
+            .fullScreenCover(isPresented: Binding(
+                get: { reportImage != nil },
+                set: { if !$0 { reportImage = nil } }
+            )) {
+                if let reportImage {
+                    ReportView(showReport: .constant(true), objectId: reportImage.id, reportType: .image)
                 }
             }
-            .alert(isPresented: $showDeleteFlickAlert) {
-                Alert(
-                    title: Text("Are you sure you want to delete this flick?"),
-                    message: Text("This action cannot be undone."),
-                    primaryButton: .destructive(Text("Delete")) {
-                        if let contextMenuImage {
-                            Task {
-                                await CollectionImageSaveHelpers.deleteCollectionItem(
-                                    imageId: contextMenuImage.id,
-                                    collectionId: collectionId,
-                                    collectionStore: collectionStore,
-                                    collectionImageStore: collectionImageStore,
-                                    presentToast: { toast in presentToast(toast) },
-                                    onSuccess: {
-                                        // Refresh the list after deletion
-                                        refreshAll()
-                                    }
-                                )
+            .alert(
+                "Are you sure you want to delete this flick?",
+                isPresented: Binding(
+                    get: { deleteAlertImage != nil },
+                    set: { if !$0 { deleteAlertImage = nil } }
+                ),
+                presenting: deleteAlertImage
+            ) { image in
+                Button("Delete", role: .destructive) {
+                    Task {
+                        await CollectionImageSaveHelpers.deleteCollectionItem(
+                            imageId: image.id,
+                            collectionId: collectionId,
+                            collectionStore: collectionStore,
+                            collectionImageStore: collectionImageStore,
+                            presentToast: { toast in presentToast(toast) },
+                            onSuccess: {
+                                // Refresh the list after deletion
+                                refreshAll()
                             }
-                        }
-                    },
-                    secondaryButton: .cancel()
-                )
+                        )
+                    }
+                }
+                Button("Cancel", role: .cancel) { }
+            } message: { _ in
+                Text("This action cannot be undone.")
             }
+            .shareSheet(item: $shareItem)
             .fullScreenCover(isPresented: $showCollectionBanner) {
                 ExpandedPfpView {
                     ExpandedBannerAsyncImage(banner: coverPhoto, type: .clique, quality: .high, showGradient: false)
+                }
+            }
+            .overlay {
+                if showSharePreparation {
+                    ProcessingOverlay(message: "Preparing to share...")
                 }
             }
             .onAppear {
@@ -531,7 +546,7 @@ extension CollectionMainView {
     }
     
     @ViewBuilder private func ImageCell(_ image: CollectionImage) -> some View {
-        CollectionPreviewAsyncImage(urls: image.imageUrl, quality: .low, isLivePhoto: image.isLivePhoto, isVideo: image.isVideo, uploadStatus: image.uploadStatus, itemId: image.id, onRefresh: refreshAll)
+        CollectionPreviewAsyncImage(urls: image.imageUrl, quality: .high, isLivePhoto: image.isLivePhoto, isVideo: image.isVideo, uploadStatus: image.uploadStatus, itemId: image.id, onRefresh: refreshAll)
             .overlayCollectionPreviewStats(
                 likes: image.numLikes,
                 comments: image.numComments,
@@ -551,23 +566,15 @@ extension CollectionMainView {
                     image: image,
                     collectionId: collectionId,
                     showDeleteAlert: Binding(
-                        get: { showDeleteFlickAlert && contextMenuImage?.id == image.id },
-                        set: { newValue in
-                            showDeleteFlickAlert = newValue
-                            if newValue {
-                                contextMenuImage = image
-                            }
-                        }
+                        get: { deleteAlertImage?.id == image.id },
+                        set: { if $0 { deleteAlertImage = image } else { deleteAlertImage = nil } }
                     ),
                     showReportCover: Binding(
-                        get: { showReportCover && contextMenuImage?.id == image.id },
-                        set: { newValue in
-                            showReportCover = newValue
-                            if newValue {
-                                contextMenuImage = image
-                            }
-                        }
-                    )
+                        get: { reportImage?.id == image.id },
+                        set: { if $0 { reportImage = image } else { reportImage = nil } }
+                    ),
+                    shareItem: $shareItem,
+                    showSharePreparation: $showSharePreparation
                 )
             }
     }

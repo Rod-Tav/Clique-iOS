@@ -42,7 +42,9 @@ struct CollectionDetailView: View {
     @State private var showSwipeTutorial: Bool = false
     @State private var showDeleteFlickAlert: Bool = false
     @State private var showLikedMembers: Bool = false
-    
+    @State private var shareItem: ShareItem?
+    @State private var showSharePreparation: Bool = false
+
     @State private var isScrolling: Bool = false
 
     @State private var likeAnimation: Bool = false
@@ -162,6 +164,11 @@ struct CollectionDetailView: View {
             }
             .commentSheet(imageId: selectedImageId, fromCollectionDetail: true, showCommentSheet: $showCommentSheet)
             .swipeUpToOpenCommentsTutorial()
+            .overlay {
+                if showSharePreparation {
+                    ProcessingOverlay(message: "Preparing to share...")
+                }
+            }
         }
     }
 }
@@ -181,12 +188,37 @@ extension CollectionDetailView {
             header: HeaderContent,
             trailingIcon: {
                 Menu {
+                    // Video quality selector (only for videos)
+                    if selectedImage?.isVideo == true {
+                        Menu {
+                            ForEach(VideoQualityPreference.allCases, id: \.self) { quality in
+                                Button {
+                                    videoQualityPreference = quality
+                                    print("🎬 [QUALITY] User selected: \(quality.displayName)")
+                                } label: {
+                                    HStack {
+                                        Text(quality.displayName)
+                                        if videoQualityPreference == quality {
+                                            Image(systemName: "checkmark")
+                                        }
+                                    }
+                                }
+                            }
+                        } label: {
+                            Text("Video Quality")
+                            Image(systemName: "video.badge.waveform")
+                                .color(.theme.iconPrimary)
+                        }
+                    }
+
                     if let selectedImage {
                         CollectionImageMenuContent(
                             image: selectedImage,
                             collectionId: clCoordinator.collectionId,
                             showDeleteAlert: $showDeleteFlickAlert,
-                            showReportCover: $showReportCover
+                            showReportCover: $showReportCover,
+                            shareItem: $shareItem,
+                            showSharePreparation: $showSharePreparation
                         )
                     }
                 } label: {
@@ -211,6 +243,7 @@ extension CollectionDetailView {
                 ReportView(showReport: $showReportCover, objectId: selectedImage.id, reportType: .image)
             }
         }
+        .shareSheet(item: $shareItem)
         //        .offset(y: coordinator.showDetailBars ? (-110 * coordinator.dragProgress) : -110)
         //        .animation(.easeInOut(duration: 0.3), value: coordinator.showDetailBars)
         //        .opacity(coordinator.showDetailBars && !coordinator.hideDetailBars ? 1 - coordinator.dragProgress : 0)
