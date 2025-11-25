@@ -91,7 +91,7 @@ struct CollectionPreviewStatsView: View {
         .padding(.trailing, 4)
         .padding(.bottom, 3)
         .maxWidth(.leading)
-        .if(likes > 0 && comments > 0) { view in
+        .if(likes > 0 || comments > 0) { view in
             view
                 .background(Gradients.feedCellCommentBg)
         }

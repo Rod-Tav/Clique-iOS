@@ -62,11 +62,15 @@ struct CollectionImageShareHelpers {
         presentToast: @escaping (ToastValue) -> Void,
         presentShareSheet: @escaping (URL) -> Void
     ) async {
-        guard let videoUrl = image.videoUrls?.highQualityUrl else { return }
+        guard let videoUrl = image.videoUrls?.highQualityUrl,
+              let url = URL(string: videoUrl) else {
+            presentToast(Toasts.somethingWentWrong)
+            return
+        }
 
         do {
             // Download video to local file
-            let videoLocalUrl = try await VideoCache.shared.getVideo(from: URL(string: videoUrl)!)
+            let videoLocalUrl = try await VideoCache.shared.getVideo(from: url)
             presentShareSheet(videoLocalUrl)
         } catch {
             print("❌ Failed to share video: \(error)")
