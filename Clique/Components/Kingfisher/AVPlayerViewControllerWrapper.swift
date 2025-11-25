@@ -56,10 +56,11 @@ struct AVPlayerViewControllerWrapper: UIViewControllerRepresentable {
         Coordinator()
     }
 
-    /// Coordinator that observes player state to handle scrubbing
+    /// Coordinator that observes player state to handle scrubbing and audio session
     class Coordinator {
         private var timeControlStatusObserver: AnyCancellable?
         private var rateObserver: AnyCancellable?
+        private var muteObserver: AnyCancellable?
         private var isScrubbing = false
         private var muteStateBeforeScrub = false
         private var hasStartedPlaying = false
@@ -68,6 +69,7 @@ struct AVPlayerViewControllerWrapper: UIViewControllerRepresentable {
             // Clean up existing observers
             timeControlStatusObserver?.cancel()
             rateObserver?.cancel()
+            muteObserver?.cancel()
             hasStartedPlaying = false
 
             // Observe timeControlStatus to detect scrubbing state
@@ -80,6 +82,16 @@ struct AVPlayerViewControllerWrapper: UIViewControllerRepresentable {
             rateObserver = player.publisher(for: \.rate)
                 .sink { [weak self] rate in
                     self?.handleRateChange(rate, player: player)
+                }
+
+            // Observe mute state to activate audio session when user unmutes
+            muteObserver = player.publisher(for: \.isMuted)
+                .dropFirst() // Skip initial value
+                .sink { isMuted in
+                    if !isMuted {
+                        // User unmuted - activate audio session to pause other audio
+                        AudioSessionManager.shared.activateForPlayback()
+                    }
                 }
         }
 
@@ -159,6 +171,7 @@ struct AVPlayerViewControllerWrapper: UIViewControllerRepresentable {
         deinit {
             timeControlStatusObserver?.cancel()
             rateObserver?.cancel()
+            muteObserver?.cancel()
         }
     }
 }
