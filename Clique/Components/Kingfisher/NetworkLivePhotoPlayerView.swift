@@ -217,12 +217,17 @@ struct NetworkLivePhotoPlayerView: View {
         // Create player with network URL for streaming
         // AVPlayer handles preloading and caching automatically
         await MainActor.run {
-            // Configure audio session for Live Photo playback
-            AudioSessionManager.shared.configureLivePhotoAudioSession()
+            // Set audio session to ambient during preload to prevent interrupting background music
+            // When user taps and holds, startPlayback() will switch to .playback category
+            do {
+                try AVAudioSession.sharedInstance().setCategory(.ambient)
+            } catch {
+                print("⚠️ Failed to set ambient audio session: \(error.localizedDescription)")
+            }
 
             let avPlayer = AVPlayer(url: videoURL)
-            avPlayer.isMuted = false  // Enable audio playback
-            avPlayer.volume = 1.0     // Set volume to maximum
+            avPlayer.isMuted = true   // Start muted during preload
+            avPlayer.volume = 0.0     // No volume during preload
             avPlayer.actionAtItemEnd = .none
 
             // Setup looping
@@ -248,10 +253,15 @@ struct NetworkLivePhotoPlayerView: View {
     private func startPlayback() {
         guard let player = player, !isPlaying else { return }
 
+        // Activate audio session only when user initiates playback
+        // This prevents interrupting background music on app launch
+        AudioSessionManager.shared.activateForPlayback()
+
         isPlaying = true
         player.seek(to: .zero)
 
-        // Restore volume for audio playback
+        // Unmute and restore volume for audio playback
+        player.isMuted = false
         player.volume = 1.0
 
         // Haptic feedback like Apple Photos
@@ -280,7 +290,8 @@ struct NetworkLivePhotoPlayerView: View {
         player.pause()
         player.seek(to: .zero)
 
-        // Ensure audio stops by setting volume to 0 during pause
+        // Mute and zero volume to ensure audio stops
+        player.isMuted = true
         player.volume = 0.0
     }
 

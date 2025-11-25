@@ -46,6 +46,11 @@ struct FlicksFeedView: View {
 
     @State var loadedImage: UIImage?
 
+    // Context menu state (for grid view)
+    @State private var deleteAlertImage: CollectionImage?
+    @State private var reportImage: CollectionImage?
+    @State private var shareItem: ShareItem?
+    @State private var showSharePreparation: Bool = false
 
     /// Live Photo save state
     @State private var isSavingLivePhoto: Bool = false
@@ -262,8 +267,28 @@ struct FlicksFeedView: View {
         .onReceive(of: .refreshFlicksFeed) { _ in
             refreshFeed()
         }
+        .collectionImageContextMenuHandlers(
+            deleteAlertImage: $deleteAlertImage,
+            reportImage: $reportImage,
+            shareItem: $shareItem,
+            showSharePreparation: $showSharePreparation,
+            onDelete: { image in
+                if let item = viewModel.items.first(where: { $0.flick.id == image.id }) {
+                    await CollectionImageSaveHelpers.deleteCollectionItem(
+                        imageId: image.id,
+                        collectionId: item.collection.id,
+                        collectionStore: collectionStore,
+                        collectionImageStore: collectionImageStore,
+                        presentToast: { toast in presentToast(toast) },
+                        onSuccess: {
+                            viewModel.items.removeAll(where: { $0.id == image.id })
+                        }
+                    )
+                }
+            }
+        )
     }
-    
+
     // MARK: - Top Bar
     private var gridTopBar: some View {
         TopAppBar(
@@ -357,6 +382,22 @@ struct FlicksFeedView: View {
                 gridScrollPosition = item.flick.id  // Update grid position
                 currentFlickId = item.flick.id      // Update carousel position
                 tabViewCoordinator.flicksShowGrid = false  // Switch to carousel
+            }
+            .contextMenu {
+                CollectionImageMenuContent(
+                    image: item.flick,
+                    collectionId: item.collection.id,
+                    showDeleteAlert: Binding(
+                        get: { deleteAlertImage?.id == item.flick.id },
+                        set: { if $0 { deleteAlertImage = item.flick } else { deleteAlertImage = nil } }
+                    ),
+                    showReportCover: Binding(
+                        get: { reportImage?.id == item.flick.id },
+                        set: { if $0 { reportImage = item.flick } else { reportImage = nil } }
+                    ),
+                    shareItem: $shareItem,
+                    showSharePreparation: $showSharePreparation
+                )
             }
     }
     

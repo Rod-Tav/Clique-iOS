@@ -90,7 +90,11 @@ struct CollectionPreviewStatsView: View {
         .padding(.leading, 4)
         .padding(.trailing, 4)
         .padding(.bottom, 3)
-        .background(Gradients.feedCellCommentBg)
+        .maxWidth(.leading)
+        .if(likes > 0 || comments > 0) { view in
+            view
+                .background(Gradients.feedCellCommentBg)
+        }
         .task {
             // Fetch duration if not already available
             if isVideo, videoDuration == nil, let url = videoUrl {

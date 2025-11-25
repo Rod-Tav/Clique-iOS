@@ -61,7 +61,7 @@ extension SelectedPhotosView {
     private func processPhotos() async {
         isProcessing = true
 
-        let assetsToProcess = Array(viewModel.selectedAssets)
+        let assetsToProcess = viewModel.orderedSelectedAssets
         totalCount = assetsToProcess.count
         processedCount = 0
         var hasErrors = false

@@ -11,6 +11,12 @@ struct WhatsNewView: View {
     @Binding var isPresented: Bool
     
     private let releases: [(version: String, changes: [String])] = [
+        ("1.7.4 – November 26th, 2025", [
+            "Tap and hold flick previews for menu options (context menu)",
+            "Selected photos view respects library order (was random)",
+            "Background music pause bug fix",
+            "iOS 26.1 splash screen hang bug fix"
+        ]),
         ("1.7.3 – November 17th, 2025", [
             "iOS 26.1 TabView state change bug fix"
         ]),
