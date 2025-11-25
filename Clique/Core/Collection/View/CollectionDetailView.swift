@@ -42,16 +42,15 @@ struct CollectionDetailView: View {
     @State private var showSwipeTutorial: Bool = false
     @State private var showDeleteFlickAlert: Bool = false
     @State private var showLikedMembers: Bool = false
-    
+    @State private var shareItem: ShareItem?
+    @State private var showSharePreparation: Bool = false
+
     @State private var isScrolling: Bool = false
 
     @State private var likeAnimation: Bool = false
 
     /// Video quality preference
     @AppStorage("videoQualityPreference") private var videoQualityPreference: VideoQualityPreference = .auto
-
-    /// Live Photo save state
-    @State private var isSavingLivePhoto: Bool = false
 
     /// self tagging
     @State private var confirmed: Bool = false
@@ -85,9 +84,7 @@ struct CollectionDetailView: View {
     var cid: String? {
        collection?.cliqueId
     }
-    
-    @State var loadedImage: UIImage?
-    
+
     var fromGallery: Bool = true
     
     // MARK: - Body
@@ -167,6 +164,11 @@ struct CollectionDetailView: View {
             }
             .commentSheet(imageId: selectedImageId, fromCollectionDetail: true, showCommentSheet: $showCommentSheet)
             .swipeUpToOpenCommentsTutorial()
+            .overlay {
+                if showSharePreparation {
+                    ProcessingOverlay(message: "Preparing to share...")
+                }
+            }
         }
     }
 }
@@ -209,64 +211,15 @@ extension CollectionDetailView {
                         }
                     }
 
-                    if let cid, isInClique(cid: cid, cliqueStore), let loadedImage {
-                        ShareLink(
-                            item: Image(uiImage: loadedImage),
-                            preview: SharePreview("", image: Image(uiImage: loadedImage))
-                        ) {
-                            Text("Share Image")
-
-                            Image("share")
-                                .color(.theme.iconPrimary)
-                        }
-
-                        // Save button (conditional based on media type)
-                        if let selectedImage = selectedImage {
-                            if selectedImage.isLivePhoto {
-                                // Save Live Photo with metadata injection (falls back to video if metadata fails)
-                                Button {
-                                    handleSaveLivePhoto()
-                                } label: {
-                                    HStack {
-                                        Text(isSavingLivePhoto ? "Saving..." : "Save Live Photo")
-                                        if !isSavingLivePhoto {
-                                            Image("download")
-                                                .color(.theme.iconPrimary)
-                                        } else {
-                                            ProgressView()
-                                                .tint(.theme.iconPrimary)
-                                        }
-                                    }
-                                }
-                                .disabled(isSavingLivePhoto)
-                            } else if selectedImage.isVideo {
-                                // Save Video
-                                Button {
-                                    handleSaveVideo()
-                                } label: {
-                                    Text("Save Video")
-                                    Image("download")
-                                        .color(.theme.iconPrimary)
-                                }
-                            } else {
-                                // Save static image
-                                Button {
-                                    handleSaveImage()
-                                } label: {
-                                    Text("Save Image")
-                                    Image("download")
-                                        .color(.theme.iconPrimary)
-                                }
-                            }
-                        }
-
-                        DeleteButton {
-                            showDeleteFlickAlert = true
-                        }
-                    }
-
-                    ReportButton {
-                        showReportCover = true
+                    if let selectedImage {
+                        CollectionImageMenuContent(
+                            image: selectedImage,
+                            collectionId: clCoordinator.collectionId,
+                            showDeleteAlert: $showDeleteFlickAlert,
+                            showReportCover: $showReportCover,
+                            shareItem: $shareItem,
+                            showSharePreparation: $showSharePreparation
+                        )
                     }
                 } label: {
                     EllipsisImage(color: .theme.white, size: 24)
@@ -285,16 +238,12 @@ extension CollectionDetailView {
         )
         .padding(.vertical, 12)
         .padding(.horizontal, 16)
-        .task {
-            guard let url = selectedImage?.imageUrl?.highQualityUrl, let cid, isInClique(cid: cid, cliqueStore) else { return }
-            
-            loadedImage = await fetchImageWithKingfisher(from: url)
-        }
         .fullScreenCover(isPresented: $showReportCover) {
             if let selectedImage {
                 ReportView(showReport: $showReportCover, objectId: selectedImage.id, reportType: .image)
             }
         }
+        .shareSheet(item: $shareItem)
         //        .offset(y: coordinator.showDetailBars ? (-110 * coordinator.dragProgress) : -110)
         //        .animation(.easeInOut(duration: 0.3), value: coordinator.showDetailBars)
         //        .opacity(coordinator.showDetailBars && !coordinator.hideDetailBars ? 1 - coordinator.dragProgress : 0)
@@ -824,46 +773,6 @@ extension CollectionDetailView {
             } catch {
                 presentToast(Toasts.somethingWentWrong)
             }
-        }
-    }
-
-    /// Handles saving a Live Photo with metadata injection
-    private func handleSaveLivePhoto() {
-        guard !isSavingLivePhoto, let selectedImage else { return }
-
-        Task {
-            await CollectionImageSaveHelpers.saveLivePhoto(
-                image: selectedImage,
-                collectionImageStore: collectionImageStore,
-                presentToast: { toast in presentToast(toast) },
-                onStateChange: { isSaving in
-                    isSavingLivePhoto = isSaving
-                }
-            )
-        }
-    }
-
-    /// Handles saving a standalone video
-    private func handleSaveVideo() {
-        guard let selectedImage else { return }
-
-        Task {
-            await CollectionImageSaveHelpers.saveVideo(
-                image: selectedImage,
-                presentToast: { toast in presentToast(toast) }
-            )
-        }
-    }
-
-    /// Handles saving a static image
-    private func handleSaveImage() {
-        guard let selectedImage else { return }
-
-        Task {
-            await CollectionImageSaveHelpers.saveImage(
-                image: selectedImage,
-                presentToast: { toast in presentToast(toast) }
-            )
         }
     }
 
