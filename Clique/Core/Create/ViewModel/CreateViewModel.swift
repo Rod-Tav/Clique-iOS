@@ -30,6 +30,7 @@ enum CreateFlowDestination: Hashable {
     var selectedImagesDates: [Date] = []
     var selectedImagesTimezoneOffsets: [String?] = []  // Timezone offsets for each photo (e.g., "-0400", "+0530")
     var selectedAssets: Set<PHAsset> = []
+    var orderedSelectedAssets: [PHAsset] = []  // Lazy-sorted by creation date (library order) - populated on-demand in SelectedPhotosView
     var processedAssets: Set<PHAsset> = []
     // Maps PHAsset identifiers to their processed image, date, and timezone offset
     var processedImageData: [String: (image: UIImage, date: Date, timezoneOffset: String?)] = [:]
@@ -129,6 +130,7 @@ enum CreateFlowDestination: Hashable {
     func removeAsset(_ asset: PHAsset) {
         // Remove from selected assets
         selectedAssets.remove(asset)
+        orderedSelectedAssets.removeAll { $0 == asset }
 
         // If it was processed, remove it from all collections
         if processedAssets.contains(asset),
@@ -171,6 +173,7 @@ enum CreateFlowDestination: Hashable {
     /// Clear all selected photos and processed data
     func clearAllSelections() {
         selectedAssets.removeAll()
+        orderedSelectedAssets.removeAll()
         selectedImages.removeAll()
         selectedImagesDates.removeAll()
         selectedImagesTimezoneOffsets.removeAll()
@@ -197,6 +200,7 @@ enum CreateFlowDestination: Hashable {
         selectedImagesDates = []
         selectedImagesTimezoneOffsets = []
         selectedAssets = []
+        orderedSelectedAssets = []
         processedAssets = []
         processedImageData = [:]
         livePhotoAssets = []

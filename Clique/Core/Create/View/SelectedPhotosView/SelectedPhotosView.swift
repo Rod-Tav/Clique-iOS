@@ -46,9 +46,9 @@ struct SelectedPhotosView: View {
         }
     }
     
-    // Convert Set to Array for indexed access
+    // Access ordered array for indexed access (preserves selection order)
     var selectedAssetsArray: [PHAsset] {
-        Array(viewModel.selectedAssets)
+        viewModel.orderedSelectedAssets
     }
 
     // Check if current image is zoomed
@@ -94,6 +94,15 @@ struct SelectedPhotosView: View {
             }
         }
         .onAppear {
+            // Sort selected assets by creation date (library order)
+            viewModel.orderedSelectedAssets = viewModel.selectedAssets.sorted {
+                ($0.creationDate ?? .distantPast) < ($1.creationDate ?? .distantPast)
+            }
+
+            // Debug assertion: verify Set and Array are in sync
+            assert(viewModel.selectedAssets.count == viewModel.orderedSelectedAssets.count,
+                   "selectedAssets and orderedSelectedAssets out of sync! Set: \(viewModel.selectedAssets.count), Array: \(viewModel.orderedSelectedAssets.count)")
+
             // Initialize scroll position to first item
             if !selectedAssetsArray.isEmpty {
                 scrollPosition = selectedAssetsArray[0]

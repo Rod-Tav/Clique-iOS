@@ -110,8 +110,8 @@ struct PhotoPickerConfiguration {
     ) {
         isProcessing = true
         let assetsToProcess = clearExistingData
-        ? Array(viewModel.selectedAssets)
-        : Array(viewModel.selectedAssets).filter { !viewModel.processedAssets.contains($0) }
+        ? viewModel.orderedSelectedAssets
+        : viewModel.orderedSelectedAssets.filter { !viewModel.processedAssets.contains($0) }
         
         // Initialize progress tracking
         totalCount = assetsToProcess.count
