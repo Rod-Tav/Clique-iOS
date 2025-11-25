@@ -26,6 +26,9 @@ struct SelectedPhotosView: View {
     @State var dragOffsets: [PHAsset: CGSize] = [:]
     @State var galleryProxy: ScrollViewProxy?
 
+    // Sorting-related state
+    @State var isSortingAssets: Bool = true
+
     // Upload-related state
     @State var activeSheet: SheetType?
     @State var isProcessing: Bool = false
@@ -75,37 +78,62 @@ struct SelectedPhotosView: View {
         @Bindable var bindableViewModel = viewModel
 
         ZStack {
-            VStack(spacing: 0) {
-                topBar
-                centerImagePreview
-                bottomCarousel
-                Spacer()
-                uploadButton
-            }
-            .primaryBackground()
+            if isSortingAssets {
+                // Loading state while sorting
+                VStack(spacing: 16) {
+                    ProgressView()
+                        .scaleEffect(1.2)
+                    Text("Processing...")
+                        .font(.callout)
+                        .textPrimary()
+                }
+                .primaryBackground()
+            } else {
+                // Normal view content
+                VStack(spacing: 0) {
+                    topBar
+                    centerImagePreview
+                    bottomCarousel
+                    Spacer()
+                    uploadButton
+                }
+                .primaryBackground()
 
-            // Processing overlay
-            if isProcessing {
-                ProcessingOverlay(
-                    progress: processingProgress,
-                    processedCount: processedCount,
-                    totalCount: totalCount
-                )
+                // Processing overlay
+                if isProcessing {
+                    ProcessingOverlay(
+                        progress: processingProgress,
+                        processedCount: processedCount,
+                        totalCount: totalCount
+                    )
+                }
             }
         }
-        .onAppear {
-            // Sort selected assets by creation date (library order)
-            viewModel.orderedSelectedAssets = viewModel.selectedAssets.sorted {
-                ($0.creationDate ?? .distantPast) < ($1.creationDate ?? .distantPast)
-            }
+        .task {
+            // Sort selected assets by creation date (library order) on background thread
+            let selectedAssets = viewModel.selectedAssets
 
-            // Debug assertion: verify Set and Array are in sync
-            assert(viewModel.selectedAssets.count == viewModel.orderedSelectedAssets.count,
-                   "selectedAssets and orderedSelectedAssets out of sync! Set: \(viewModel.selectedAssets.count), Array: \(viewModel.orderedSelectedAssets.count)")
+            let sortedAssets = await Task.detached(priority: .userInitiated) {
+                selectedAssets.sorted {
+                    ($0.creationDate ?? .distantPast) < ($1.creationDate ?? .distantPast)
+                }
+            }.value
 
-            // Initialize scroll position to first item
-            if !selectedAssetsArray.isEmpty {
-                scrollPosition = selectedAssetsArray[0]
+            // Update on main thread
+            await MainActor.run {
+                viewModel.orderedSelectedAssets = sortedAssets
+
+                // Debug assertion: verify Set and Array are in sync
+                assert(viewModel.selectedAssets.count == viewModel.orderedSelectedAssets.count,
+                       "selectedAssets and orderedSelectedAssets out of sync! Set: \(viewModel.selectedAssets.count), Array: \(viewModel.orderedSelectedAssets.count)")
+
+                // Initialize scroll position to first item
+                if !selectedAssetsArray.isEmpty {
+                    scrollPosition = selectedAssetsArray[0]
+                }
+
+                // Done sorting - show normal view
+                isSortingAssets = false
             }
         }
         .onChange(of: viewModel.showNewCollectionSheet) { _, newValue in
