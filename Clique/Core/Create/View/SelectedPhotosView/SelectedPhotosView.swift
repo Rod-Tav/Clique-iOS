@@ -49,7 +49,7 @@ struct SelectedPhotosView: View {
         }
     }
     
-    // Access ordered array for indexed access (preserves selection order)
+    // Access ordered array for indexed access (sorted by creation date - library order)
     var selectedAssetsArray: [PHAsset] {
         viewModel.orderedSelectedAssets
     }
@@ -218,7 +218,6 @@ struct SelectedPhotosView: View {
                             .foregroundStyle(mediaType == "LIVE" ? .yellow : .red)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 3)
-//                            .background(mediaType == "LIVE" ? Color(red: 0.95, green: 0.7, blue: 0.0) : Color.red)
                             .background(Color(.systemGray5))
                             .clipShape(.capsule)
                         }

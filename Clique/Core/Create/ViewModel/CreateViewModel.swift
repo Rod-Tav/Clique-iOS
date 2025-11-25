@@ -29,8 +29,40 @@ enum CreateFlowDestination: Hashable {
     var selectedImages: [UIImage] = []
     var selectedImagesDates: [Date] = []
     var selectedImagesTimezoneOffsets: [String?] = []  // Timezone offsets for each photo (e.g., "-0400", "+0530")
+
+    /// Primary photo selection storage (unordered Set for O(1) operations)
+    ///
+    /// **Important**: This Set is the source of truth for which photos are selected.
+    /// Use this for:
+    /// - Fast O(1) contains/insert/remove during selection
+    /// - Checking if a photo is selected (grid visual state)
+    /// - Counting total selected photos
+    ///
+    /// **Relationship with orderedSelectedAssets**:
+    /// - `selectedAssets` = Set (unordered, fast lookups)
+    /// - `orderedSelectedAssets` = Array (sorted by creation date)
+    /// - Both must always contain the same PHAssets (verified by debug assertion)
+    /// - `orderedSelectedAssets` is populated lazily in SelectedPhotosView
+    ///
+    /// **Synchronization**: When modifying selections, only update `selectedAssets`.
+    /// The ordered array is regenerated on-demand when needed for display.
     var selectedAssets: Set<PHAsset> = []
-    var orderedSelectedAssets: [PHAsset] = []  // Lazy-sorted by creation date (library order) - populated on-demand in SelectedPhotosView
+
+    /// Sorted array of selected photos (populated on-demand by SelectedPhotosView)
+    ///
+    /// **Purpose**: Display photos in chronological library order (sorted by creation date)
+    ///
+    /// **Lifecycle**:
+    /// 1. During selection: Remains empty (no overhead)
+    /// 2. When SelectedPhotosView appears: Populated via async sort of `selectedAssets`
+    /// 3. After removal/clear: Cleaned up along with `selectedAssets`
+    ///
+    /// **Important**: Do NOT modify directly during selection.
+    /// This array is regenerated from `selectedAssets` when needed.
+    ///
+    /// **Invariant**: `selectedAssets.count == orderedSelectedAssets.count` (when populated)
+    var orderedSelectedAssets: [PHAsset] = []
+
     var processedAssets: Set<PHAsset> = []
     // Maps PHAsset identifiers to their processed image, date, and timezone offset
     var processedImageData: [String: (image: UIImage, date: Date, timezoneOffset: String?)] = [:]
