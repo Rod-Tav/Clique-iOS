@@ -18,28 +18,33 @@ final class AudioSessionManager {
 
     private init() {}
 
-    /// Configure audio session for Live Photo playback
-    /// Uses .playback category to ignore silent mode
-    func configureLivePhotoAudioSession() {
+    /// Configure audio session category without activating
+    /// Safe to call on view appear - won't interrupt other audio
+    private func configureCategory() {
         let audioSession = AVAudioSession.sharedInstance()
-
         do {
-            // Always set category and mode to ensure proper configuration
-            // Use .playback category to ignore silent mode
-            // Use .moviePlayback mode for video with audio
             try audioSession.setCategory(
                 .playback,
                 mode: .moviePlayback,
-                options: [.mixWithOthers, .duckOthers]
+                options: [.duckOthers]
             )
-
-            // Always activate the session
-            try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
-
-            logger.info("Audio session configured and activated for Live Photo playback")
-            isConfigured = true
         } catch {
-            logger.error("Failed to configure audio session: \(error.localizedDescription)")
+            logger.error("Failed to configure audio category: \(error.localizedDescription)")
+        }
+    }
+
+    /// Activate audio session for actual playback
+    /// Call this ONLY when user initiates audio playback (Live Photo press, video unmute)
+    func activateForPlayback() {
+        // Always configure - category may have been changed to .ambient by video preload
+        configureCategory()
+        let audioSession = AVAudioSession.sharedInstance()
+        do {
+            try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
+            isConfigured = true
+            logger.info("Audio session activated for playback")
+        } catch {
+            logger.error("Failed to activate audio session: \(error.localizedDescription)")
         }
     }
 

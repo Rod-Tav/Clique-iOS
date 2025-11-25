@@ -21,6 +21,8 @@ struct Toasts {
 
     static let savedLivePhoto = ToastValue(icon: Image(systemName: "square.and.arrow.down"), message: "Live Photo saved to library")
 
+    static let preparingToShare = ToastValue(icon: Image(systemName: "arrow.triangle.2.circlepath"), message: "Preparing to share...")
+
     static let downloadFromICloudFailed = ToastValue(icon: Image(systemName: "exclamationmark.circle.fill"), message: "One image download failed")
     
     static let imageOptimizationFailed = ToastValue(icon: Image(systemName: "exclamationmark.circle.fill"), message: "Failed to process images")

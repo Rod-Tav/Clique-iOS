@@ -75,9 +75,32 @@ class AppService {
     }
 
     /// Check if app is in maintenance mode (bricked)
+    /// Uses a 5-second timeout to prevent blocking app launch on network issues
     static func isAppBricked() async -> Bool {
-        let isBricked: Bool? = await getFirebaseConfig(document: "maintenance", field: "is_bricked")
-        return isBricked ?? false
+        do {
+            return try await withThrowingTaskGroup(of: Bool.self) { group in
+                group.addTask {
+                    let isBricked: Bool? = await getFirebaseConfig(document: "maintenance", field: "is_bricked")
+                    return isBricked ?? false
+                }
+
+                group.addTask {
+                    try await Task.sleep(for: .seconds(5))
+                    throw CancellationError()
+                }
+
+                // Return first completed result, cancel the other
+                if let result = try await group.next() {
+                    group.cancelAll()
+                    return result
+                }
+                return false
+            }
+        } catch {
+            // Timeout or cancellation - default to not bricked so app can launch
+            print("⚠️ isAppBricked check timed out or was cancelled - defaulting to false")
+            return false
+        }
     }
     
     @MainActor static func checkAndRegisterPushNotificationsIfNeeded(userStore: UserStore) {

@@ -97,6 +97,15 @@ struct SingleFlickView: View {
                     HStack(spacing: 4) {
                         Text(collection.name)
                             .font(.callout.bold())
+                        
+                        if collection.visibility == .priv {
+                            IconImage(
+                                name: "lock",
+                                color: .theme.shadesWhite95,
+                                size: 16
+                            )
+                            .padding(.leading, 2)
+                        }
 
                         IconImage(name: "chevron-right", color: .theme.iconPrimary, size: 16)
                     }

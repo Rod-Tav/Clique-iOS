@@ -106,6 +106,12 @@ fileprivate func encodeCursorToBase64(_ cursor: InfiniteFeedCursor) -> String? {
             await userStore.updateUsers(feedItems.compactMap({ $0.flick.owner }))
             await userStore.updateUsers(feedItems.flatMap({ $0.cliqueMembers }))
 
+            // Batch fetch clique relationships for context menu support
+            let uniqueCliqueIds = Set(feedItems.compactMap { $0.collection.cliqueId })
+            for cid in uniqueCliqueIds {
+                try? await fetchCliqueRelationshipOrReturn(cid: cid, cliqueStore)
+            }
+
             self.curCursor = newCursor
             self.first = false
 

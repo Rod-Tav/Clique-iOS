@@ -60,6 +60,13 @@ struct ContentView: View {
     @State private var authService: AuthService
     
     @State private var isAppBricked: Bool = false
+
+    /// Counter that increments during app initialization to force SwiftUI view updates.
+    /// This is a workaround for a SwiftUI bug where @Observable property changes on AuthService
+    /// are not properly observed when the app runs without the Xcode debugger attached.
+    /// By updating this @State variable and referencing it in the view, we force SwiftUI
+    /// to re-evaluate the view body and notice the authService.appViewType change.
+    @State private var loadingPhase: Int = 0
     
     /// Initializes ContentView with required user store dependency.
     ///
@@ -113,20 +120,13 @@ struct ContentView: View {
                             .resizable()
                             .scaledToFit()
                             .frame(160)
-                        
-                        // Future: Custom loading animation
-                        // CliqueProgressView(speed: 0.25, color: .theme.white, size: 88)
-                        
-                        // Future: Custom app title
-                        // Text("Clique")
-                        //     .font(Font.custom("NewakeDemo", size: 24))
-                        //     .kerning(0.0864)
-                        //     .foregroundStyle(Color.theme.white)
                     }
                     .ignoresSafeArea()
                     .padding(.bottom, safeAreaInsets.bottom - 8)
                     .infiniteFrame()
                     .background(Color.theme.white)
+                    // Reference loadingPhase to ensure SwiftUI re-renders when it changes (see loadingPhase docs)
+                    .id(loadingPhase)
                     
                 case .auth:
                     // Complete authentication experience
@@ -151,8 +151,11 @@ struct ContentView: View {
         .onAppear {
             // Begin authentication state evaluation
             Task {
+                loadingPhase = 1
                 isAppBricked = await AppService.isAppBricked()
+                loadingPhase = 2
                 await authService.loadUserData()
+                loadingPhase = 3
             }
         }
     }

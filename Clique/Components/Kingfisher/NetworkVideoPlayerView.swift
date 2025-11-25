@@ -57,7 +57,6 @@ struct NetworkVideoPlayerView: View {
                             .frame(width: width, height: width)
                             .clipped()
                             .onAppear {
-                                configureAudioSession()
                                 player.play()
                             }
                     } else {
@@ -65,7 +64,6 @@ struct NetworkVideoPlayerView: View {
                         AVPlayerViewControllerWrapper(player: player)
                             .frameRatio(width: UIScreen.width, ratio: Constants.portraitPostRatio)
                             .onAppear {
-                                configureAudioSession()
                                 player.play()
                             }
                     }
@@ -76,14 +74,12 @@ struct NetworkVideoPlayerView: View {
                             .frame(width: width, height: width)
                             .clipped()
                             .onAppear {
-                                configureAudioSession()
                                 player.play()
                             }
                     } else {
                         VideoPlayerView(player: player, shouldFill: false)
                             .frameRatio(width: UIScreen.width, ratio: Constants.portraitPostRatio)
                             .onAppear {
-                                configureAudioSession()
                                 player.play()
                             }
                     }
@@ -142,6 +138,15 @@ struct NetworkVideoPlayerView: View {
             // Create player with network URL for streaming
             // AVPlayer handles caching automatically via URLCache
             await MainActor.run {
+                // Set audio session to ambient to prevent interrupting background music
+                // This only sets the category, doesn't activate - so no interruption
+                // When user unmutes, AVPlayerViewControllerWrapper will activate with .playback
+                do {
+                    try AVAudioSession.sharedInstance().setCategory(.ambient)
+                } catch {
+                    print("⚠️ Failed to set ambient audio session: \(error.localizedDescription)")
+                }
+
                 player = AVPlayer(url: videoURL)
                 player?.isMuted = true
                 player?.actionAtItemEnd = .none
@@ -156,16 +161,14 @@ struct NetworkVideoPlayerView: View {
                     player?.seek(to: savedPosition, toleranceBefore: .zero, toleranceAfter: .zero)
                 }
 
-                // Start playing immediately if visible
+                // Start playing immediately if visible (muted - audio session not needed)
                 if isVisible {
-                    configureAudioSession()
                     player?.play()
                 }
             }
         }
         .onChange(of: isVisible) { _, newValue in
             if newValue {
-                configureAudioSession()
                 player?.play()
             } else {
                 player?.pause()
@@ -183,16 +186,6 @@ struct NetworkVideoPlayerView: View {
             // Only pause on disappear, don't cleanup
             // This preserves playback position when scrolling between videos
             player?.pause()
-        }
-    }
-
-    /// Configure audio session for playback
-    private func configureAudioSession() {
-        do {
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
-            try AVAudioSession.sharedInstance().setActive(true)
-        } catch {
-            print("⚠️ Failed to configure audio session: \(error.localizedDescription)")
         }
     }
 
