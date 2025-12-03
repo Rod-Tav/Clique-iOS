@@ -30,8 +30,9 @@ import Foundation
             // Map DTOs to domain models
             var skippedCount = 0
             let images = response.flicks.compactMap { dto -> CollectionImage? in
-                // Parse date
+                // Parse date (with fractional seconds support for .000Z format)
                 let formatter = ISO8601DateFormatter()
+                formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
                 guard let dateCreated = formatter.date(from: dto.dateCreated) else {
                     print("🟡 [UserFlicksVM] Skipping flick \(dto.collectionItemId) - invalid date: \(dto.dateCreated)")
                     skippedCount += 1

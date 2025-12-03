@@ -42,7 +42,7 @@ struct UserFlicksService {
         let collectionId: String?
         let collectionName: String?
         let collectionDescription: String?
-        let privacySetting: String?
+        let privacySetting: Int?
         let cliqueId: String?
         let likeTotal: Int?
 
