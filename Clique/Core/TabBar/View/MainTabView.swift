@@ -158,8 +158,14 @@ struct MainTabView: View {
             ZStack(alignment: .bottom) {
                 // Main tab content
                 TabView(selection: $tabViewCoordinator.activeTab) {
-                    FlicksFeedView(collectionStore, collectionImageStore, cliqueStore, userStore)
+                    // MARK: - Testing rod-sandbox microservice
+                    // Temporarily replaced FlicksFeedView with UserFlicksView to test the user-flicks endpoint
+                    UserFlicksView()
                         .tag(BottomTab.flicks)
+
+                    // Original FlicksFeedView (commented out for testing)
+                    // FlicksFeedView(collectionStore, collectionImageStore, cliqueStore, userStore)
+                    //     .tag(BottomTab.flicks)
                     
                     HomeFeedView(collectionStore, collectionImageStore, userStore, cliqueStore)
                         .tag(BottomTab.collections)
