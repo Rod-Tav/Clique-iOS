@@ -9,6 +9,9 @@ import Foundation
     var size: Int { 20 }
     var done: Bool = false
     var refreshing: Bool = false
+    var isRefreshing: Bool = false
+    var refreshTask: Task<Void, Error>?
+    var latestRequestId: UUID?
 
     var fetchFunction: (EmptyPaginationFetchInput) async throws -> [CollectionImage]
 
@@ -51,18 +54,11 @@ import Foundation
                 // Map user
                 let owner = User(
                     id: dto.userId,
+                    firstname: dto.firstName,
+                    lastname: dto.lastName,
+                    number: "",
                     username: dto.username,
-                    phoneNumber: "",
-                    bio: dto.bio ?? "",
-                    firstName: dto.firstName,
-                    lastName: dto.lastName,
-                    profilePic: nil,
-                    visibility: .pub,
-                    followStatus: .none,
-                    creation: Date(),
-                    followersCount: 0,
-                    followingCount: 0,
-                    cliqueCount: 0
+                    bio: dto.bio ?? ""
                 )
 
                 // Map media type

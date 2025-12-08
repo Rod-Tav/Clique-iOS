@@ -1,4 +1,5 @@
 import SwiftUI
+import AdvancedList
 
 struct UserFlicksView: View {
     @Environment(CollectionStore.self) var collectionStore
@@ -12,18 +13,7 @@ struct UserFlicksView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if listState == .loading && (viewModel?.items.isEmpty ?? true) {
-                ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if listState == .error {
-                ErrorView {
-                    Task { await updateItems(.refresh) }
-                }
-            } else if viewModel?.items.isEmpty ?? true {
-                NothingHereYetView()
-            } else {
-                flicksGrid
-            }
+            flicksGrid
         }
         .primaryBackground()
         .navigationTitle("My Flicks")
@@ -35,29 +25,52 @@ struct UserFlicksView: View {
                     collectionImageStore,
                     userStore
                 )
-                Task { await updateItems(.refresh) }
+                Task { await updateItems(.loadFirstPage) }
             }
         }
     }
 
     private var flicksGrid: some View {
-        AdvancedList(
-            viewModel?.items ?? [],
-            refreshAction: { await updateItems(.refresh) },
-            paginationState: $paginationState,
-            listState: $listState,
-            isScrollAtBottom: $isScrollAtBottom
-        ) { image in
-            FlickGridCell(image: image)
-                .aspectRatio(1, contentMode: .fill)
+        AdvancedList(viewModel?.items ?? [], listView: { rows in
+            FlicksGridList(rows)
+        }, content: { image in
+            GridCollectionPreviewImage(urls: image.imageUrl)
+                .overlayCollectionPreviewStats(
+                    likes: image.numLikes,
+                    comments: image.numComments,
+                    hasLiked: image.hasLiked,
+                    isLivePhoto: image.mediaType == .LIVE,
+                    isVideo: image.mediaType == .VIDEO,
+                    videoDuration: nil,
+                    videoUrl: image.videoUrls?.videoUrl(for: .medium),
+                    compact: false
+                )
+                .contentShape(.rect)
+        }, listState: listState, emptyStateView: {
+            NothingHereYetView()
+        }, errorStateView: { _ in
+            Text("Something went wrong")
+                .textPrimary()
+        }, loadingStateView: {
+            ProgressView()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        })
+        .pagination(.init(type: .lastItem, shouldLoadNextPage: { Task { await updateItems(.loadNextPage) } }) { })
+    }
+
+    private func FlicksGridList(_ rows: AdvancedList.Rows) -> some View {
+        let columns = [
+            GridItem(.flexible(), spacing: 2),
+            GridItem(.flexible(), spacing: 2),
+            GridItem(.flexible(), spacing: 2)
+        ]
+
+        return ScrollView {
+            LazyVGrid(columns: columns, spacing: 2, content: rows)
         }
-        .scrollIndicators(.hidden)
-        .pagination(.init(
-            type: .lastItem,
-            shouldLoadNextPage: {
-                Task { await updateItems(.loadNextPage) }
-            }
-        ))
+        .refreshable {
+            await updateItems(.refresh)
+        }
     }
 
     private func updateItems(_ operation: PaginationOperationType) async {
