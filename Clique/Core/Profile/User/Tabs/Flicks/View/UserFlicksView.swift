@@ -15,6 +15,8 @@ struct UserFlicksView: View {
     @State private var paginationState: AdvancedListPaginationState = .idle
     @State private var isScrollAtBottom: Bool = false
     @State private var cachedRows: [FlickRowItem] = []
+    @State private var detailCoordinator = UserFlicksDetailCoordinator()
+    @State private var heroCoordinator = HeroCoordinator()
 
     var body: some View {
         @Bindable var bindableTVC = tabViewCoordinator
@@ -45,7 +47,17 @@ struct UserFlicksView: View {
             }
             .primaryBackground()
             .ignoresSafeArea(edges: .top)
+            .heroOverlay {
+                if let viewModel {
+                    UserFlicksDetailView(
+                        coordinator: detailCoordinator,
+                        imageIds: viewModel.items.map { $0.id }
+                    )
+                }
+            }
         }
+        .environment(heroCoordinator)
+        .environment(detailCoordinator)
         .task {
             if viewModel == nil {
                 viewModel = UserFlicksPaginationViewModel(collectionStore, collectionImageStore, userStore)
@@ -132,7 +144,7 @@ struct UserFlicksView: View {
     // MARK: - Grid Layout
 
     private func GridLayout() -> some View {
-        ScrollView {
+        GridSyncScrollView(coordinator: detailCoordinator) {
             LazyVStack(spacing: 0) {
                 // Top padding so first content starts below header
                 Color.clear
@@ -234,6 +246,10 @@ struct UserFlicksView: View {
                 }
             }
             .id(flick.id)
+            .heroSource(urls: flick.imageUrl) {
+                tabViewCoordinator.showTabBar = false
+                detailCoordinator.selectedImageId = flick.id
+            }
     }
 
     // MARK: - State Views

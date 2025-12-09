@@ -8,7 +8,7 @@
 import SwiftUI
 import AdvancedList
 
-@Observable final class CollectionCoordinator {
+@Observable final class CollectionCoordinator: ImageDetailCoordinator {
     var collectionId: String
 //    var collection: ClCollection
 //    var images: [CollectionImage]
