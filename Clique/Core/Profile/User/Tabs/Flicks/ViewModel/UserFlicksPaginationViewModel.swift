@@ -1,5 +1,51 @@
 import Foundation
 
+// MARK: - Array Extension for Chunking
+
+extension Array {
+    /// Splits the array into chunks of the specified size
+    func chunked(into size: Int) -> [[Element]] {
+        guard size > 0 else { return [] }
+        return stride(from: 0, to: count, by: size).map {
+            Array(self[$0..<Swift.min($0 + size, count)])
+        }
+    }
+}
+
+// MARK: - Date Section Model
+
+/// Represents a group of flicks from the same day
+struct FlickDateSection: Identifiable {
+    let date: Date
+    let flicks: [CollectionImage]
+    let formattedDate: String
+    let countText: String
+
+    var id: Date { date }
+
+    init(date: Date, flicks: [CollectionImage]) {
+        self.date = date
+        self.flicks = flicks
+        self.formattedDate = formatDateMMMMdYYYY(date)
+        self.countText = flicks.count == 1 ? "1 Flick" : "\(flicks.count) Flicks"
+    }
+}
+
+/// Flat row item for single-container scrolling (avoids nested lazy containers)
+enum FlickRowItem: Identifiable {
+    case header(FlickDateSection)
+    case imageRow(id: String, images: [CollectionImage])
+
+    var id: String {
+        switch self {
+        case .header(let section):
+            return "header-\(section.date.timeIntervalSince1970)"
+        case .imageRow(let id, _):
+            return id
+        }
+    }
+}
+
 @Observable final class UserFlicksPaginationViewModel: PaginationViewModel {
     typealias Item = CollectionImage
     typealias Input = EmptyPaginationFetchInput
@@ -16,6 +62,39 @@ import Foundation
     var latestRequestId: UUID?
 
     var fetchFunction: (EmptyPaginationFetchInput) async throws -> [CollectionImage]
+
+    /// Groups all flicks by date, sorted newest-first
+    var groupedByDate: [FlickDateSection] {
+        let calendar = Calendar.current
+
+        // Group by start of day
+        let grouped = Dictionary(grouping: items) { flick in
+            calendar.startOfDay(for: flick.date)
+        }
+
+        // Convert to sections and sort by date descending
+        return grouped.map { date, flicks in
+            FlickDateSection(date: date, flicks: flicks.sorted { $0.date > $1.date })
+        }
+        .sorted { $0.date > $1.date }
+    }
+
+    /// Converts sections to flat rows for single-container scrolling
+    /// Order: section divider first, then images
+    func flatRows(from sections: [FlickDateSection], columns: Int) -> [FlickRowItem] {
+        var rows: [FlickRowItem] = []
+        for section in sections {
+            // Section divider before images
+            rows.append(.header(section))
+            // Image rows
+            let chunks = section.flicks.chunked(into: columns)
+            for (index, chunk) in chunks.enumerated() {
+                let rowId = "row-\(section.date.timeIntervalSince1970)-\(index)"
+                rows.append(.imageRow(id: rowId, images: chunk))
+            }
+        }
+        return rows
+    }
 
     init(_ collectionStore: CollectionStore, _ collectionImageStore: CollectionImageStore, _ userStore: UserStore) {
         self.fetchFunction = { input in
