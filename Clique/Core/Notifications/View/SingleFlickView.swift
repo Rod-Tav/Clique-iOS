@@ -7,9 +7,13 @@
 
 import SwiftUI
 import Toasts
+import AVFoundation
 
 struct SingleFlickView: View {
     @AppStorage("hasSwipedUpToOpenComments") private var hasSwipedUpToOpenComments: Bool = false
+
+    /// Video quality preference
+    @AppStorage("videoQualityPreference") private var videoQualityPreference: VideoQualityPreference = .auto
     
     @Environment(\.dismiss) private var dismiss
     @Environment(\.presentToast) private var presentToast
@@ -79,12 +83,40 @@ struct SingleFlickView: View {
                 }.buttonStyle(.noHighlight)
             },
             header: { headerContent },
-            trailingIcon: {
-                Spacer().frame(24)
-            }
+            trailingIcon: { trailingMenu }
         )
         .padding(.vertical, 12)
         .padding(.horizontal, 16)
+    }
+
+    @ViewBuilder
+    private var trailingMenu: some View {
+        // Only show menu for videos (video quality selector)
+        if flick.isVideo {
+            Menu {
+                Menu {
+                    ForEach(VideoQualityPreference.allCases, id: \.self) { quality in
+                        Button {
+                            videoQualityPreference = quality
+                        } label: {
+                            HStack {
+                                Text(quality.displayName)
+                                if videoQualityPreference == quality {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
+                } label: {
+                    Text("Video Quality")
+                    Image(systemName: "video.badge.waveform")
+                }
+            } label: {
+                EllipsisImage(color: .theme.white, size: 24)
+            }
+        } else {
+            Spacer().frame(24)
+        }
     }
     
     private var headerContent: some View {
@@ -110,8 +142,12 @@ struct SingleFlickView: View {
                         IconImage(name: "chevron-right", color: .theme.iconPrimary, size: 16)
                     }
 
-                    Text("\(formatDateMMMMdYYYY(flick.date)) • \(formatDateHHmm(flick.date))")
-                        .font(.caption)
+                    DateMediaTypeLabel(
+                        image: flick,
+                        dateFormat: .full,
+                        fontSize: .caption,
+                        textColor: .theme.white
+                    )
                 }
                 .multilineTextAlignment(.center)
                 .foregroundStyle(Color.theme.white)
@@ -124,11 +160,18 @@ struct SingleFlickView: View {
     // MARK: Flick View
     private var flickView: some View {
         ZoomContainer {
-            CollectionDetailImageAsyncView(image: flick, quality: .high)
+            CollectionDetailImageAsyncView(
+                image: flick,
+                quality: videoQualityPreference.imageQuality,
+                forceQuality: videoQualityPreference != .auto,
+                isVisible: true
+            )
                 .doubleTapToLike(hasLiked: currentImage?.hasLiked ?? false, likeAnimation: $likeAnimation) {
                     handleLikeTapped()
                 }
-                .pinchZoom(isZoomed: $isZoomed)
+                .if(!flick.isVideo && !flick.isLivePhoto) { view in
+                    view.pinchZoom(isZoomed: $isZoomed)  // Only apply pinch zoom to static photos (not videos or Live Photos)
+                }
                 .swipeUpToOpenCommentsTutorial()
                 .compatibleDragGesture(
                     minimumDistance: GestureConstants.minimumRecognitionDistance,
