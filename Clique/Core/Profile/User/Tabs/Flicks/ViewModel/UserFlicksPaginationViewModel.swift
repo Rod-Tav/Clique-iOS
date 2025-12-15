@@ -17,24 +17,24 @@ extension Array {
 /// Represents a group of flicks from the same day
 struct FlickDateSection: Identifiable {
     let date: Date
-    let flicks: [CollectionImage]
+    let items: [UserFlickItem]
     let formattedDate: String
     let countText: String
 
     var id: Date { date }
 
-    init(date: Date, flicks: [CollectionImage]) {
+    init(date: Date, items: [UserFlickItem]) {
         self.date = date
-        self.flicks = flicks
+        self.items = items
         self.formattedDate = formatDateMMMMdYYYY(date)
-        self.countText = flicks.count == 1 ? "1 Flick" : "\(flicks.count) Flicks"
+        self.countText = items.count == 1 ? "1 Flick" : "\(items.count) Flicks"
     }
 }
 
 /// Flat row item for single-container scrolling (avoids nested lazy containers)
 enum FlickRowItem: Identifiable {
     case header(FlickDateSection)
-    case imageRow(id: String, images: [CollectionImage])
+    case imageRow(id: String, items: [UserFlickItem])
 
     var id: String {
         switch self {
@@ -47,10 +47,10 @@ enum FlickRowItem: Identifiable {
 }
 
 @Observable final class UserFlicksPaginationViewModel: PaginationViewModel {
-    typealias Item = CollectionImage
+    typealias Item = UserFlickItem
     typealias Input = EmptyPaginationFetchInput
 
-    var items: [CollectionImage] = []
+    var items: [UserFlickItem] = []
     var page: Int = 0
     var size: Int { 20 }
     var done: Bool = false
@@ -61,20 +61,20 @@ enum FlickRowItem: Identifiable {
     var refreshTask: Task<Void, Error>?
     var latestRequestId: UUID?
 
-    var fetchFunction: (EmptyPaginationFetchInput) async throws -> [CollectionImage]
+    var fetchFunction: (EmptyPaginationFetchInput) async throws -> [UserFlickItem]
 
     /// Groups all flicks by date, sorted newest-first
     var groupedByDate: [FlickDateSection] {
         let calendar = Calendar.current
 
-        // Group by start of day
-        let grouped = Dictionary(grouping: items) { flick in
-            calendar.startOfDay(for: flick.date)
+        // Group by start of day - extract flick date from UserFlickItem
+        let grouped = Dictionary(grouping: items) { item in
+            calendar.startOfDay(for: item.flick.date)
         }
 
         // Convert to sections and sort by date descending
-        return grouped.map { date, flicks in
-            FlickDateSection(date: date, flicks: flicks.sorted { $0.date > $1.date })
+        return grouped.map { date, items in
+            FlickDateSection(date: date, items: items.sorted { $0.flick.date > $1.flick.date })
         }
         .sorted { $0.date > $1.date }
     }
@@ -87,10 +87,10 @@ enum FlickRowItem: Identifiable {
             // Section divider before images
             rows.append(.header(section))
             // Image rows
-            let chunks = section.flicks.chunked(into: columns)
+            let chunks = section.items.chunked(into: columns)
             for (index, chunk) in chunks.enumerated() {
                 let rowId = "row-\(section.date.timeIntervalSince1970)-\(index)"
-                rows.append(.imageRow(id: rowId, images: chunk))
+                rows.append(.imageRow(id: rowId, items: chunk))
             }
         }
         return rows
@@ -108,7 +108,7 @@ enum FlickRowItem: Identifiable {
 
             // Map DTOs to domain models
             var skippedCount = 0
-            let images = response.flicks.compactMap { dto -> CollectionImage? in
+            let userFlickItems = response.flicks.compactMap { dto -> UserFlickItem? in
                 // Parse date (with fractional seconds support for .000Z format)
                 let formatter = ISO8601DateFormatter()
                 formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -158,7 +158,7 @@ enum FlickRowItem: Identifiable {
                 default: .PHOTO
                 }
 
-                return CollectionImage(
+                let flick = CollectionImage(
                     id: dto.collectionItemId,
                     owner: owner,
                     imageUrl: mediaUrls,
@@ -170,11 +170,20 @@ enum FlickRowItem: Identifiable {
                     numComments: dto.commentCount ?? 0,
                     hasLiked: false
                 )
+
+                // Return UserFlickItem with collection/clique context preserved
+                return UserFlickItem(
+                    flick: flick,
+                    collectionId: dto.collectionId,
+                    collectionName: dto.collectionName,
+                    cliqueId: dto.cliqueId
+                )
             }
 
-            print("🟢 [UserFlicksVM] Mapped \(images.count) images (skipped \(skippedCount))")
+            print("🟢 [UserFlicksVM] Mapped \(userFlickItems.count) items (skipped \(skippedCount))")
 
             // Update stores
+            let images = userFlickItems.map { $0.flick }
             await userStore.updateUsers(images.compactMap { $0.owner })
             await collectionImageStore.updateImages(images)
 
@@ -182,7 +191,7 @@ enum FlickRowItem: Identifiable {
             self.done = !response.hasMore
             print("🟢 [UserFlicksVM] Done: \(self.done), hasMore: \(response.hasMore)")
 
-            return images
+            return userFlickItems
         }
     }
 

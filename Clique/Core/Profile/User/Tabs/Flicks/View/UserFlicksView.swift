@@ -51,7 +51,7 @@ struct UserFlicksView: View {
                 if let viewModel {
                     UserFlicksDetailView(
                         coordinator: detailCoordinator,
-                        imageIds: viewModel.items.map { $0.id }
+                        items: viewModel.items
                     )
                 }
             }
@@ -155,8 +155,8 @@ struct UserFlicksView: View {
                     switch row {
                     case .header(let section):
                         SectionDivider(section: section)
-                    case .imageRow(_, let images):
-                        ImageRow(images: images)
+                    case .imageRow(_, let items):
+                        ImageRow(items: items)
                     }
                 }
 
@@ -189,14 +189,14 @@ struct UserFlicksView: View {
 
     // MARK: - Image Row (HStack instead of LazyVGrid)
 
-    private func ImageRow(images: [CollectionImage]) -> some View {
+    private func ImageRow(items: [UserFlickItem]) -> some View {
         HStack(spacing: 2) {
-            ForEach(images) { flick in
-                GridCell(flick)
+            ForEach(items) { item in
+                GridCell(item)
             }
             // Fill remaining space if row is incomplete
-            if images.count < gridColumns {
-                ForEach(0..<(gridColumns - images.count), id: \.self) { _ in
+            if items.count < gridColumns {
+                ForEach(0..<(gridColumns - items.count), id: \.self) { _ in
                     Color.clear
                         .aspectRatio(1, contentMode: .fit)
                 }
@@ -228,23 +228,18 @@ struct UserFlicksView: View {
 
     // MARK: - Grid Cell
 
-    private func GridCell(_ flick: CollectionImage) -> some View {
-        GridCollectionPreviewImage(urls: flick.imageUrl)
-            .overlay(alignment: .bottomLeading) {
-                if flick.numLikes > 0 {
-                    HStack(spacing: 4) {
-                        Image(systemName: "heart.fill")
-                            .font(.caption2)
-                        Text("\(flick.numLikes)")
-                            .font(.caption2)
-                    }
-                    .foregroundStyle(.white)
-                    .padding(4)
-                    .background(.black.opacity(0.5))
-                    .roundCorners(4)
-                    .padding(4)
-                }
-            }
+    private func GridCell(_ item: UserFlickItem) -> some View {
+        let flick = item.flick
+        return GridCollectionPreviewImage(urls: flick.imageUrl)
+            .overlayCollectionPreviewStats(
+                likes: flick.numLikes,
+                comments: flick.numComments,
+                hasLiked: flick.hasLiked,
+                isLivePhoto: flick.isLivePhoto,
+                isVideo: flick.isVideo,
+                videoDuration: flick.videoDuration,
+                videoUrl: flick.videoUrls?.videoUrl(for: .medium)
+            )
             .id(flick.id)
             .heroSource(urls: flick.imageUrl) {
                 tabViewCoordinator.showTabBar = false
