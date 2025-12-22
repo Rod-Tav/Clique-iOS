@@ -121,6 +121,7 @@ enum FlickRowItem: Identifiable {
                         id: collectionId,
                         name: dto.collectionName ?? "",
                         description: dto.collectionDescription ?? "",
+                        userId: dto.userId,
                         cliqueId: dto.cliqueId ?? "",
                         creation: Date(),
                         images: [],
