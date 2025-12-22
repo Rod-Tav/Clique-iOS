@@ -4,11 +4,11 @@ import AdvancedList
 struct UserFlicksView: View {
     @AppStorage("flicksGridColumns") private var gridColumns: Int = 3
 
-    @Environment(\.safeAreaInsets) private var safeAreaInsets
     @Environment(TabViewCoordinator.self) private var tabViewCoordinator
     @Environment(CollectionStore.self) private var collectionStore
     @Environment(CollectionImageStore.self) private var collectionImageStore
     @Environment(UserStore.self) private var userStore
+    @Environment(CliqueStore.self) private var cliqueStore
 
     @State private var viewModel: UserFlicksPaginationViewModel?
     @State private var listState: ListState = .loading
@@ -17,13 +17,13 @@ struct UserFlicksView: View {
     @State private var cachedRows: [FlickRowItem] = []
     @State private var detailCoordinator = UserFlicksDetailCoordinator()
     @State private var heroCoordinator = HeroCoordinator()
+    @State private var scrollID: String?
 
     var body: some View {
         @Bindable var bindableTVC = tabViewCoordinator
 
         TabNavigationStack(path: $bindableTVC.flicksNavigationPath) {
-            ZStack(alignment: .top) {
-                // Grid content (scrolls behind header)
+            Group {
                 if let viewModel {
                     AdvancedList(viewModel.items, listView: { _ in
                         GridLayout()
@@ -36,17 +36,11 @@ struct UserFlicksView: View {
                     }, loadingStateView: {
                         LoadingStateView()
                     })
-                    .padding(.top, 8)
                 } else {
                     LoadingStateView()
                 }
-
-                // Floating header with gradient
-                floatingHeader
-                    .padding(.top, -8)
             }
             .primaryBackground()
-            .ignoresSafeArea(edges: .top)
             .heroOverlay {
                 if let viewModel {
                     UserFlicksDetailView(
@@ -60,7 +54,7 @@ struct UserFlicksView: View {
         .environment(detailCoordinator)
         .task {
             if viewModel == nil {
-                viewModel = UserFlicksPaginationViewModel(collectionStore, collectionImageStore, userStore)
+                viewModel = UserFlicksPaginationViewModel(collectionStore, collectionImageStore, userStore, cliqueStore)
             }
 
             if let viewModel, viewModel.items.isEmpty && listState == .loading {
@@ -72,30 +66,12 @@ struct UserFlicksView: View {
             guard let viewModel else { return }
             cachedRows = viewModel.flatRows(from: viewModel.groupedByDate, columns: newValue)
         }
+        .onChange(of: tabViewCoordinator.triggerScrollToTopOfFlicksGrid) { _, _ in
+            scrollID = "TOP"
+        }
     }
 
-    // MARK: - Floating Header
-
-    private var floatingHeader: some View {
-        Color.clear
-            .frame(height: safeAreaInsets.top + 56)
-            .background(.ultraThinMaterial)
-            .mask {
-                LinearGradient(
-                    stops: [
-                        .init(color: .white, location: 0),
-                        .init(color: .white, location: 0.35),
-                        .init(color: .clear, location: 0.80)
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            }
-            .overlay(alignment: .bottom) {
-                headerContent
-                    .padding(.bottom, 12)
-            }
-    }
+    // MARK: - Header Content
 
     private var headerContent: some View {
         HStack(spacing: 12) {
@@ -103,7 +79,7 @@ struct UserFlicksView: View {
             HStack(alignment: .top, spacing: 0) {
                 Text("Flicks")
                     .font(Font.custom("NewakeDemo", size: 28))
-                    .foregroundStyle(.white)
+                    .textPrimary()
 
                 IconImage(name: "clique-star", color: Color.theme.cliquePink, size: 8)
             }
@@ -128,12 +104,12 @@ struct UserFlicksView: View {
                         }
                     }
                 } label: {
-                    IconImage(name: "filter", color: .white, size: 26)
+                    IconImage(name: "filter", color: Color.theme.iconPrimary, size: 26)
                 }
 
                 // Inbox
                 NavigationLink(value: "NotificationsCenter") {
-                    IconImage(name: "inbox", color: .white, size: 26)
+                    IconImage(name: "inbox", color: Color.theme.iconPrimary, size: 26)
                         .overlayTopRightNotification(when: tabViewCoordinator.hasNotification)
                 }
             }
@@ -144,11 +120,17 @@ struct UserFlicksView: View {
     // MARK: - Grid Layout
 
     private func GridLayout() -> some View {
-        GridSyncScrollView(coordinator: detailCoordinator) {
+        GridSyncScrollView(coordinator: detailCoordinator, scrollToId: $scrollID) {
             LazyVStack(spacing: 0) {
-                // Top padding so first content starts below header
+                // Scroll-to-top anchor
                 Color.clear
-                    .frame(height: safeAreaInsets.top + 44)
+                    .frame(height: 1)
+                    .id("TOP")
+
+                // Header that scrolls with content
+                headerContent
+                    .padding(.top, 8)
+                    .padding(.bottom, 12)
 
                 // Single flat list - no nested lazy containers
                 ForEach(cachedRows) { row in

@@ -70,6 +70,7 @@ extension ImageDetailCoordinator {
 struct GridSyncScrollView<Coordinator: ImageDetailCoordinator, Content: View>: View {
     let coordinator: Coordinator
     var anchor: UnitPoint = .center
+    var scrollToId: Binding<String?>?
     var onWillScroll: ((String) -> Void)?
     @ViewBuilder let content: () -> Content
 
@@ -82,6 +83,13 @@ struct GridSyncScrollView<Coordinator: ImageDetailCoordinator, Content: View>: V
                 guard oldValue != nil, let newValue else { return }
                 onWillScroll?(newValue)
                 reader.scrollTo(newValue, anchor: anchor)
+            }
+            .onChange(of: scrollToId?.wrappedValue) { _, newValue in
+                guard let newValue else { return }
+                withAnimation {
+                    reader.scrollTo(newValue, anchor: .top)
+                }
+                scrollToId?.wrappedValue = nil
             }
         }
     }

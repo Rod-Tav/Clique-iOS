@@ -96,7 +96,7 @@ enum FlickRowItem: Identifiable {
         return rows
     }
 
-    init(_ collectionStore: CollectionStore, _ collectionImageStore: CollectionImageStore, _ userStore: UserStore) {
+    init(_ collectionStore: CollectionStore, _ collectionImageStore: CollectionImageStore, _ userStore: UserStore, _ cliqueStore: CliqueStore) {
         self.fetchFunction = { input in
             print("🔵 [UserFlicksVM] Fetching page \(input.page), size \(input.size)")
 
@@ -106,6 +106,29 @@ enum FlickRowItem: Identifiable {
             )
             print("🟢 [UserFlicksVM] Got \(response.flicks.count) flicks from API")
 
+            // Build a lookup of collectionId -> ClCollection from the DTOs
+            var collectionLookup: [String: ClCollection] = [:]
+            for dto in response.flicks {
+                guard let collectionId = dto.collectionId, !collectionId.isEmpty else { continue }
+                if collectionLookup[collectionId] == nil {
+                    let visibility: Visibility = switch dto.privacySetting {
+                    case 0: .pub
+                    case 1: .followers
+                    case 2: .priv
+                    default: .priv
+                    }
+                    collectionLookup[collectionId] = ClCollection(
+                        id: collectionId,
+                        name: dto.collectionName ?? "",
+                        description: dto.collectionDescription ?? "",
+                        cliqueId: dto.cliqueId ?? "",
+                        creation: Date(),
+                        images: [],
+                        visibility: visibility
+                    )
+                }
+            }
+
             // Map DTOs to domain models
             var skippedCount = 0
             let userFlickItems = response.flicks.compactMap { dto -> UserFlickItem? in
@@ -114,6 +137,14 @@ enum FlickRowItem: Identifiable {
                 formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
                 guard let dateCreated = formatter.date(from: dto.dateCreated) else {
                     print("🟡 [UserFlicksVM] Skipping flick \(dto.collectionItemId) - invalid date: \(dto.dateCreated)")
+                    skippedCount += 1
+                    return nil
+                }
+
+                // Get collection from lookup
+                guard let collectionId = dto.collectionId,
+                      let collection = collectionLookup[collectionId] else {
+                    print("🟡 [UserFlicksVM] Skipping flick \(dto.collectionItemId) - no collection")
                     skippedCount += 1
                     return nil
                 }
@@ -171,21 +202,27 @@ enum FlickRowItem: Identifiable {
                     hasLiked: false
                 )
 
-                // Return UserFlickItem with collection/clique context preserved
                 return UserFlickItem(
                     flick: flick,
-                    collectionId: dto.collectionId,
-                    collectionName: dto.collectionName,
+                    collection: collection,
                     cliqueId: dto.cliqueId
                 )
             }
 
             print("🟢 [UserFlicksVM] Mapped \(userFlickItems.count) items (skipped \(skippedCount))")
 
-            // Update stores
-            let images = userFlickItems.map { $0.flick }
-            await userStore.updateUsers(images.compactMap { $0.owner })
-            await collectionImageStore.updateImages(images)
+            // Update stores (matching InfiniteFlickFeedPaginationViewModel pattern)
+            let collections = Array(collectionLookup.values)
+            await collectionStore.updateCollections(collections, collectionImageStore)
+            await collectionImageStore.updateImages(userFlickItems.map { $0.flick })
+            await userStore.updateUsers(userFlickItems.compactMap { $0.flick.owner })
+
+            // Batch fetch clique data (for clique name in detail view)
+            let uniqueCliqueIds = Set(userFlickItems.compactMap { $0.cliqueId })
+            for cid in uniqueCliqueIds {
+                try? await fetchCliqueRelationshipOrReturn(cid: cid, cliqueStore)
+            }
+            print("🟢 [UserFlicksVM] Updated \(collections.count) collections, fetched \(uniqueCliqueIds.count) cliques")
 
             // Update done status
             self.done = !response.hasMore

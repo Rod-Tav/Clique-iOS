@@ -9,9 +9,12 @@ import Foundation
 /// Similar to InfiniteFeedItem but for the user's own flicks
 struct UserFlickItem: Identifiable, Hashable {
     let flick: CollectionImage
-    let collectionId: String?
-    let collectionName: String?
+    let collection: ClCollection
     let cliqueId: String?
 
     var id: String { flick.id }
+
+    // Convenience accessors for backwards compatibility
+    var collectionId: String? { collection.id }
+    var collectionName: String? { collection.name }
 }

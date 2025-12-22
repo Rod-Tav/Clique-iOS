@@ -9,6 +9,8 @@ import SwiftUI
 import Toasts
 
 struct UserFlicksDetailView: View {
+    @AppStorage("hasSwipedUpToOpenComments") private var hasSwipedUpToOpenComments: Bool = false
+
     @Environment(\.presentToast) private var presentToast
 
     @Environment(HeroCoordinator.self) private var heroCoordinator
@@ -35,7 +37,6 @@ struct UserFlicksDetailView: View {
     @State private var showReportCover: Bool = false
     @State private var shareItem: ShareItem?
     @State private var showSharePreparation: Bool = false
-    @State private var showCliqueMembers: Bool = false
 
     // MARK: - Computed
     private var currentItem: UserFlickItem? {
@@ -49,14 +50,12 @@ struct UserFlicksDetailView: View {
     }
 
     private var currentCollection: ClCollection? {
-        guard let collectionId = currentItem?.collectionId else { return nil }
-        return collectionStore.collections[collectionId]
+        currentItem?.collection
     }
 
-    private var currentCliqueMembers: [User]? {
-        guard let cliqueId = currentItem?.cliqueId ?? currentCollection?.cliqueId,
-              let clique = cliqueStore.cliques[cliqueId] else { return nil }
-        return clique.memberIDs?.compactMap { userStore.users[$0] }
+    private var currentClique: Clique? {
+        guard let cliqueId = currentItem?.cliqueId ?? currentCollection?.cliqueId else { return nil }
+        return cliqueStore.cliques[cliqueId]
     }
 
     var body: some View {
@@ -74,7 +73,6 @@ struct UserFlicksDetailView: View {
 
                 VStack(spacing: 24) {
                     bottomIndicator
-                    cliqueInfoSection
                     bottomActionBar
                 }
                 .opacity(heroCoordinator.animateView ? 1 - heroCoordinator.dragProgress : 0)
@@ -97,12 +95,24 @@ struct UserFlicksDetailView: View {
 
             // Collection name and date info (tappable to navigate to collection)
             if let collection = currentCollection, let image = selectedImage {
-                NavigationLink(value: collection) {
+                Button {
+                    navigateToCollection(collection)
+                } label: {
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 4) {
                             Text(collection.name)
                                 .font(.callout.bold())
                                 .foregroundStyle(Color.theme.white)
+
+                            if let clique = currentClique {
+                                Text("•")
+                                    .font(.callout.bold())
+                                    .foregroundStyle(Color.theme.shadesWhite95)
+
+                                Text(clique.name)
+                                    .font(.callout.bold())
+                                    .foregroundStyle(Color.theme.shadesWhite95)
+                            }
 
                             if collection.visibility == .priv {
                                 IconImage(name: "lock", color: .theme.white, size: 16)
@@ -126,42 +136,71 @@ struct UserFlicksDetailView: View {
                                     .font(.caption2)
                                     .foregroundStyle(Color.theme.shadesWhite95)
 
-                                Text("by \(owner.firstname)")
-                                    .font(.caption2)
-                                    .foregroundStyle(Color.theme.shadesWhite95)
+                                HStack(spacing: 4) {
+                                    IconImage(name: "camera", color: .theme.shadesWhite95, size: 14)
+                                    
+                                    Text(owner.firstname)
+                                        .font(.caption2)
+                                        .foregroundStyle(Color.theme.shadesWhite95)
+                                }
                             }
                         }
                     }
                 }
-                .noHighlight()
-            } else if let image = selectedImage {
-                // Fallback when collection is not loaded - show collection name from item
-                VStack(alignment: .leading, spacing: 2) {
-                    if let collectionName = currentItem?.collectionName {
-                        Text(collectionName)
-                            .font(.callout.bold())
-                            .foregroundStyle(Color.theme.white)
+                .buttonStyle(.noHighlight)
+            } else if let image = selectedImage, let collectionId = currentItem?.collectionId {
+                // Fallback when collection is not loaded - fetch and navigate
+                Button {
+                    Task {
+                        await fetchAndNavigateToCollection(collectionId: collectionId)
                     }
+                } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        if let collectionName = currentItem?.collectionName {
+                            HStack(spacing: 4) {
+                                Text(collectionName)
+                                    .font(.callout.bold())
+                                    .foregroundStyle(Color.theme.white)
 
-                    HStack(spacing: 4) {
-                        DateMediaTypeLabel(
-                            image: image,
-                            dateFormat: .short,
-                            fontSize: .caption2,
-                            textColor: .theme.shadesWhite95
-                        )
+                                if let clique = currentClique {
+                                    Text("•")
+                                        .font(.callout.bold())
+                                        .foregroundStyle(Color.theme.shadesWhite95)
 
-                        if let owner = image.owner {
-                            Text("•")
-                                .font(.caption2)
-                                .foregroundStyle(Color.theme.shadesWhite95)
+                                    Text(clique.name)
+                                        .font(.callout.bold())
+                                        .foregroundStyle(Color.theme.shadesWhite95)
+                                }
 
-                            Text("by \(owner.firstname)")
-                                .font(.caption2)
-                                .foregroundStyle(Color.theme.shadesWhite95)
+                                IconImage(name: "chevron-right", color: .theme.white, size: 16)
+                            }
+                        }
+
+                        HStack(spacing: 4) {
+                            DateMediaTypeLabel(
+                                image: image,
+                                dateFormat: .short,
+                                fontSize: .caption2,
+                                textColor: .theme.shadesWhite95
+                            )
+
+                            if let owner = image.owner {
+                                Text("•")
+                                    .font(.caption2)
+                                    .foregroundStyle(Color.theme.shadesWhite95)
+
+                                HStack(spacing: 4) {
+                                    IconImage(name: "camera", color: .theme.shadesWhite95, size: 14)
+
+                                    Text(owner.id == userStore.currentUserId ? "You" : owner.firstname)
+                                        .font(.caption2)
+                                        .foregroundStyle(Color.theme.shadesWhite95)
+                                }
+                            }
                         }
                     }
                 }
+                .buttonStyle(.noHighlight)
             }
 
             Spacer()
@@ -307,6 +346,7 @@ struct UserFlicksDetailView: View {
                 if translation.height < -20 && abs(translation.width) < 20 {
                     haptics(.light)
                     showCommentSheet = true
+                    hasSwipedUpToOpenComments = true
                 }
             },
             onEnded: { _, _ in }
@@ -392,56 +432,6 @@ struct UserFlicksDetailView: View {
         .animation(.snappy, value: !isScrolling)
         .onTapGesture {
             scrollCarousel(to: image.id)
-        }
-    }
-
-    // MARK: - Clique Info Section
-
-    @ViewBuilder
-    private var cliqueInfoSection: some View {
-        if let collection = currentCollection, let members = currentCliqueMembers, !members.isEmpty {
-            HStack {
-                // Collection name with navigation
-                NavigationLink(value: collection) {
-                    HStack(spacing: 4) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            HStack(spacing: 4) {
-                                Text(collection.name)
-                                    .font(.callout.bold())
-                                    .foregroundStyle(Color.theme.shadesWhite95)
-
-                                if collection.visibility == .priv {
-                                    IconImage(name: "lock", color: .theme.shadesWhite95, size: 16)
-                                        .padding(.leading, 2)
-                                }
-
-                                IconImage(name: "chevron-right", color: .theme.shadesWhite95, size: 16)
-                            }
-                        }
-                        .maxWidth(.leading)
-                    }
-                    .contentShape(.rect)
-                }
-                .noHighlight()
-
-                // Clique members
-                CliqueCircularMembersView(
-                    members: members,
-                    memberLimit: 5,
-                    type: .medium,
-                    forceDark: true
-                )
-                .onHighPriorityTap {
-                    showCliqueMembers.toggle()
-                }
-                .sheet(isPresented: $showCliqueMembers) {
-                    let cliqueId = currentItem?.cliqueId ?? collection.cliqueId
-                    CliqueMembersListSheetView(cid: cliqueId, fromFeed: true, userStore, cliqueStore)
-                        .presentationDetents([.fraction(0.35), .fraction(0.999)])
-                        .bottomSheetModifiers()
-                }
-            }
-            .padding(.horizontal, 16)
         }
     }
 
@@ -598,6 +588,34 @@ struct UserFlicksDetailView: View {
             coordinator.resetAnimationProperties()
             heroCoordinator.resetAnimationProperties()
             dismissing = false
+        }
+    }
+
+    private func navigateToCollection(_ collection: ClCollection) {
+        tabCoordinator.showTabBar = true
+        heroCoordinator.toggleView(show: false) {
+            coordinator.resetAnimationProperties()
+            heroCoordinator.resetAnimationProperties()
+            dismissing = false
+            // Navigate to collection after dismissal animation completes
+            DispatchQueue.main.async {
+                tabCoordinator.navigate(to: collection)
+            }
+        }
+    }
+
+    private func fetchAndNavigateToCollection(collectionId: String) async {
+        let result = await CollectionDeepLinkHandler.fetchCollection(
+            collectionId: collectionId,
+            collectionStore: collectionStore,
+            collectionImageStore: collectionImageStore
+        )
+
+        switch result {
+        case .success(let collection):
+            navigateToCollection(collection)
+        case .notAuthenticated, .notFound, .networkError:
+            presentToast(Toasts.somethingWentWrong)
         }
     }
 
