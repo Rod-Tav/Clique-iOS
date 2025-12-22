@@ -11,6 +11,9 @@ struct WhatsNewView: View {
     @Binding var isPresented: Bool
     
     private let releases: [(version: String, changes: [String])] = [
+        ("1.8.0 – December 23rd, 2025", [
+            "User flicks library"
+        ]),
         ("1.7.4 – November 26th, 2025", [
             "Tap and hold flick previews for menu options (context menu)",
             "Selected photos view respects library order (was random)",
