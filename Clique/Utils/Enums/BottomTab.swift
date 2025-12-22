@@ -21,7 +21,7 @@ enum BottomTab: String, Identifiable, CaseIterable {
     var image: String {
         switch self {
         case .flicks:
-            return "strip"
+            return "posts"
         case .collections:
             return "collections"
         case .create:

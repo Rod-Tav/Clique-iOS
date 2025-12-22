@@ -1,32 +1,152 @@
 import Foundation
 
+// MARK: - Array Extension for Chunking
+
+extension Array {
+    /// Splits the array into chunks of the specified size
+    func chunked(into size: Int) -> [[Element]] {
+        guard size > 0 else { return [] }
+        return stride(from: 0, to: count, by: size).map {
+            Array(self[$0..<Swift.min($0 + size, count)])
+        }
+    }
+}
+
+// MARK: - Date Section Model
+
+/// Represents a group of flicks from the same day
+struct FlickDateSection: Identifiable {
+    let date: Date
+    let items: [UserFlickItem]
+    let formattedDate: String
+    let countText: String
+
+    var id: Date { date }
+
+    init(date: Date, items: [UserFlickItem]) {
+        self.date = date
+        self.items = items
+        self.formattedDate = formatDateMMMMdYYYY(date)
+        self.countText = items.count == 1 ? "1 Flick" : "\(items.count) Flicks"
+    }
+}
+
+/// Flat row item for single-container scrolling (avoids nested lazy containers)
+enum FlickRowItem: Identifiable {
+    case header(FlickDateSection)
+    case imageRow(id: String, items: [UserFlickItem])
+
+    var id: String {
+        switch self {
+        case .header(let section):
+            return "header-\(section.date.timeIntervalSince1970)"
+        case .imageRow(let id, _):
+            return id
+        }
+    }
+}
+
 @Observable final class UserFlicksPaginationViewModel: PaginationViewModel {
-    typealias Item = CollectionImage
+    typealias Item = UserFlickItem
     typealias Input = EmptyPaginationFetchInput
 
-    var items: [CollectionImage] = []
+    var items: [UserFlickItem] = []
     var page: Int = 0
     var size: Int { 20 }
     var done: Bool = false
     var refreshing: Bool = false
+
+    // Thread-safe refresh properties (required by PaginationViewModel protocol)
     var isRefreshing: Bool = false
     var refreshTask: Task<Void, Error>?
     var latestRequestId: UUID?
 
-    var fetchFunction: (EmptyPaginationFetchInput) async throws -> [CollectionImage]
+    var fetchFunction: (EmptyPaginationFetchInput) async throws -> [UserFlickItem]
 
-    init(_ collectionStore: CollectionStore, _ collectionImageStore: CollectionImageStore, _ userStore: UserStore) {
+    /// Groups all flicks by date, sorted newest-first
+    var groupedByDate: [FlickDateSection] {
+        let calendar = Calendar.current
+
+        // Group by start of day - extract flick date from UserFlickItem
+        let grouped = Dictionary(grouping: items) { item in
+            calendar.startOfDay(for: item.flick.date)
+        }
+
+        // Convert to sections and sort by date descending
+        return grouped.map { date, items in
+            FlickDateSection(date: date, items: items.sorted { $0.flick.date > $1.flick.date })
+        }
+        .sorted { $0.date > $1.date }
+    }
+
+    /// Converts sections to flat rows for single-container scrolling
+    /// Order: section divider first, then images
+    func flatRows(from sections: [FlickDateSection], columns: Int) -> [FlickRowItem] {
+        var rows: [FlickRowItem] = []
+        for section in sections {
+            // Section divider before images
+            rows.append(.header(section))
+            // Image rows
+            let chunks = section.items.chunked(into: columns)
+            for (index, chunk) in chunks.enumerated() {
+                let rowId = "row-\(section.date.timeIntervalSince1970)-\(index)"
+                rows.append(.imageRow(id: rowId, items: chunk))
+            }
+        }
+        return rows
+    }
+
+    init(_ collectionStore: CollectionStore, _ collectionImageStore: CollectionImageStore, _ userStore: UserStore, _ cliqueStore: CliqueStore) {
         self.fetchFunction = { input in
+            print("🔵 [UserFlicksVM] Fetching page \(input.page), size \(input.size)")
+
             let response = try await UserFlicksService.getUserFlicks(
                 page: input.page,
                 size: input.size
             )
+            print("🟢 [UserFlicksVM] Got \(response.flicks.count) flicks from API")
+
+            // Build a lookup of collectionId -> ClCollection from the DTOs
+            var collectionLookup: [String: ClCollection] = [:]
+            for dto in response.flicks {
+                guard let collectionId = dto.collectionId, !collectionId.isEmpty else { continue }
+                if collectionLookup[collectionId] == nil {
+                    let visibility: Visibility = switch dto.privacySetting {
+                    case 0: .pub
+                    case 1: .followers
+                    case 2: .priv
+                    default: .priv
+                    }
+                    collectionLookup[collectionId] = ClCollection(
+                        id: collectionId,
+                        name: dto.collectionName ?? "",
+                        description: dto.collectionDescription ?? "",
+                        userId: dto.userId,
+                        cliqueId: dto.cliqueId ?? "",
+                        creation: Date(),
+                        images: [],
+                        visibility: visibility
+                    )
+                }
+            }
 
             // Map DTOs to domain models
-            let images = response.flicks.compactMap { dto -> CollectionImage? in
-                // Parse date
+            var skippedCount = 0
+            let userFlickItems = response.flicks.compactMap { dto -> UserFlickItem? in
+                // Parse date (with fractional seconds support for .000Z format)
                 let formatter = ISO8601DateFormatter()
+                formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
                 guard let dateCreated = formatter.date(from: dto.dateCreated) else {
+                    print("🟡 [UserFlicksVM] Skipping flick \(dto.collectionItemId) - invalid date: \(dto.dateCreated)")
+                    skippedCount += 1
+                    return nil
+                }
+
+                // Get collection from lookup
+                guard let collectionId = dto.collectionId,
+                      let collection = collectionLookup[collectionId] else {
+                    print("🟡 [UserFlicksVM] Skipping flick \(dto.collectionItemId) - no collection")
+                    skippedCount += 1
                     return nil
                 }
 
@@ -54,22 +174,23 @@ import Foundation
                 // Map user
                 let owner = User(
                     id: dto.userId,
-                    firstname: dto.firstName,
-                    lastname: dto.lastName,
+                    firstname: dto.firstName ?? "",
+                    lastname: dto.lastName ?? "",
                     number: "",
-                    username: dto.username,
+                    username: dto.username ?? "",
+                    profilePic: nil,
                     bio: dto.bio ?? ""
                 )
 
                 // Map media type
-                let mediaType: MediaType = switch dto.mediaType {
+                let mediaType: MediaType = switch dto.mediaType ?? 0 {
                 case 0: .PHOTO
                 case 1: .LIVE
                 case 2: .VIDEO
                 default: .PHOTO
                 }
 
-                return CollectionImage(
+                let flick = CollectionImage(
                     id: dto.collectionItemId,
                     owner: owner,
                     imageUrl: mediaUrls,
@@ -77,20 +198,38 @@ import Foundation
                     mediaType: mediaType,
                     uploadStatus: .COMPLETED,
                     date: dateCreated,
-                    numLikes: dto.likeTotal,
-                    numComments: dto.commentCount,
+                    numLikes: dto.likeTotal ?? 0,
+                    numComments: dto.commentCount ?? 0,
                     hasLiked: false
+                )
+
+                return UserFlickItem(
+                    flick: flick,
+                    collection: collection,
+                    cliqueId: dto.cliqueId
                 )
             }
 
-            // Update stores
-            await userStore.updateUsers(images.compactMap { $0.owner })
-            await collectionImageStore.updateImages(images)
+            print("🟢 [UserFlicksVM] Mapped \(userFlickItems.count) items (skipped \(skippedCount))")
+
+            // Update stores (matching InfiniteFlickFeedPaginationViewModel pattern)
+            let collections = Array(collectionLookup.values)
+            await collectionStore.updateCollections(collections, collectionImageStore)
+            await collectionImageStore.updateImages(userFlickItems.map { $0.flick })
+            await userStore.updateUsers(userFlickItems.compactMap { $0.flick.owner })
+
+            // Batch fetch clique data (for clique name in detail view)
+            let uniqueCliqueIds = Set(userFlickItems.compactMap { $0.cliqueId })
+            for cid in uniqueCliqueIds {
+                try? await fetchCliqueRelationshipOrReturn(cid: cid, cliqueStore)
+            }
+            print("🟢 [UserFlicksVM] Updated \(collections.count) collections, fetched \(uniqueCliqueIds.count) cliques")
 
             // Update done status
             self.done = !response.hasMore
+            print("🟢 [UserFlicksVM] Done: \(self.done), hasMore: \(response.hasMore)")
 
-            return images
+            return userFlickItems
         }
     }
 

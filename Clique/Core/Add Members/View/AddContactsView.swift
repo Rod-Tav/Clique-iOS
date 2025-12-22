@@ -72,8 +72,8 @@ struct AddContactsView: View {
                             if !contactsOnClique.isEmpty {
                                 VStack(spacing: 8) {
                                     TextDivider("Contacts on Clique")
-                                    
-                                    LazyVStack(spacing: 16) {
+
+                                    VStack(spacing: 16) {
                                         ForEach(contactsOnClique.filter { user in
                                             searchText.isEmpty || user.fullname.localizedCaseInsensitiveContains(searchText)
                                         }) { user in
@@ -94,8 +94,8 @@ struct AddContactsView: View {
                             if !contactsNotOnClique.isEmpty {
                                 VStack(spacing: 8) {
                                     TextDivider("Invite your contacts")
-                                    
-                                    LazyVStack(spacing: 16) {
+
+                                    VStack(spacing: 16) {
                                         ForEach(contactsNotOnClique.filter { contact in
                                             searchText.isEmpty || "\(contact.firstName) \(contact.lastName)".localizedCaseInsensitiveContains(searchText)
                                         }, id: \.id) { contact in
@@ -105,13 +105,13 @@ struct AddContactsView: View {
                                                     .scaledToFill()
                                                     .frame(48)
                                                     .clipShape(.circle)
-                                                
+
                                                 Text("\(contact.firstName) \(contact.lastName)")
                                                     .font(.footnote.bold())
                                                     .textPrimary()
-                                                
+
                                                 Spacer()
-                                                
+
                                                 SmallCTA(
                                                     type: .primary,
                                                     leadingIcon: "plus",

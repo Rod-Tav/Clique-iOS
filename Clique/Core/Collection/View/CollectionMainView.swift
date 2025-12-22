@@ -603,82 +603,29 @@ struct CollectionContentStruct<Content: View>: View {
     @Environment(ProfileTabSwitcherCoordinator.self) private var profileTabSwitcherCoordinator
     @Environment(CollectionCoordinator.self) private var coordinator
     @Environment(CollectionImagesPaginationViewModel.self) private var imagesPgVM
-    //    @Binding var smallHeader: Bool
-    //    @Binding var smallHeaderNoAnimation: Bool
     let content: () -> Content
-    
-    @State private var scrollOffset: CGFloat = 0
-    @State private var canGoUp: Bool = true
-    //    @State private var scrollID: Int?
-    
+
     var body: some View {
-        ScrollViewReader { reader in
-            ScrollView {
-                ZStack {
-                    Spacer().containerRelativeFrame([.horizontal, .vertical]) // center content (for pagination states). will need to frameTop for items
-                    
-                    content()
-                        .scrollTargetLayout()
-                    //                        .simultaneousGesture(dragGesture)
-                }
-                .offsetY { value in
-                    guard profileTabSwitcherCoordinator.canGoUp[0] != (value == 0) else { return }
-                    profileTabSwitcherCoordinator.canGoUp[0] = (value == 0)
-                }
+        ScrollView {
+            ZStack {
+                Spacer().containerRelativeFrame([.horizontal, .vertical]) // center content (for pagination states). will need to frameTop for items
+
+                content()
+                    .scrollTargetLayout()
             }
-            .disableBounce()
-            //            .scrollPosition(id: $scrollID)
-            //            .scrollIndicators(.hidden)
-            .scrollDisabled(!profileTabSwitcherCoordinator.smallHeaderAnimationComplete)
-            .onChange(of: coordinator.selectedImageId) { oldValue, newValue in
-                guard oldValue != nil, let newValue else { return }
-                scrollToSelectedImage(in: reader, to: newValue)
+            .offsetY { value in
+                guard profileTabSwitcherCoordinator.canGoUp[0] != (value == 0) else { return }
+                profileTabSwitcherCoordinator.canGoUp[0] = (value == 0)
             }
         }
-    }
-    
-    //    private var dragGesture: some Gesture {
-    //        DragGesture()
-    //            .onChanged { value in
-    //                profileTabSwitcherCoordinator.isScrolling = true
-    //
-    //                if scrollOffset != 0 {
-    //                    canGoUp = false
-    //                }
-    //
-    //                let isVerticalDrag = value.translation.height > 10 && abs(value.translation.width) < 20
-    //
-    //                if isVerticalDrag, canGoUp, profileTabSwitcherCoordinator.smallHeader, scrollOffset == 0 {
-    //                    withAnimation(.easeInOut(duration: 0.25), completionCriteria: .logicallyComplete) {
-    //                        profileTabSwitcherCoordinator.smallHeader = false
-    //                    } completion: {
-    //                        profileTabSwitcherCoordinator.smallHeaderAnimationComplete = false
-    //                    }
-    //                }
-    //            }
-    //            .onEnded { _ in
-    //                canGoUp = true
-    //                profileTabSwitcherCoordinator.isScrolling = false
-    //            }
-    //    }
-    
-    private func scrollToSelectedImage(in reader: ScrollViewProxy, to imageId: String) {
-        //        if let image = imagesPgVM.items.first(where: { $0.id == newValue?.id }), oldValue != nil {
-        /// Scroll to this item, as this is not visible on the screen
-        var anchor: UnitPoint
-        // TODO: index was removed so find other way to do this
-        //            if image.index < 3 {
-        //                anchor = .top
-        //            } else if image.index < 6 {
-        //                anchor = .bottom
-        //            } else {
-        if !profileTabSwitcherCoordinator.smallHeader {
-            profileTabSwitcherCoordinator.smallHeader = true
-            profileTabSwitcherCoordinator.smallHeaderAnimationComplete = true
+        .disableBounce()
+        .scrollDisabled(!profileTabSwitcherCoordinator.smallHeaderAnimationComplete)
+        .gridSync(coordinator: coordinator) { _ in
+            // Ensure header collapses when scrolling to selected image
+            if !profileTabSwitcherCoordinator.smallHeader {
+                profileTabSwitcherCoordinator.smallHeader = true
+                profileTabSwitcherCoordinator.smallHeaderAnimationComplete = true
+            }
         }
-        anchor = .center
-        //            }
-        reader.scrollTo(imageId, anchor: anchor)
-        //        }
     }
 }
