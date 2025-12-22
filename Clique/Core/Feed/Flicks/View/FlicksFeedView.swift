@@ -759,36 +759,36 @@ struct FlicksFeedView: View {
             forceQuality: videoQualityPreference != .auto,
             isVisible: currentFlickId == image.id
         )
-            .contentShape(.rect)
-            .id(image.id)
-            .if(!image.isVideo && !image.isLivePhoto) { view in
-                view.pinchZoom(isZoomed: $isZoomed)  // Only apply pinch zoom to static photos
-            }
-            .scrollTransition { content, phase in
-                content
-                    .opacity(phase.isIdentity ? 1 : 0.7)
-                    .scaleEffect(phase.isIdentity ? 1 : 0.85)
-            }
-            .doubleTapToLike(hasLiked: image.hasLiked, likeAnimation: $likeAnimation) {
-                handleLikeTapped()
-            }
-            .overlay {
-                IconImage(name: "heart-filled", color: .theme.red, size: 70)
-                    .likeAnimation($likeAnimation)
-            }
-            .swipeUpToOpenCommentsTutorial()
-            .compatibleDragGesture(
-                minimumDistance: 10,
-                onChanged: { translation in
-                    // Check if the swipe was mostly vertical and upwards
-                    if translation.height < -20 && abs(translation.width) < 20 {
-                        haptics(.light)
-                        showCommentSheet = true
-                        hasSwipedUpToOpenComments = true
-                    }
-                },
-                onEnded: { _, _ in }  // Required for CompatibleDragGestureModifier signature
-            )
+        .contentShape(.rect)
+        .id(image.id)
+        .if(!image.isVideo && !image.isLivePhoto) { view in
+            view.pinchZoom(isZoomed: $isZoomed)  // Only apply pinch zoom to static photos
+        }
+        .scrollTransition { content, phase in
+            content
+                .opacity(phase.isIdentity ? 1 : 0.7)
+                .scaleEffect(phase.isIdentity ? 1 : 0.85)
+        }
+        .doubleTapToLike(hasLiked: image.hasLiked, likeAnimation: $likeAnimation) {
+            handleLikeTapped()
+        }
+        .overlay {
+            IconImage(name: "heart-filled", color: .theme.red, size: 70)
+                .likeAnimation($likeAnimation)
+        }
+        .swipeUpToOpenCommentsTutorial()
+        .compatibleDragGesture(
+            minimumDistance: 10,
+            onChanged: { translation in
+                // Check if the swipe was mostly vertical and upwards
+                if translation.height < -20 && abs(translation.width) < 20 {
+                    haptics(.light)
+                    showCommentSheet = true
+                    hasSwipedUpToOpenComments = true
+                }
+            },
+            onEnded: { _, _ in }  // Required for CompatibleDragGestureModifier signature
+        )
     }
     
     private var swipeUpToOpenComments: some Gesture {

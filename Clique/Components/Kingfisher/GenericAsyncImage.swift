@@ -361,7 +361,7 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
         }
     }
 
-    @State private var loadingState: ImageLoadingState = .idle
+    @State private var loadingState: ImageLoadingState
     @State private var cacheCheckCompleted = false
     @State private var imageLoadTasks: Set<AnyCancellable> = []
     @State private var retryCount: [String: Int] = [:]
@@ -372,11 +372,44 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
     @State private var forcePreload = false
 
     // Cache status for immediate display
-    @State private var hasCachedLow = false
+    // Initialize with synchronous check for low quality to prevent placeholder flash
+    @State private var hasCachedLow: Bool
     @State private var hasCachedMedium = false
     @State private var hasCachedHigh = false
 
     private let cacheManager = GenericAsyncImageCacheManager.shared
+
+    init(urls: PhotoUrls?, quality: ImageQuality, shouldFixSize: Bool = true, context: ImageLoadingContext = .detail, performanceMode: Bool = false, @ViewBuilder content: @escaping (KFImage) -> Content, @ViewBuilder placeholder: () -> Placeholder) {
+        self.urls = urls
+        self.quality = quality
+        self.shouldFixSize = shouldFixSize
+        self.context = context
+        self.performanceMode = performanceMode
+        self.content = content
+        self.placeholder = placeholder()
+
+        // Synchronous cache check for low quality on init to prevent placeholder flash
+        // This ensures we can show the cached thumbnail immediately while loading high quality
+        let cachedLow: Bool
+        if let lowUrl = urls?.lowQualityUrl {
+            cachedLow = GenericAsyncImageCacheManager.shared.checkCacheSync(for: lowUrl)
+        } else {
+            cachedLow = false
+        }
+        self._hasCachedLow = State(initialValue: cachedLow)
+
+        // Set initial loading state based on cache check to ensure correct rendering on first frame
+        let initialState: ImageLoadingState
+        switch quality {
+        case .low:
+            initialState = cachedLow ? .showingLow : .loadingLow
+        case .medium:
+            initialState = cachedLow ? .loadingMedium(fallback: .low) : .loadingMedium(fallback: nil)
+        case .high:
+            initialState = cachedLow ? .loadingHigh(fallback: .low) : .loadingHigh(fallback: nil)
+        }
+        self._loadingState = State(initialValue: initialState)
+    }
     private let maxRetries = 2
 
     /// Network-adaptive timeout for placeholder detection
@@ -469,7 +502,8 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
         }
         .fixedSize(horizontal: shouldFixSize, vertical: shouldFixSize)
         .onAppear {
-            // Skip synchronous cache check - do everything async
+            // Loading state is already set in init based on synchronous cache check
+            // Continue with async cache check for higher qualities (med/high)
             Task.detached(priority: .userInitiated) {
                 await self.performAsyncCacheCheck()
                 await MainActor.run {
@@ -493,7 +527,6 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
             // Reset when URLs change
             cacheCheckCompleted = false
             retryCount.removeAll()
-            loadingState = .idle
             hasAttemptedRetry = false
             forcePreload = false
 
@@ -501,7 +534,28 @@ struct GenericAsyncImage<Content: View, Placeholder: View>: View {
             loadingTimeoutTask?.cancel()
             loadingTimeoutTask = nil
 
-            // Check cache for new URLs asynchronously
+            // Synchronous cache check for low quality to prevent placeholder flash on URL change
+            let cachedLow: Bool
+            if let lowUrl = newUrls?.lowQualityUrl {
+                cachedLow = cacheManager.checkCacheSync(for: lowUrl)
+            } else {
+                cachedLow = false
+            }
+            hasCachedLow = cachedLow
+            hasCachedMedium = false
+            hasCachedHigh = false
+
+            // Set loading state based on synchronous cache check (same logic as init)
+            switch quality {
+            case .low:
+                loadingState = cachedLow ? .showingLow : .loadingLow
+            case .medium:
+                loadingState = cachedLow ? .loadingMedium(fallback: .low) : .loadingMedium(fallback: nil)
+            case .high:
+                loadingState = cachedLow ? .loadingHigh(fallback: .low) : .loadingHigh(fallback: nil)
+            }
+
+            // Check cache for new URLs asynchronously for higher qualities
             Task.detached(priority: .userInitiated) {
                 await self.performAsyncCacheCheck()
                 await MainActor.run {

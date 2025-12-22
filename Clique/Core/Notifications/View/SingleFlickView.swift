@@ -139,7 +139,7 @@ struct SingleFlickView: View {
                             .padding(.leading, 2)
                         }
 
-                        IconImage(name: "chevron-right", color: .theme.iconPrimary, size: 16)
+                        IconImage(name: "chevron-right", color: .theme.shadesWhite95, size: 16)
                     }
 
                     DateMediaTypeLabel(
