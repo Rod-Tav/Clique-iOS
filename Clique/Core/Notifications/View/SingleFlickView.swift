@@ -7,7 +7,6 @@
 
 import SwiftUI
 import Toasts
-import AVFoundation
 
 struct SingleFlickView: View {
     @AppStorage("hasSwipedUpToOpenComments") private var hasSwipedUpToOpenComments: Bool = false
