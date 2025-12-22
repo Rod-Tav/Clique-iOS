@@ -53,6 +53,9 @@ import Foundation
         if existingCollection.description != collection.description {
             existingCollection.description = collection.description
         }
+        if existingCollection.userId.isEmpty && !collection.userId.isEmpty {
+            existingCollection.userId = collection.userId
+        }
         if existingCollection.cliqueId != collection.cliqueId {
             existingCollection.cliqueId = collection.cliqueId
         }

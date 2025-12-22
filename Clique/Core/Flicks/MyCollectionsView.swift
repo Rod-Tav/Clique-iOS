@@ -204,16 +204,14 @@ extension MyCollectionsView {
                     .frame(1)
                     .id("TOP")
                 
-                ZStack(alignment: .top) {
+                if viewType == .compactList {
                     LazyVStack(spacing: 16, content: collections)
-                        .opacity(viewType == .compactList ? 1 : 0)
-                    
+                } else {
                     LazyVGrid(
                         columns: Array(repeating: GridItem(.flexible(), spacing: 16, alignment: .top), count: 3),
                         spacing: 16,
                         content: collections
                     )
-                    .opacity(viewType == .grid ? 1 : 0)
                 }
             }
         }
