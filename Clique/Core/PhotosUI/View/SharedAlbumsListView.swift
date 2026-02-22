@@ -259,6 +259,9 @@ struct SharedAlbumsListView: View {
         var body = "Join my Clique!\nhttps://apps.apple.com/us/app/clique-group-social/id6742713460"
         if let cliqueId = createdCliqueId {
             body += "\nclique://clique/\(cliqueId)"
+            if let shareUrl = cloudCliquesStore.cliques.first(where: { $0.cliqueId == cliqueId })?.cloudKitShareUrl {
+                body += "\n\(shareUrl)"
+            }
         }
         return body
     }

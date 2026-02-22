@@ -44,6 +44,9 @@ struct SharedAlbumMainView: View {
         if let cliqueId = linkedClique?.cliqueId {
             body += "\nclique://clique/\(cliqueId)"
         }
+        if let shareUrl = linkedClique?.cloudKitShareUrl {
+            body += "\n\(shareUrl)"
+        }
         return body
     }
 
