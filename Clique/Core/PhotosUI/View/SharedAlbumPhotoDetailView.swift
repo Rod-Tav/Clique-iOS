@@ -19,6 +19,7 @@ struct SharedAlbumPhotoDetailView: View {
     @State private var fullImages: [String: UIImage] = [:]
     @State private var dismissing: Bool = false
     @State private var isZoomed: Bool = false
+    @State private var isScrolling: Bool = false
 
     private var selectedAsset: PHAsset? {
         guard let id = coordinator.selectedImageId else { return nil }
@@ -28,22 +29,20 @@ struct SharedAlbumPhotoDetailView: View {
     // MARK: - Body
 
     var body: some View {
-        GeometryReader { _ in
-            ZoomContainer {
-                VStack(spacing: 0) {
-                    topBar
-                        .opacity(heroCoordinator.animateView ? 1 - heroCoordinator.dragProgress : 0)
+        ZoomContainer {
+            VStack(spacing: 0) {
+                topBar
+                    .opacity(heroCoordinator.animateView ? 1 - heroCoordinator.dragProgress : 0)
 
-                    Spacer()
+                Spacer()
 
-                    imageDetail
-                        .opacity(heroCoordinator.showDetailView ? 1 : 0)
+                imageDetail
+                    .opacity(heroCoordinator.showDetailView ? 1 : 0)
 
-                    Spacer(minLength: 0)
+                Spacer(minLength: 0)
 
-                    bottomIndicator
-                        .opacity(heroCoordinator.animateView ? 1 - heroCoordinator.dragProgress : 0)
-                }
+                bottomIndicator
+                    .opacity(heroCoordinator.animateView ? 1 - heroCoordinator.dragProgress : 0)
             }
         }
         .onAppear {
@@ -62,27 +61,26 @@ struct SharedAlbumPhotoDetailView: View {
     // MARK: - Top Bar
 
     private var topBar: some View {
-        HStack {
-            Button {
-                closeImage()
-            } label: {
-                IconImage(name: "arrow-left", color: .theme.white, size: 24)
+        TopAppBar(
+            type: .small,
+            leadingIcon: {
+                Button {
+                    closeImage()
+                } label: {
+                    IconImage(name: "arrow-left", color: .theme.white, size: 24)
+                }.buttonStyle(.noHighlight)
+            },
+            header: {
+                if let asset = selectedAsset, let date = asset.creationDate {
+                    Text(date, style: .date)
+                        .font(.callout.bold())
+                        .foregroundStyle(Color.theme.white)
+                }
+            },
+            trailingIcon: {
+                Color.clear.frame(width: 24, height: 24)
             }
-            .buttonStyle(.noHighlight)
-
-            Spacer()
-
-            if let asset = selectedAsset, let date = asset.creationDate {
-                Text(date, style: .date)
-                    .font(.callout.bold())
-                    .foregroundStyle(Color.theme.white)
-            }
-
-            Spacer()
-
-            // Spacer to balance layout
-            Color.clear.frame(width: 24, height: 24)
-        }
+        )
         .padding(.vertical, 12)
         .padding(.horizontal, 16)
     }
@@ -118,6 +116,16 @@ struct SharedAlbumPhotoDetailView: View {
                 heroCoordinator.heroIdentifier = newValue
                 if let matched = assets.first(where: { $0.localIdentifier == newValue }) {
                     heroCoordinator.heroImage = sharedData.thumbnailCache[matched]
+                }
+            }
+            .onChange(of: coordinator.selectedImageId) { oldValue, newValue in
+                guard !dismissing, let newValue else { return }
+                if oldValue != newValue { isZoomed = false }
+                Task {
+                    try? await Task.sleep(nanoseconds: 100_000_000)
+                    if newValue == coordinator.selectedImageId {
+                        scrollCarousel(to: newValue)
+                    }
                 }
             }
         }
@@ -190,26 +198,14 @@ struct SharedAlbumPhotoDetailView: View {
         let sideHeight = sideWidth / Constants.collectionCarouselRatio
         let centerHeight = centerWidth / Constants.collectionCarouselSelectedRatio
 
-        return ScrollView(.horizontal) {
-            @Bindable var bindableCoord = coordinator
-
-            LazyHStack(spacing: hSpacing) {
-                ForEach(assets, id: \.localIdentifier) { asset in
-                    let isSelected = asset.localIdentifier == coordinator.selectedImageId
-
-                    thumbnailCell(asset, width: isSelected ? centerWidth : sideWidth, height: isSelected ? centerHeight : sideHeight)
-                        .padding(.horizontal, isSelected ? centerImageSpacing : 0)
-                        .animation(.snappy, value: isSelected)
-                        .onTapGesture {
-                            scrollCarousel(to: asset.localIdentifier)
-                        }
-                }
-            }
-            .scrollTargetLayout()
-            .scrollPosition(id: $bindableCoord.detailIndicatorPosition)
-        }
-        .scrollTargetBehavior(.viewAligned)
-        .scrollIndicators(.hidden)
+        return bottomCarouselList(
+            hSpacing: hSpacing,
+            centerImageSpacing: centerImageSpacing,
+            centerWidth: centerWidth,
+            sideWidth: sideWidth,
+            sideHeight: sideHeight,
+            centerHeight: centerHeight
+        )
         .frame(height: centerHeight)
         .safeAreaPadding(.horizontal, (UIScreen.width - centerWidth - (centerImageSpacing * 2)) / 2)
         .padding(.bottom, 16)
@@ -222,6 +218,37 @@ struct SharedAlbumPhotoDetailView: View {
                 }
             }
         }
+    }
+
+    private func bottomCarouselList(
+        hSpacing: CGFloat,
+        centerImageSpacing: CGFloat,
+        centerWidth: CGFloat,
+        sideWidth: CGFloat,
+        sideHeight: CGFloat,
+        centerHeight: CGFloat
+    ) -> some View {
+        @Bindable var bindableCoord = coordinator
+
+        return ScrollView(.horizontal) {
+            LazyHStack(spacing: hSpacing) {
+                ForEach(assets, id: \.localIdentifier) { asset in
+                    let isSelected = asset.localIdentifier == coordinator.selectedImageId && !isScrolling
+
+                    thumbnailCell(asset, width: isSelected ? centerWidth : sideWidth, height: isSelected ? centerHeight : sideHeight)
+                        .padding(.horizontal, isSelected ? centerImageSpacing : 0)
+                        .animation(.snappy, value: isSelected)
+                        .onTapGesture {
+                            scrollCarousel(to: asset.localIdentifier)
+                        }
+                }
+            }
+            .scrollTargetLayout()
+        }
+        .isInteracting($isScrolling)
+        .scrollTargetBehavior(.viewAligned)
+        .scrollIndicators(.hidden)
+        .scrollPosition(id: $bindableCoord.detailIndicatorPosition)
     }
 
     @ViewBuilder

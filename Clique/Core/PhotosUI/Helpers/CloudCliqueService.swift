@@ -11,7 +11,7 @@ import Foundation
 struct CloudCliqueInfo: Codable {
     var cliqueId: String
     var cliqueName: String
-    var cloudKitZoneId: String
+    var cloudKitZoneId: String?
     var cloudKitShareUrl: String?
     var memberCount: Int
     var linkedAlbumTitle: String?
@@ -36,6 +36,18 @@ struct CloudCliqueService {
         let url = URL(string: "\(baseURL)/cloudkit/cliques/\(cliqueId)/album")!
         let body = try JSONEncoder().encode(["albumTitle": albumTitle])
         _ = try await makeRequest(url: url, method: "PUT", body: body)
+    }
+
+    /// Creates a cloud-only clique on rod-sandbox with an optional album link. Returns the new clique ID.
+    static func createCloudClique(name: String, albumTitle: String? = nil) async throws -> String {
+        let url = URL(string: "\(baseURL)/cloudkit/cliques")!
+        var payload: [String: String] = ["name": name]
+        if let albumTitle { payload["albumTitle"] = albumTitle }
+        let body = try JSONEncoder().encode(payload)
+        let data = try await makeRequest(url: url, method: "POST", body: body)
+
+        struct CreateResponse: Decodable { var id: String }
+        return try JSONDecoder().decode(CreateResponse.self, from: data).id
     }
 
     static func unlinkAlbum(cliqueId: String) async throws {

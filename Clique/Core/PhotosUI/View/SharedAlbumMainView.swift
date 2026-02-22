@@ -8,6 +8,7 @@
 
 import SwiftUI
 import Photos
+import MessageUI
 
 @available(iOS 26, *)
 struct SharedAlbumMainView: View {
@@ -24,11 +25,25 @@ struct SharedAlbumMainView: View {
     @State var coordinator = SharedAlbumCoordinator()
     @State var heroCoordinator = HeroCoordinator()
     @State var showCliquePickerSheet: Bool = false
+    @State var showMessageCompose: Bool = false
+    @State var isCreatingClique: Bool = false
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 2), count: 3)
 
     private var albumTitle: String {
         assetCollection.localizedTitle ?? "Album"
+    }
+
+    private var linkedClique: CloudCliqueInfo? {
+        cloudCliquesStore.cliqueForAlbum(title: albumTitle)
+    }
+
+    private var messageBody: String {
+        var body = "Add your pics to \(albumTitle) on Clique!\nhttps://apps.apple.com/us/app/clique-group-social/id6742713460"
+        if let cliqueId = linkedClique?.cliqueId {
+            body += "\nclique://clique/\(cliqueId)"
+        }
+        return body
     }
 
     private var coverThumbnail: UIImage? {
@@ -42,7 +57,13 @@ struct SharedAlbumMainView: View {
         ScrollView {
             VStack(spacing: 0) {
                 albumHeader
+                createCliqueCTA
                 gridContent
+            }
+        }
+        .sheet(isPresented: $showMessageCompose) {
+            if MFMessageComposeViewController.canSendText() {
+                MessageComposer(recipients: [], body: messageBody)
             }
         }
         .sheet(isPresented: $showCliquePickerSheet) {
@@ -162,6 +183,43 @@ struct SharedAlbumMainView: View {
             .buttonStyle(.noHighlight)
 
             Spacer()
+        }
+    }
+
+    // MARK: - Create Clique CTA
+
+    private var createCliqueCTA: some View {
+        CliqueButton(
+            type: .primary,
+            leadingIcon: linkedClique != nil ? "send" : "plus",
+            text: linkedClique != nil ? "Invite Friends" : "Create Clique",
+            fullWidth: true,
+            isLoading: isCreatingClique
+        ) {
+            if linkedClique != nil {
+                showMessageCompose = true
+            } else {
+                createCliqueAndInvite()
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+    }
+
+    private func createCliqueAndInvite() {
+        guard !isCreatingClique else { return }
+        isCreatingClique = true
+
+        Task {
+            do {
+                _ = try await CloudCliqueService.createCloudClique(name: albumTitle, albumTitle: albumTitle)
+                await cloudCliquesStore.refresh()
+                isCreatingClique = false
+                showMessageCompose = true
+            } catch {
+                print("[SharedAlbumMainView] Failed to create clique: \(error)")
+                isCreatingClique = false
+            }
         }
     }
 

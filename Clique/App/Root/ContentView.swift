@@ -140,7 +140,7 @@ struct ContentView: View {
                 case .main:
                     // Full authenticated app experience
                     if #available(iOS 26, *) {
-                        LibraryTabView()
+                        ApplePhotosTabView()
                             .environment(authService)
                             .onReceive(of: .toast404) { _ in
                                 presentToast(Toasts.somethingWentWrong)

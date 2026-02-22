@@ -8,7 +8,7 @@
 import SwiftUI
 
 @available(iOS 26, *)
-struct LibraryTabView: View {
+struct ApplePhotosTabView: View {
     @State var sharedData = SharedAlbumsData()
     @State var tabViewCoordinator = TabViewCoordinator()
     @State var activityStore = SharedAlbumActivityStore()

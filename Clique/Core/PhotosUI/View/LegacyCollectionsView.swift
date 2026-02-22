@@ -103,12 +103,22 @@ struct LegacyCollectionsView: View {
             // Migrate button
             migrateButton(for: collection)
         }
+        .fetchMostLikedImage(collectionId: collection.id)
     }
 
     @ViewBuilder
     private func coverImage(for collection: ClCollection) -> some View {
-        if let coverUrl = collection.coverPhoto?.bestUrl ?? collection.images.first?.imageUrl?.bestUrl {
-            KFImage(coverUrl)
+        if let coverPhoto = collection.coverPhoto {
+            KFImage(coverPhoto.bestUrl)
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(height: 160)
+                .clipped()
+                .roundCorners(12)
+        } else if let mostLikedImage = collection.mostLikedImage,
+                  let urls = collectionImageStore.images[mostLikedImage]?.imageUrl,
+                  let bestUrl = urls.bestUrl {
+            KFImage(bestUrl)
                 .resizable()
                 .aspectRatio(contentMode: .fill)
                 .frame(height: 160)
