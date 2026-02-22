@@ -7,7 +7,7 @@
 
 import Foundation
 import Messages
-import CliqueCore
+
 
 /// Navigation states for the iMessage extension
 enum ExtensionNavigationState: Equatable {

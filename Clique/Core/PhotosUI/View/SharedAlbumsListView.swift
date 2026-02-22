@@ -7,14 +7,19 @@
 
 import SwiftUI
 import Photos
+import MessageUI
 
 @available(iOS 26, *)
 struct SharedAlbumsListView: View {
     @Environment(SharedAlbumsData.self) var sharedData
     @Environment(SharedAlbumActivityStore.self) var activityStore
     @Environment(CloudCliquesStore.self) var cloudCliquesStore
+    @Environment(UserStore.self) var userStore
 
     @State var activityChanges: [AlbumActivityChange] = []
+    @State var isCreatingClique: Bool = false
+    @State var showMessageCompose: Bool = false
+    @State var createdCliqueId: String? = nil
 
     private let columns = [
         GridItem(.flexible(), spacing: 16),
@@ -26,7 +31,14 @@ struct SharedAlbumsListView: View {
             VStack {
                 activityWidget
 
+                cloudCliquesSection
+
                 albumGrid
+            }
+        }
+        .sheet(isPresented: $showMessageCompose) {
+            if MFMessageComposeViewController.canSendText() {
+                MessageComposer(recipients: [], body: createCliqueMessageBody)
             }
         }
         .navigationTitle("Collections")
@@ -200,21 +212,24 @@ struct SharedAlbumsListView: View {
                 .textPrimary()
                 .lineLimit(1)
 
-            Text("\(album.count)")
-                .font(.caption)
-                .foregroundStyle(Color.theme.textSecondary)
+            HStack(spacing: 4) {
+                Text("\(album.count)")
+                    .font(.caption)
+                    .foregroundStyle(Color.theme.textSecondary)
 
-            if let clique = cloudCliquesStore.cliqueForAlbum(title: album.title) {
-                HStack(spacing: 4) {
+                if let clique = cloudCliquesStore.cliqueForAlbum(title: album.title) {
+                    Text("·")
+                        .font(.caption)
+                        .foregroundStyle(Color.theme.textSecondary)
                     Image(systemName: "person.2.fill")
                         .font(.caption2)
-                    Text(clique.cliqueName)
+                        .foregroundStyle(Color.theme.buttonCTA)
+                    Text("\(clique.cliqueName) (\(clique.memberCount))")
                         .font(.caption2.weight(.medium))
-                    Text("(\(clique.memberCount))")
-                        .font(.caption2)
+                        .foregroundStyle(Color.theme.buttonCTA)
                 }
-                .foregroundStyle(Color.theme.buttonCTA)
             }
+            .lineLimit(1)
         }
     }
 
@@ -235,6 +250,110 @@ struct SharedAlbumsListView: View {
                 .fill(Color.gray.opacity(0.15))
                 .frame(width: 30, height: 12)
                 .roundCorners(4)
+        }
+    }
+
+    // MARK: - Cloud Cliques Section
+
+    private var createCliqueMessageBody: String {
+        var body = "Join my Clique!\nhttps://apps.apple.com/us/app/clique-group-social/id6742713460"
+        if let cliqueId = createdCliqueId {
+            body += "\nclique://clique/\(cliqueId)"
+        }
+        return body
+    }
+
+    @ViewBuilder private var cloudCliquesSection: some View {
+        if cloudCliquesStore.isLoaded && cloudCliquesStore.cliques.isEmpty {
+            VStack(alignment: .leading, spacing: 0) {
+                Text("Your Cliques")
+                    .font(.subheadline.weight(.semibold))
+                    .textPrimary()
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+
+                Button {
+                    createCliqueFromList()
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "person.2.circle.fill")
+                            .font(.title2)
+                            .foregroundStyle(Color.theme.buttonCTA)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Create a Clique")
+                                .font(.subheadline.weight(.semibold))
+                                .textPrimary()
+                            Text("Group your shared albums together")
+                                .font(.caption)
+                                .foregroundStyle(Color.theme.textSecondary)
+                        }
+                        Spacer()
+                        if isCreatingClique {
+                            ProgressView()
+                        } else {
+                            Image(systemName: "chevron.right")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(Color.theme.textSecondary)
+                        }
+                    }
+                    .padding(14)
+                    .background(Color.theme.surfacesElevatedPrimary)
+                    .roundCorners(12)
+                }
+                .buttonStyle(.plain)
+                .disabled(isCreatingClique)
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+            }
+        } else if !cloudCliquesStore.cliques.isEmpty {
+            VStack(alignment: .leading, spacing: 0) {
+                Text("Your Cliques")
+                    .font(.subheadline.weight(.semibold))
+                    .textPrimary()
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        ForEach(cloudCliquesStore.cliques, id: \.cliqueId) { clique in
+                            HStack(spacing: 6) {
+                                Image(systemName: "person.2.fill")
+                                    .font(.caption2)
+                                Text(clique.cliqueName)
+                                    .font(.caption.weight(.medium))
+                                Text("\(clique.albumTitles.count)")
+                                    .font(.caption2)
+                                    .foregroundStyle(Color.theme.textSecondary)
+                            }
+                            .foregroundStyle(Color.theme.buttonCTA)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(Color.theme.buttonCTA.opacity(0.1))
+                            .roundCorners(20)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                }
+                .padding(.top, 8)
+            }
+        }
+    }
+
+    private func createCliqueFromList() {
+        guard !isCreatingClique else { return }
+        isCreatingClique = true
+        Task {
+            do {
+                let firstName = userStore.currentUser?.firstname ?? "My"
+                let cliqueId = try await CloudCliqueService.createCloudClique(name: "\(firstName)'s Clique")
+                await cloudCliquesStore.refresh()
+                createdCliqueId = cliqueId
+                isCreatingClique = false
+                showMessageCompose = true
+            } catch {
+                print("[SharedAlbumsListView] Failed to create clique: \(error)")
+                isCreatingClique = false
+            }
         }
     }
 

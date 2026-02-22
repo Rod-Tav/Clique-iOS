@@ -18,6 +18,7 @@ struct SharedAlbumMainView: View {
     @Environment(SharedAlbumsData.self) var sharedData
     @Environment(SharedAlbumActivityStore.self) var activityStore
     @Environment(CloudCliquesStore.self) var cloudCliquesStore
+    @Environment(UserStore.self) var userStore
 
     @State var assets: [PHAsset] = []
     @State var isLoading: Bool = true
@@ -139,7 +140,7 @@ struct SharedAlbumMainView: View {
                             .font(.caption)
                         Text(clique.cliqueName)
                             .font(.subheadline.weight(.medium))
-                        Text("\(clique.memberCount) members")
+                        Text("\(clique.memberCount) \(clique.memberCount == 1 ? "member" : "members")")
                             .font(.caption)
                             .opacity(0.8)
                     }
@@ -212,7 +213,9 @@ struct SharedAlbumMainView: View {
 
         Task {
             do {
-                _ = try await CloudCliqueService.createCloudClique(name: albumTitle, albumTitle: albumTitle)
+                let firstName = userStore.currentUser?.firstname ?? "My"
+                let cliqueName = "\(firstName)'s Clique"
+                _ = try await CloudCliqueService.createCloudClique(name: cliqueName, albumTitle: albumTitle)
                 await cloudCliquesStore.refresh()
                 isCreatingClique = false
                 showMessageCompose = true

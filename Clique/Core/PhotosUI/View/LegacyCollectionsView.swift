@@ -100,8 +100,8 @@ struct LegacyCollectionsView: View {
                 .font(.caption)
                 .foregroundStyle(Color.theme.textSecondary)
 
-            // Migrate button
-            migrateButton(for: collection)
+            // TODO: Migrate button
+//            migrateButton(for: collection)
         }
         .fetchMostLikedImage(collectionId: collection.id)
     }
@@ -115,7 +115,7 @@ struct LegacyCollectionsView: View {
                 .frame(height: 160)
                 .clipped()
                 .roundCorners(12)
-        } else if let mostLikedImage = collection.mostLikedImage,
+        } else if let mostLikedImage = collectionStore.collections[collection.id]?.mostLikedImage,
                   let urls = collectionImageStore.images[mostLikedImage]?.imageUrl,
                   let bestUrl = urls.bestUrl {
             KFImage(bestUrl)

@@ -30,7 +30,9 @@ struct SharedLibraryGridView: View {
             }
         }
         .disabled(!coordinator.canInteract)
-        .trackScrollWithToolbar(title: "Shared Album Library", showNavBar: $showNavBar)
+        .if(!coordinator.isInDetailView) { view in
+            view.trackScrollWithToolbar(title: "Shared Album Library", showNavBar: $showNavBar)
+        }
         .onScrollGeometryChange(for: PhotosScrollInfo.self) { geo in
             PhotosScrollInfo(
                 offsetY: geo.contentOffset.y + geo.contentInsets.top,
@@ -44,6 +46,11 @@ struct SharedLibraryGridView: View {
                 .environment(coordinator)
         }
         .environment(heroCoordinator)
+        .onChange(of: heroCoordinator.animateView) { _, newValue in
+            if !newValue {
+                coordinator.isInDetailView = false
+            }
+        }
         .onDisappear {
             sharedData.resetCaching()
         }
@@ -73,6 +80,7 @@ struct SharedLibraryGridView: View {
                         identifier: asset.localIdentifier
                     ) {
                         coordinator.selectedImageId = asset.localIdentifier
+                        coordinator.isInDetailView = true
                     }
                     .id(asset.localIdentifier)
                     .task {

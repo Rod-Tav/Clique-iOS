@@ -6,7 +6,7 @@
 //
 
 import SwiftUI
-import CliqueCore
+
 
 struct FlickGridView: View {
     let viewModel: ExtensionViewModel

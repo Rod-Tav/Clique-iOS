@@ -8,7 +8,7 @@
 import Foundation
 import Messages
 import UIKit
-import CliqueCore
+
 
 /// Utility for building rich MSMessage objects with MSMessageTemplateLayout for sharing Clique content.
 ///
@@ -105,7 +105,7 @@ import CliqueCore
 /// - Session IDs can be used to group related messages
 ///
 /// - SeeAlso: ``DeepLinkBuilder`` for URL scheme documentation
-public struct MSMessageBuilder {
+struct MSMessageBuilder {
 
     // MARK: - Flick Message
 
@@ -132,7 +132,7 @@ public struct MSMessageBuilder {
     /// - Returns: Configured MSMessage ready to send via Messages framework
     ///
     /// - Note: The deep link URL format is `clique://flick/{flickId}?src=imessage`
-    public static func buildFlickMessage(
+    static func buildFlickMessage(
         flick: CachedFlick,
         collection: CachedCollection,
         clique: CachedClique,
@@ -195,7 +195,7 @@ public struct MSMessageBuilder {
     /// - Returns: Configured MSMessage ready to send via Messages framework
     ///
     /// - Note: The deep link URL format is `clique://clique/{cliqueId}/collection/{collectionId}?src=imessage`
-    public static func buildCollectionMessage(
+    static func buildCollectionMessage(
         collection: CachedCollection,
         clique: CachedClique,
         senderUsername: String,
@@ -258,7 +258,7 @@ public struct MSMessageBuilder {
     /// - Returns: Configured MSMessage ready to send via Messages framework
     ///
     /// - Note: The deep link URL format is `clique://clique/{cliqueId}?src=imessage`
-    public static func buildCliqueInviteMessage(
+    static func buildCliqueInviteMessage(
         clique: CachedClique,
         senderUsername: String,
         cliqueImage: UIImage

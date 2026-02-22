@@ -7,7 +7,7 @@
 
 import SwiftUI
 import Messages
-import CliqueCore
+
 
 /// Root view for the Clique iMessage extension
 ///

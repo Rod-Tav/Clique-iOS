@@ -17,13 +17,17 @@ struct CliquePickerSheet: View {
 
     @State var isLinking: Bool = false
 
+    private var availableCliques: [CloudCliqueInfo] {
+        cloudCliquesStore.cliques.filter { !$0.albumTitles.contains(albumTitle) }
+    }
+
     var body: some View {
         NavigationStack {
             List {
-                if cloudCliquesStore.unlinkedCliques().isEmpty && cloudCliquesStore.cliqueForAlbum(title: albumTitle) == nil {
+                if availableCliques.isEmpty && cloudCliquesStore.cliqueForAlbum(title: albumTitle) == nil {
                     emptyState
                 } else {
-                    ForEach(cloudCliquesStore.unlinkedCliques(), id: \.cliqueId) { clique in
+                    ForEach(availableCliques, id: \.cliqueId) { clique in
                         Button {
                             linkClique(clique)
                         } label: {
@@ -109,7 +113,7 @@ struct CliquePickerSheet: View {
         isLinking = true
         Task {
             do {
-                try await CloudCliqueService.unlinkAlbum(cliqueId: clique.cliqueId)
+                try await CloudCliqueService.unlinkAlbum(cliqueId: clique.cliqueId, albumTitle: albumTitle)
                 await cloudCliquesStore.refresh()
                 onLinked?()
                 dismiss()

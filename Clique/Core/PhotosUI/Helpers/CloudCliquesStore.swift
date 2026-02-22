@@ -27,11 +27,11 @@ import Foundation
     }
 
     func cliqueForAlbum(title: String) -> CloudCliqueInfo? {
-        cliques.first { $0.linkedAlbumTitle == title }
+        cliques.first { $0.albumTitles.contains(title) }
     }
 
     func unlinkedCliques() -> [CloudCliqueInfo] {
-        cliques.filter { $0.linkedAlbumTitle == nil }
+        cliques.filter { $0.albumTitles.isEmpty }
     }
 
     func refresh() async {

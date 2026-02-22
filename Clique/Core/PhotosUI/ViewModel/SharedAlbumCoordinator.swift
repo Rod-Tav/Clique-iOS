@@ -20,6 +20,9 @@ import AdvancedList
     // MARK: - Interaction State
     var canInteract: Bool = true
 
+    // MARK: - Detail View State
+    var isInDetailView: Bool = false
+
     // MARK: - Pagination State (photos are pre-loaded)
     var listState: ListState = .items
     var paginationState: AdvancedListPaginationState = .idle

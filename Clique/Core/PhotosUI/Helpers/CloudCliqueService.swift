@@ -15,11 +15,34 @@ struct CloudCliqueInfo: Codable {
     var cloudKitShareUrl: String?
     var memberCount: Int
     var linkedAlbumTitle: String?
+    var linkedAlbumTitles: [String]?
+
+    private enum CodingKeys: String, CodingKey {
+        case cliqueId, cliqueName, cloudKitZoneId, cloudKitShareUrl
+        case memberCount, linkedAlbumTitle, linkedAlbumTitles
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        cliqueId = try container.decode(String.self, forKey: .cliqueId)
+        cliqueName = try container.decode(String.self, forKey: .cliqueName)
+        cloudKitZoneId = try container.decodeIfPresent(String.self, forKey: .cloudKitZoneId)
+        cloudKitShareUrl = try container.decodeIfPresent(String.self, forKey: .cloudKitShareUrl)
+        memberCount = max((try? container.decode(Int.self, forKey: .memberCount)) ?? 1, 1)
+        linkedAlbumTitle = try container.decodeIfPresent(String.self, forKey: .linkedAlbumTitle)
+        linkedAlbumTitles = try container.decodeIfPresent([String].self, forKey: .linkedAlbumTitles)
+    }
+
+    var albumTitles: [String] {
+        if let titles = linkedAlbumTitles, !titles.isEmpty { return titles }
+        if let single = linkedAlbumTitle { return [single] }
+        return []
+    }
 }
 
 @available(iOS 26, *)
 struct CloudCliqueService {
-    private static let baseURL = "https://flicks.cliquemobile.app"
+    private static let baseURL = "http://a1d1e6f2604554af780ebc7fc61b6e8b-2109272361.us-east-2.elb.amazonaws.com"
 
     enum ServiceError: Error {
         case notAuthenticated
@@ -54,6 +77,12 @@ struct CloudCliqueService {
         let url = URL(string: "\(baseURL)/cloudkit/cliques/\(cliqueId)/album")!
         let body = try JSONSerialization.data(withJSONObject: ["albumTitle": NSNull()])
         _ = try await makeRequest(url: url, method: "PUT", body: body)
+    }
+
+    static func unlinkAlbum(cliqueId: String, albumTitle: String) async throws {
+        let encoded = albumTitle.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? albumTitle
+        let url = URL(string: "\(baseURL)/cloudkit/cliques/\(cliqueId)/albums/\(encoded)")!
+        _ = try await makeRequest(url: url, method: "DELETE")
     }
 
     private static func makeRequest(url: URL, method: String, body: Data? = nil) async throws -> Data {

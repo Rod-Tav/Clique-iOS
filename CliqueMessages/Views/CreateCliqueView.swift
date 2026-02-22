@@ -6,7 +6,7 @@
 //
 
 import SwiftUI
-import CliqueCore
+
 
 struct CreateCliqueView: View {
     @Environment(ExtensionViewModel.self) var viewModel
