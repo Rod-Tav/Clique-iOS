@@ -13,6 +13,7 @@ import Kingfisher
 struct UserSettingsView: View {
     @AppStorage("userTheme") private var userTheme: Theme = .systemDefault
     @AppStorage("hasSwipedUpToOpenComments") private var hasSwipedUpToOpenComments: Bool = false
+    @AppStorage("debugLegacyEmptyState") private var debugLegacyEmptyState: Bool = false
     
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
@@ -52,7 +53,9 @@ struct UserSettingsView: View {
                     showWhatsNew = true
                 }
             )
-            
+
+            DebugSection()
+
             DestructiveSection()
             
             Spacer()
@@ -225,6 +228,23 @@ extension UserSettingsView {
                     if let url = URL(string: "https://cliqueapp.org/privacy") {
                         openURL(url)
                     }
+                }
+            )
+        }
+    }
+}
+
+// MARK: - Debug section
+extension UserSettingsView {
+    @ViewBuilder private func DebugSection() -> some View {
+        VStack(spacing: 8) {
+            SettingEntry(
+                icon: "setting",
+                settingText: "Legacy Empty State",
+                trailingIcon: {
+                    Toggle("", isOn: $debugLegacyEmptyState)
+                        .labelsHidden()
+                        .tint(.theme.pink)
                 }
             )
         }

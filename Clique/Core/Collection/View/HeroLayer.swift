@@ -34,23 +34,35 @@ struct HeroLayer: View {
                 height: animateView ? dRect.minY : sRect.minY
             )
             
-            if let photoUrls = heroCoordinator.imageUrls, !heroCoordinator.showDetailView {
-                HeroImageAsyncView(urls: photoUrls, size: viewSize, animateView: animateView) { image in
-                    loadedImage = image
-                }
-                .offset(viewPosition)
-                .transition(.identity)
-                .opacity(heroCoordinator.animationIsOpen ? 1 : 0)
-                
-                if let loadedImage {
-                    Image(uiImage: loadedImage)
+            if !heroCoordinator.showDetailView {
+                if let heroImg = heroCoordinator.heroImage, heroCoordinator.heroIdentifier != nil {
+                    // Identifier-based hero: render local UIImage
+                    Image(uiImage: heroImg)
                         .resizable()
                         .aspectRatio(contentMode: animateView ? .fit : .fill)
                         .frame(width: viewSize.width, height: viewSize.height)
                         .clipped()
                         .offset(viewPosition)
                         .transition(.identity)
-                        .opacity(heroCoordinator.animationIsOpen ? 0 : 1)
+                } else if let photoUrls = heroCoordinator.imageUrls {
+                    // URL-based hero: load from network
+                    HeroImageAsyncView(urls: photoUrls, size: viewSize, animateView: animateView) { image in
+                        loadedImage = image
+                    }
+                    .offset(viewPosition)
+                    .transition(.identity)
+                    .opacity(heroCoordinator.animationIsOpen ? 1 : 0)
+
+                    if let loadedImage {
+                        Image(uiImage: loadedImage)
+                            .resizable()
+                            .aspectRatio(contentMode: animateView ? .fit : .fill)
+                            .frame(width: viewSize.width, height: viewSize.height)
+                            .clipped()
+                            .offset(viewPosition)
+                            .transition(.identity)
+                            .opacity(heroCoordinator.animationIsOpen ? 0 : 1)
+                    }
                 }
             }
         }

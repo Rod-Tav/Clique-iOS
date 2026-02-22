@@ -8,6 +8,7 @@
 import SwiftUI
 import FirebaseAuth
 import FirebaseCore
+import CloudKit
 import UserNotifications
 import Toasts
 import BackgroundTasks
@@ -81,6 +82,8 @@ struct CliqueApp: App {
     @State private var collectionImageStore = CollectionImageStore()
     /// Comments and social interaction data
     @State private var commentStore = CommentStore()
+    /// CloudKit synced photos store
+    @State private var syncedPhotoStore = SyncedPhotoStore()
     
     /// Initializes the app with all required system configurations.
     ///
@@ -130,10 +133,11 @@ struct CliqueApp: App {
                 .environment(collectionStore)
                 .environment(collectionImageStore)
                 .environment(commentStore)
+                .environment(syncedPhotoStore)
                 .onAppear {
                     handleForegroundEntry()
                 }
-                .onChange(of: scenePhase) { _, newPhase in
+                .onChange(of: scenePhase) { newPhase in
                     if newPhase == .active {
                         // Clean up expired pending image cache entries when app becomes active
                         Task {
@@ -436,6 +440,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
 
         // URL not recognized - return false to allow SwiftUI's .onOpenURL to handle custom deep links
         return false
+    }
+
+    // MARK: - CloudKit Share Acceptance
+    func application(_ application: UIApplication,
+                     userDidAcceptCloudKitShareWith metadata: CKShare.Metadata) {
+        Task<Void, Never> {
+            await ShareAcceptanceHandler.accept(metadata)
+        }
     }
 
     func applicationDidEnterBackground(_ application: UIApplication) {

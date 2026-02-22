@@ -196,7 +196,10 @@ struct FlicksFeedView: View {
             VStack(spacing: 0) {
                 // Grid header with toggle next to title
                 gridTopBar
-                
+
+                RecentPhotosSection()
+                    .padding(.bottom, 8)
+
                 // Use AdvancedList for proper pagination like CollectionMainView
                 ScrollViewReader { reader in
                     AdvancedList(viewModel.items, listView: { items in

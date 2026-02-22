@@ -14,7 +14,11 @@ class HeroCoordinator {
     var offset: CGSize = .zero
     var imageUrls: PhotoUrls? = nil
     var dragProgress: CGFloat = 0
-    
+
+    /// Identifier-based hero support (for PHAsset local photos)
+    var heroIdentifier: String? = nil
+    var heroImage: UIImage? = nil
+
     var animationIsOpen: Bool = true // vs close animation (direction)
     
     func toggleView(show: Bool, completion: (() -> Void)? = nil) {
@@ -45,6 +49,13 @@ class HeroCoordinator {
         animationIsOpen = true
         offset = .zero
         imageUrls = nil
+        heroIdentifier = nil
+        heroImage = nil
         dragProgress = 0
+    }
+
+    /// The active hero key: URL-based or identifier-based
+    var activeHeroKey: String? {
+        imageUrls?.highQualityUrl ?? heroIdentifier
     }
 }

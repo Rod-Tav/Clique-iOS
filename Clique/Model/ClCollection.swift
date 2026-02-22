@@ -66,6 +66,15 @@ extension CollectionImage {
     }
 }
 
+// MARK: - DisplayablePhoto Conformance
+
+extension CollectionImage: DisplayablePhoto {
+    var creationDate: Date? { date }
+    var mediaUrls: MediaUrls? { imageUrl }
+    var localThumbnail: UIImage? { uiImage }
+    var hasSocialFeatures: Bool { true }
+}
+
 struct ClCollection: Identifiable, Hashable, Codable {
     let id: String
     var name: String

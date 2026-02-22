@@ -107,6 +107,14 @@ struct LibraryCreateFlow: View {
         } message: {
             Text("This will remove all selected photos and any processed data.")
         }
+        .task {
+            if !tabViewCoordinator.pendingSelectedAssets.isEmpty {
+                for asset in tabViewCoordinator.pendingSelectedAssets {
+                    viewModel.selectedAssets.insert(asset)
+                }
+                tabViewCoordinator.pendingSelectedAssets = []
+            }
+        }
     }
     
     

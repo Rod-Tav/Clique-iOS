@@ -533,6 +533,7 @@ extension CollectionMainView {
                 videoDuration: image.videoDuration,
                 videoUrl: image.videoUrls?.videoUrl(for: .medium)
             )
+            .clipped()
             .id(image.id)
             .heroSource(urls: image.imageUrl) {
                 tabCoordinator.showTabBar = false
