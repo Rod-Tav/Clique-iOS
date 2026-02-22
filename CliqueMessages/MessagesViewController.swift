@@ -18,79 +18,113 @@ import SwiftUI
 
 class MessagesViewController: MSMessagesAppViewController {
 
-    private var composerHostingController: UIHostingController<CloudCliqueComposerView>?
+    // MARK: - Properties
+
+    /// Persistent view model — created once, reused across presentations
+    private let viewModel = ExtensionViewModel()
+
+    /// Single hosting controller kept alive for the extension's lifetime
+    private var rootHostingController: UIHostingController<ExtensionRootView>?
 
     // MARK: - Lifecycle
 
     override func willBecomeActive(with conversation: MSConversation) {
         super.willBecomeActive(with: conversation)
-        presentContent(for: presentationStyle, conversation: conversation)
+
+        // Wire up message handlers
+        configureHandlers()
+
+        // Start data loading immediately (fixes gray screen)
+        viewModel.willBecomeActive()
+
+        // Present the root view if not already presented
+        if rootHostingController == nil {
+            presentRootView()
+        }
+    }
+
+    override func didResignActive(with conversation: MSConversation) {
+        super.didResignActive(with: conversation)
+        viewModel.didResignActive()
     }
 
     override func didTransition(to presentationStyle: MSMessagesAppPresentationStyle) {
         super.didTransition(to: presentationStyle)
-        presentContent(for: presentationStyle, conversation: activeConversation)
+        viewModel.updatePresentationStyle(presentationStyle)
+    }
+
+    override func didStartSending(_ message: MSMessage, conversation: MSConversation) {
+        super.didStartSending(message, conversation: conversation)
+        viewModel.didStartSendingMessage(message)
+    }
+
+    override func didCancelSending(_ message: MSMessage, conversation: MSConversation) {
+        super.didCancelSending(message, conversation: conversation)
+        viewModel.didCancelSendingMessage(message)
+    }
+
+    override func didReceive(_ message: MSMessage, conversation: MSConversation) {
+        super.didReceive(message, conversation: conversation)
+        viewModel.didReceiveMessage(message)
     }
 
     // MARK: - Content Presentation
 
-    private func presentContent(for style: MSMessagesAppPresentationStyle, conversation: MSConversation?) {
-        removeAllChildViewControllers()
-
+    private func presentRootView() {
+        // Check auth — if not authenticated, show auth bridge instead
         guard ExtensionAuthManager.shared.isAuthenticated else {
             presentAuthBridgeView()
             return
         }
 
-        switch style {
-        case .compact:
-            presentCompactView()
-        case .expanded:
-            presentComposerView(conversation: conversation)
-        case .transcript:
-            break
-        @unknown default:
-            break
-        }
-    }
-
-    // MARK: - Compact View
-
-    private func presentCompactView() {
-        let compactView = CompactLauncherView { [weak self] in
+        let rootView = ExtensionRootView(viewModel: viewModel) { [weak self] in
             self?.requestPresentationStyle(.expanded)
         }
-        let hostingController = UIHostingController(rootView: compactView)
+        let hostingController = UIHostingController(rootView: rootView)
+        rootHostingController = hostingController
         addChild(hostingController, to: view)
     }
 
-    // MARK: - Expanded View (Composer)
+    private func presentAuthBridgeView() {
+        removeAllChildViewControllers()
+        let authView = AuthBridgeView()
+        let hostingController = UIHostingController(rootView: authView)
+        addChild(hostingController, to: view)
+    }
 
-    private func presentComposerView(conversation: MSConversation?) {
-        let composerView = CloudCliqueComposerView(
-            conversation: conversation
-        ) { [weak self] message in
+    // MARK: - Handler Configuration
+
+    private func configureHandlers() {
+        viewModel.sendMessageHandler = { [weak self] message in
+            self?.activeConversation?.insert(message) { error in
+                if let error {
+                    print("MessagesViewController: Failed to insert message: \(error)")
+                }
+            }
+        }
+
+        viewModel.dismissHandler = { [weak self] in
+            self?.requestPresentationStyle(.compact)
+        }
+
+        viewModel.openURLHandler = { [weak self] url in
+            self?.extensionContext?.open(url)
+        }
+
+        // Closure for CloudCliqueComposerView to insert messages
+        viewModel.insertCloudCliqueMessageHandler = { [weak self] message in
             guard let conversation = self?.activeConversation else { return }
             conversation.insert(message) { error in
                 if error == nil {
                     self?.requestPresentationStyle(.compact)
                 }
             }
-        } onDismiss: { [weak self] in
-            self?.requestPresentationStyle(.compact)
         }
 
-        let hostingController = UIHostingController(rootView: composerView)
-        composerHostingController = hostingController
-        addChild(hostingController, to: view)
-    }
-
-    // MARK: - Auth Bridge
-
-    private func presentAuthBridgeView() {
-        let authView = AuthBridgeView()
-        let hostingController = UIHostingController(rootView: authView)
-        addChild(hostingController, to: view)
+        // Closure to request expansion (e.g. from compact "+" button)
+        viewModel.requestExpansionHandler = { [weak self] in
+            self?.requestPresentationStyle(.expanded)
+        }
     }
 
     // MARK: - Child View Controller Helpers
@@ -109,30 +143,6 @@ class MessagesViewController: MSMessagesAppViewController {
             child.view.removeFromSuperview()
             child.removeFromParent()
         }
-        composerHostingController = nil
-    }
-}
-
-// MARK: - Compact Launcher View
-
-/// Small view shown in compact mode with a button to expand into the composer.
-private struct CompactLauncherView: View {
-    var onTap: () -> Void
-
-    var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 10) {
-                Image(systemName: "plus.circle.fill")
-                    .font(.title2)
-                Text("Create Cloud Clique")
-                    .font(.headline)
-            }
-            .foregroundStyle(.white)
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(Color.cliquePink)
-            .clipShape(Capsule())
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        rootHostingController = nil
     }
 }

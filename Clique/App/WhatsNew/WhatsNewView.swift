@@ -12,7 +12,7 @@ struct WhatsNewView: View {
     
     private let releases: [(version: String, changes: [String])] = [
         ("2.0.0 – February 23rd, 2026", [
-            "Apple Photos, Cloud Cliques, and iMessage Extension",
+            "Apple Photos integration, Cloud Cliques, and iMessage Extension",
             "All above functionality iOS 26 only and in beta"
         ]),
         ("1.8.0 – December 23rd, 2025", [

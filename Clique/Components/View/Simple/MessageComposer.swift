@@ -8,14 +8,14 @@
 import SwiftUI
 import MessageUI
 
-struct MessageComposer: UIViewControllerRepresentable {
+struct CliqueMessageComposer: UIViewControllerRepresentable {
     let recipients: [String]
     let body: String
     @Environment(\.dismiss) private var dismiss
 
     class Coordinator: NSObject, MFMessageComposeViewControllerDelegate {
-        let parent: MessageComposer
-        init(_ parent: MessageComposer) { self.parent = parent }
+        let parent: CliqueMessageComposer
+        init(_ parent: CliqueMessageComposer) { self.parent = parent }
 
         func messageComposeViewController(_ controller: MFMessageComposeViewController, didFinishWith result: MessageComposeResult) {
             controller.dismiss(animated: true)

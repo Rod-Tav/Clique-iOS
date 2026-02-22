@@ -55,8 +55,9 @@ public struct ExtensionAsyncImage<Content: View>: View {
     public var body: some View {
         content(phase)
             .onAppear {
-                // Always attempt to load if no task is running
-                if loadTask == nil && url != nil {
+                if url == nil {
+                    phase = .failed(nil)  // Show placeholder immediately
+                } else if loadTask == nil {
                     loadImage()
                 }
             }

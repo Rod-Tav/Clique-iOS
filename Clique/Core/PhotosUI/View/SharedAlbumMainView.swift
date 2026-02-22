@@ -55,7 +55,7 @@ struct SharedAlbumMainView: View {
     // MARK: - Body
 
     var body: some View {
-        ScrollView {
+        ScrollView(.vertical) {
             VStack(spacing: 0) {
                 albumHeader
                 createCliqueCTA
@@ -64,7 +64,7 @@ struct SharedAlbumMainView: View {
         }
         .sheet(isPresented: $showMessageCompose) {
             if MFMessageComposeViewController.canSendText() {
-                MessageComposer(recipients: [], body: messageBody)
+                CliqueMessageComposer(recipients: [], body: messageBody)
             }
         }
         .sheet(isPresented: $showCliquePickerSheet) {

@@ -7,7 +7,6 @@
 
 import SwiftUI
 import Messages
-import CloudKit
 
 struct CloudCliqueComposerView: View {
     @State private var cliqueName: String = ""
@@ -98,30 +97,14 @@ struct CloudCliqueComposerView: View {
         errorMessage = nil
 
         do {
-            // 1. Create the clique via Kotlin backend
-            let cliqueId = try await ExtensionAPIClient.shared.createClique(name: trimmedName)
+            // 1. Create cloud clique via rod-sandbox
+            let cliqueId = try await ExtensionAPIClient.shared.createCloudClique(name: trimmedName)
 
-            // 2. Create CloudKit shared zone and get the CKShare
-            let share = try await CloudKitSharingService.shared.createSharedZone(cliqueId: cliqueId)
-
-            guard let shareURL = share.url else {
-                errorMessage = "Failed to generate share link. Please try again."
-                isCreating = false
-                return
-            }
-
-            // 3. Register the CloudKit zone with rod-sandbox
-            let zoneId = SyncConfiguration.zoneName(for: cliqueId)
-            try await ExtensionAPIClient.shared.setCloudKitZone(
-                cliqueId: cliqueId,
-                zoneId: zoneId,
-                shareUrl: shareURL.absoluteString
-            )
-
-            // 4. Build and insert the iMessage
+            // 2. Build and insert the iMessage with a deep link
+            let deepLink = DeepLinkBuilder.cliqueURL(cliqueId: cliqueId)
             let message = CliqueMessageLayout.createMessage(
                 cliqueName: trimmedName,
-                shareURL: shareURL
+                shareURL: deepLink
             )
             onInsertMessage(message)
 

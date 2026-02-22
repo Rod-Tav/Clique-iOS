@@ -165,7 +165,7 @@ struct AddContactsView: View {
         }
         .sheet(isPresented: $showMessageComposer) {
             if let number = selectedNumberForInvite {
-                MessageComposer(
+                CliqueMessageComposer(
                     recipients: [number],
                     body: "Hey! Join me on Clique: https://apps.apple.com/us/app/clique-group-social/id6742713460"
                 )

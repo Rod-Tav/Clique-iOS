@@ -94,6 +94,12 @@ final class ExtensionViewModel {
     /// Callback to open a URL in the main app (set by MessagesViewController)
     var openURLHandler: ((URL) -> Void)?
 
+    /// Callback to insert a cloud clique message (for CloudCliqueComposerView)
+    var insertCloudCliqueMessageHandler: ((MSMessage) -> Void)?
+
+    /// Callback to request expansion from compact mode
+    var requestExpansionHandler: (() -> Void)?
+
     // MARK: - Dependencies
 
     private let authStorage = SharedAuthStorage()
@@ -193,13 +199,14 @@ final class ExtensionViewModel {
         }
     }
 
-    /// Fetches collections from API, falls back to cache on failure
+    /// Fetches collections from API, falls back to cache on failure.
+    /// Also extracts flicks from collection items (no separate flicks endpoint).
     @MainActor
     private func fetchCollectionsFromAPI(for clique: CachedClique) async {
         do {
             print("ExtensionViewModel: Fetching collections from API for clique \(clique.name)...")
-            let apiCollections = try await apiClient.fetchCollections(for: clique.id)
-            collectionsForClique = apiCollections
+            let result = try await apiClient.fetchCollections(for: clique.id)
+            collectionsForClique = result.collections
             print("ExtensionViewModel: Loaded \(collectionsForClique.count) collections from API")
             for collection in collectionsForClique.prefix(3) {
                 print("  - \(collection.name): thumbUrl=\(collection.thumbUrl.prefix(60))...")
@@ -211,13 +218,12 @@ final class ExtensionViewModel {
             // Update cache with fresh data
             cacheManager.saveCollections(collectionsForClique, for: clique.id)
 
-            // Also fetch and cache flicks for this clique
-            let apiFlicks = try await apiClient.fetchFlicks(for: clique.id)
-            cacheManager.saveFlicks(apiFlicks, for: clique.id)
-            print("ExtensionViewModel: Cached \(apiFlicks.count) flicks from API")
+            // Cache flicks extracted from collection items
+            cacheManager.saveFlicks(result.flicks, for: clique.id)
+            print("ExtensionViewModel: Cached \(result.flicks.count) flicks from collections response")
 
         } catch {
-            print("ExtensionViewModel: API fetch failed: \(error), falling back to cache")
+            print("ExtensionViewModel: Collections API fetch failed: \(error), falling back to cache")
 
             // Fall back to cache
             collectionsForClique = cacheManager.loadCollections(for: clique.id)
@@ -258,41 +264,22 @@ final class ExtensionViewModel {
         }
     }
 
-    /// Fetches flicks from API or cache
+    /// Loads flicks for a collection from the cache (already extracted during collections fetch).
     @MainActor
     private func fetchFlicksFromAPI(for collection: CachedCollection) async {
-        do {
-            print("ExtensionViewModel: Fetching flicks from API for collection \(collection.name)...")
-            let apiFlicks = try await apiClient.fetchFlicks(for: collection.cliqueId)
+        // Flicks are already cached from the collections response — no separate API call needed
+        let allFlicksForClique = cacheManager.loadFlicks(for: collection.cliqueId)
+        flicks = allFlicksForClique.filter { $0.collectionId == collection.id }
+        print("ExtensionViewModel: Loaded \(flicks.count) flicks for collection \(collection.name)")
+        for flick in flicks.prefix(3) {
+            print("  - flick \(flick.id.prefix(8)): thumbUrl=\(flick.thumbUrl.prefix(60))...")
+        }
 
-            // Filter flicks for this specific collection
-            flicks = apiFlicks.filter { $0.collectionId == collection.id }
-            print("ExtensionViewModel: Loaded \(flicks.count) flicks from API for collection")
-            for flick in flicks.prefix(3) {
-                print("  - flick \(flick.id.prefix(8)): thumbUrl=\(flick.thumbUrl.prefix(60))...")
-            }
+        // Sort flicks by most recently created
+        flicks.sort { $0.createdAt > $1.createdAt }
 
-            // Sort flicks by most recently created
-            flicks.sort { $0.createdAt > $1.createdAt }
-
-            // Update cache with fresh data
-            cacheManager.saveFlicks(apiFlicks, for: collection.cliqueId)
-
-        } catch {
-            print("ExtensionViewModel: API fetch failed: \(error), falling back to cache")
-
-            // Fall back to cache
-            let allFlicksForClique = cacheManager.loadFlicks(for: collection.cliqueId)
-            flicks = allFlicksForClique.filter { $0.collectionId == collection.id }
-            print("ExtensionViewModel: Loaded \(flicks.count) flicks from cache (fallback)")
-
-            // Sort flicks by most recently created
-            flicks.sort { $0.createdAt > $1.createdAt }
-
-            // Show error only if we have no data at all
-            if flicks.isEmpty {
-                errorMessage = "Could not load flicks. Please try again."
-            }
+        if flicks.isEmpty {
+            errorMessage = "No photos in this collection yet."
         }
 
         isLoading = false

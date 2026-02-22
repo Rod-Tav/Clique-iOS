@@ -27,7 +27,7 @@ struct SharedAlbumsListView: View {
     ]
 
     var body: some View {
-        ScrollView {
+        ScrollView(.vertical) {
             VStack {
                 activityWidget
 
@@ -38,7 +38,7 @@ struct SharedAlbumsListView: View {
         }
         .sheet(isPresented: $showMessageCompose) {
             if MFMessageComposeViewController.canSendText() {
-                MessageComposer(recipients: [], body: createCliqueMessageBody)
+                CliqueMessageComposer(recipients: [], body: createCliqueMessageBody)
             }
         }
         .navigationTitle("Collections")

@@ -55,9 +55,24 @@ class ExtensionAPIClient {
     struct CloudCliqueInfo: Codable {
         var cliqueId: String
         var cliqueName: String
-        var cloudKitZoneId: String
+        var cloudKitZoneId: String?
         var cloudKitShareUrl: String?
         var memberCount: Int
+        var flickCount: Int
+
+        private enum CodingKeys: String, CodingKey {
+            case cliqueId, cliqueName, cloudKitZoneId, cloudKitShareUrl, memberCount, flickCount
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            cliqueId = try container.decode(String.self, forKey: .cliqueId)
+            cliqueName = try container.decode(String.self, forKey: .cliqueName)
+            cloudKitZoneId = try container.decodeIfPresent(String.self, forKey: .cloudKitZoneId)
+            cloudKitShareUrl = try container.decodeIfPresent(String.self, forKey: .cloudKitShareUrl)
+            memberCount = max((try? container.decode(Int.self, forKey: .memberCount)) ?? 1, 1)
+            flickCount = (try? container.decode(Int.self, forKey: .flickCount)) ?? 0
+        }
     }
 
     /// Fetches the list of cloud-enabled cliques the user belongs to.
@@ -69,82 +84,107 @@ class ExtensionAPIClient {
 
     // MARK: - Fetching Data for Extension Views
 
-    /// Fetches cliques the user belongs to, mapped to CachedClique.
+    /// Fetches cliques the user belongs to via rod-sandbox cloud cliques endpoint.
+    /// No userId needed — rod-sandbox resolves user from the auth token.
     func fetchCliques() async throws -> [CachedClique] {
-        let url = URL(string: "\(kotlinBackendURL)/api/v1/cliques/mine")!
-        let data = try await makeRequest(url: url, method: "GET")
-
-        struct CliqueDTO: Decodable {
-            var id: String
-            var name: String
-            var profilePictureUrl: String?
-            var memberCount: Int?
-            var flickCount: Int?
-            var updatedAt: String?
-        }
-
-        let dtos = try JSONDecoder().decode([CliqueDTO].self, from: data)
-        return dtos.map { dto in
+        let cloudCliques = try await getCloudCliques()
+        return cloudCliques.map { info in
             CachedClique(
-                id: dto.id,
-                name: dto.name,
-                thumbUrl: dto.profilePictureUrl ?? "",
-                memberCount: dto.memberCount ?? 0,
-                flickCount: dto.flickCount ?? 0,
-                updatedAt: ISO8601DateFormatter().date(from: dto.updatedAt ?? "") ?? Date()
+                id: info.cliqueId,
+                name: info.cliqueName,
+                thumbUrl: "",
+                memberCount: info.memberCount,
+                flickCount: info.flickCount,
+                updatedAt: Date()
             )
         }
+    }
+
+    /// Result type for collections fetch — includes both collections and extracted flicks.
+    struct CollectionsResult {
+        var collections: [CachedCollection]
+        var flicks: [CachedFlick]
     }
 
     /// Fetches collections for a clique, mapped to CachedCollection.
-    func fetchCollections(for cliqueId: String) async throws -> [CachedCollection] {
-        let url = URL(string: "\(kotlinBackendURL)/api/v1/cliques/\(cliqueId)/collections?page=0&size=50")!
+    /// Also extracts flicks from collectionItems since there's no separate flicks-by-clique endpoint.
+    func fetchCollections(for cliqueId: String) async throws -> CollectionsResult {
+        let url = URL(string: "\(kotlinBackendURL)/api/v1/collection/clique/\(cliqueId)?page=0&size=50")!
         let data = try await makeRequest(url: url, method: "GET")
+
+        struct ItemUrls: Decodable {
+            var url: String?
+            var medQualityUrl: String?
+            var lowQualityUrl: String?
+        }
+
+        struct CollectionItemDTO: Decodable {
+            var collectionItemId: String?
+            var urls: ItemUrls?
+            var mediaType: String?
+            var dateCreated: String?
+        }
+
+        struct CollectionDataDTO: Decodable {
+            var collectionDataId: String?
+            var name: String?
+            var clique: String?
+            var dateCreated: String?
+            var visibility: String?
+        }
 
         struct CollectionDTO: Decodable {
-            var id: String
-            var name: String
-            var coverPhotoUrl: String?
-            var flickCount: Int?
-            var createdAt: String?
+            var collectionData: CollectionDataDTO?
+            var collectionItems: [CollectionItemDTO]?
         }
 
-        let dtos = try JSONDecoder().decode([CollectionDTO].self, from: data)
-        return dtos.map { dto in
-            CachedCollection(
-                id: dto.id,
-                name: dto.name,
-                thumbUrl: dto.coverPhotoUrl ?? "",
-                flickCount: dto.flickCount ?? 0,
+        struct GetCollectionsResponse: Decodable {
+            var collections: [CollectionDTO]
+        }
+
+        let response = try JSONDecoder().decode(GetCollectionsResponse.self, from: data)
+
+        var allFlicks: [CachedFlick] = []
+
+        let collections = response.collections.map { dto -> CachedCollection in
+            let items = dto.collectionItems ?? []
+            let collectionId = dto.collectionData?.collectionDataId ?? ""
+
+            // Extract flicks from collection items
+            for item in items {
+                allFlicks.append(CachedFlick(
+                    id: item.collectionItemId ?? UUID().uuidString,
+                    thumbUrl: item.urls?.lowQualityUrl ?? item.urls?.url ?? "",
+                    collectionId: collectionId,
+                    mediaType: MediaType(rawValue: item.mediaType ?? "PHOTO") ?? .PHOTO,
+                    createdAt: ISO8601DateFormatter().date(from: item.dateCreated ?? "") ?? Date()
+                ))
+            }
+
+            // Use first item's thumbnail as collection cover
+            let coverUrl = items.first?.urls?.lowQualityUrl ?? items.first?.urls?.url ?? ""
+
+            let visibilityStr = dto.collectionData?.visibility ?? "PRIVATE"
+            let visibility: Visibility = {
+                switch visibilityStr {
+                case "PUBLIC": return .pub
+                case "FOLLOWERS": return .followers
+                default: return .priv
+                }
+            }()
+
+            return CachedCollection(
+                id: collectionId,
+                name: dto.collectionData?.name ?? "",
+                thumbUrl: coverUrl,
+                flickCount: items.count,
                 cliqueId: cliqueId,
-                createdAt: ISO8601DateFormatter().date(from: dto.createdAt ?? "") ?? Date()
+                visibility: visibility,
+                createdAt: ISO8601DateFormatter().date(from: dto.collectionData?.dateCreated ?? "") ?? Date()
             )
         }
-    }
 
-    /// Fetches flicks for a clique, mapped to CachedFlick.
-    func fetchFlicks(for cliqueId: String) async throws -> [CachedFlick] {
-        let url = URL(string: "\(kotlinBackendURL)/api/v1/cliques/\(cliqueId)/flicks?page=0&size=50")!
-        let data = try await makeRequest(url: url, method: "GET")
-
-        struct FlickDTO: Decodable {
-            var id: String
-            var thumbnailUrl: String?
-            var collectionId: String?
-            var mediaType: String?
-            var createdAt: String?
-        }
-
-        let dtos = try JSONDecoder().decode([FlickDTO].self, from: data)
-        return dtos.map { dto in
-            CachedFlick(
-                id: dto.id,
-                thumbUrl: dto.thumbnailUrl ?? "",
-                collectionId: dto.collectionId ?? "",
-                mediaType: MediaType(rawValue: dto.mediaType ?? "PHOTO") ?? .PHOTO,
-                createdAt: ISO8601DateFormatter().date(from: dto.createdAt ?? "") ?? Date()
-            )
-        }
+        return CollectionsResult(collections: collections, flicks: allFlicks)
     }
 
     // MARK: - Networking
@@ -164,10 +204,26 @@ class ExtensionAPIClient {
 
         guard let httpResponse = response as? HTTPURLResponse,
               200...299 ~= httpResponse.statusCode else {
+            let status = (response as? HTTPURLResponse)?.statusCode ?? -1
+            print("ExtensionAPIClient: HTTP \(status) from \(url)")
             throw ExtensionError.serverError
         }
 
         return data
+    }
+
+    // MARK: - Cloud Clique Creation
+
+    /// Creates a cloud-only clique via rod-sandbox.
+    /// - Parameter name: Display name for the clique.
+    /// - Returns: The newly created clique's ID.
+    func createCloudClique(name: String) async throws -> String {
+        let url = URL(string: "\(rodSandboxURL)/cloudkit/cliques")!
+        let body = try JSONEncoder().encode(["name": name])
+        let data = try await makeRequest(url: url, method: "POST", body: body)
+
+        struct CreateResponse: Decodable { var id: String }
+        return try JSONDecoder().decode(CreateResponse.self, from: data).id
     }
 
     enum ExtensionError: Error {

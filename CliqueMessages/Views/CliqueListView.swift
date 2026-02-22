@@ -27,12 +27,33 @@ struct CliqueListView: View {
     // MARK: - Subviews
 
     private var header: some View {
-        Text("Your Cliques")
-            .font(.headline)
-            .foregroundStyle(Color.extensionPrimaryText)
-            .padding()
-            .frame(maxWidth: .infinity)
-            .background(Color.extensionSecondaryBackground)
+        HStack {
+            Text("Your Cliques")
+                .font(.headline)
+                .foregroundStyle(Color.extensionPrimaryText)
+
+            Spacer()
+
+            Button {
+                if viewModel.presentationStyle == .compact {
+                    viewModel.requestExpansionHandler?()
+                    // After expansion completes, navigate to create
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        viewModel.navigate(to: .createClique)
+                    }
+                } else {
+                    viewModel.navigate(to: .createClique)
+                }
+            } label: {
+                Image(systemName: "plus.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(Color.cliquePink)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity)
+        .background(Color.extensionSecondaryBackground)
     }
 
     private var cliqueList: some View {

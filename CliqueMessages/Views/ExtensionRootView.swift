@@ -81,8 +81,15 @@ struct ExtensionRootView: View {
                 viewModel.sendFlick(flick)
             }
         case .createClique:
-            // Not implemented in extension - just show clique list
-            CliqueListView()
+            CloudCliqueComposerView(
+                conversation: nil,
+                onInsertMessage: { message in
+                    viewModel.insertCloudCliqueMessageHandler?(message)
+                },
+                onDismiss: {
+                    viewModel.navigateBack()
+                }
+            )
         }
     }
 

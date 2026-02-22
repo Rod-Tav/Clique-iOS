@@ -445,7 +445,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     // MARK: - CloudKit Share Acceptance
     func application(_ application: UIApplication,
                      userDidAcceptCloudKitShareWith metadata: CKShare.Metadata) {
-        Task {
+        Task<Void, Never> {
             await ShareAcceptanceHandler.accept(metadata)
         }
     }
