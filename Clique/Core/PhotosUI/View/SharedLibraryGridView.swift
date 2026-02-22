@@ -30,9 +30,8 @@ struct SharedLibraryGridView: View {
             }
         }
         .disabled(!coordinator.canInteract)
-        .if(!coordinator.isInDetailView) { view in
-            view.trackScrollWithToolbar(title: "Shared Album Library", showNavBar: $showNavBar)
-        }
+        .trackScrollWithToolbar(title: "Shared Album Library", showNavBar: $showNavBar)
+        .toolbar(coordinator.isInDetailView ? .hidden : .automatic, for: .navigationBar)
         .onScrollGeometryChange(for: PhotosScrollInfo.self) { geo in
             PhotosScrollInfo(
                 offsetY: geo.contentOffset.y + geo.contentInsets.top,
