@@ -154,35 +154,37 @@ struct MainTabView: View {
     /// - Non-blocking user experience
     /// - Automatic feed refresh after completion
     var body: some View {
+        // MARK: - Temporarily replaced with Apple Photos-style UI
+        // Original TabView + BottomTabBar experience preserved below in comments
+        GeometryReader {
+            let size = $0.size
+            let safeArea = $0.safeAreaInsets
+
+            PhotosHomeView(size: size, safeArea: safeArea)
+                .ignoresSafeArea(.all, edges: .top)
+        }
+
+        /* ORIGINAL TAB VIEW EXPERIENCE (temporarily replaced)
         ZoomContainer {
             ZStack(alignment: .bottom) {
-                // Main tab content
                 TabView(selection: $tabViewCoordinator.activeTab) {
-                    // MARK: - Testing rod-sandbox microservice
-                    // Temporarily replaced FlicksFeedView with UserFlicksView to test the user-flicks endpoint
                     UserFlicksView()
                         .tag(BottomTab.flicks)
 
-                    // Original FlicksFeedView (commented out for testing)
-                    // FlicksFeedView(collectionStore, collectionImageStore, cliqueStore, userStore)
-                    //     .tag(BottomTab.flicks)
-                    
                     HomeFeedView(collectionStore, collectionImageStore, userStore, cliqueStore)
                         .tag(BottomTab.collections)
-                    
+
                     CreateFlowWrapper()
                         .tag(BottomTab.create)
-                    
+
                     SearchView(userStore)
                         .tag(BottomTab.search)
-                    
+
                     CurrentUserProfileView()
                         .tag(BottomTab.profile)
                 }
-                
-                // Overlay UI (upload progress + tab bar)
+
                 VStack(spacing: 8) {
-                    // Upload progress indicator
                     if showUploading {
                         UploadProgressView(
                             collectionId: viewModel.collectionId,
@@ -206,25 +208,16 @@ struct MainTabView: View {
                         )
                         .padding(.horizontal, 8)
                     }
-                    
-                    // Custom tab bar with smooth animations
+
                     BottomTabBar()
                         .opacity(tabViewCoordinator.showTabBar ? 1 : 0)
                         .animation(.easeInOut(duration: 0.2), value: tabViewCoordinator.showTabBar)
                 }
             }
-            // Safe area configuration for proper tab bar positioning
             .padding(.bottom, 18)
             .ignoresSafeArea(edges: .bottom)
-            
-            // failed sheet overlay try. works for swiping down but not tapping out
-            //            .overlay {
-            //                Rectangle()
-            //                    .fill(tabViewCoordinator.overlayColor)
-            //                    .ignoresSafeArea()
-            //                    .animation(.easeInOut, value: tabViewCoordinator.overlayColor)
-            //            }
         }
+        */
         .onReceive(of: .uploadImagesToCollection) { notification in
             guard let collection = notification.userInfo?["collection"] as? ClCollection,
                   let makingNew = notification.userInfo?["makingNew"] as? Bool,

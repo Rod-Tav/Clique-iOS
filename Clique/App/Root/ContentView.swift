@@ -139,11 +139,19 @@ struct ContentView: View {
                     
                 case .main:
                     // Full authenticated app experience
-                    MainTabView()
-                        .environment(authService)
-                        .onReceive(of: .toast404) { _ in
-                            presentToast(Toasts.somethingWentWrong)
-                        }
+                    if #available(iOS 26, *) {
+                        LibraryTabView()
+                            .environment(authService)
+                            .onReceive(of: .toast404) { _ in
+                                presentToast(Toasts.somethingWentWrong)
+                            }
+                    } else {
+                        MainTabView()
+                            .environment(authService)
+                            .onReceive(of: .toast404) { _ in
+                                presentToast(Toasts.somethingWentWrong)
+                            }
+                    }
                 }
             }
         }

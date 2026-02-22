@@ -38,7 +38,20 @@ enum AppViewType {
             await MainActor.run {
                 appViewType = .main
             }
-            
+
+            // Write auth state to App Group for iMessage extension
+            if let currentUser = Auth.auth().currentUser {
+                let token = try? await currentUser.getIDToken()
+                let user = await userStore.currentUser
+                let state = SharedAuthState(
+                    firebaseToken: token,
+                    userId: user?.id,
+                    username: user?.username,
+                    expiresAt: Date().addingTimeInterval(3600)
+                )
+                SharedAuthState.save(state)
+            }
+
             if let user = await userStore.currentUser {
                 if !AuthService.hasMixpanelProfile {
                     Mixpanel.mainInstance().identify(distinctId: user.id)

@@ -7,6 +7,8 @@
 
 import SwiftUI
 import SwiftUINavigationTransitions
+import Photos
+import Photos
 
 /// Defines the entry point for the photo creation flow.
 ///
@@ -84,7 +86,6 @@ enum CreateFlowMode {
 
     /// Current mode for the create flow (none, camera, or library)
     var createFlowMode: CreateFlowMode = .none
-    
     // MARK: - Tab Bar State
     
     /// Whether the tab bar should be visible
@@ -118,6 +119,8 @@ enum CreateFlowMode {
     var createFlowInitialCollection: ClCollection?
     /// Whether to open photo library immediately in create flow
     var shouldOpenLibrary: Bool = false
+    /// Photos selected from Recent Photos carousel to pass into Create flow
+    var pendingSelectedAssets: [PHAsset] = []
     
     // MARK: - Navigation Paths
     

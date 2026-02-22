@@ -111,4 +111,12 @@ extension Notification.Name {
     
     /// Triggers present "something went wrong" toast
     static let toast404 = Notification.Name("toast404")
+
+    // MARK: - CloudKit Sync
+
+    /// Triggers refresh of cloud-enabled cliques list
+    static let refreshCloudCliques = Notification.Name("refreshCloudCliques")
+
+    /// Posted when CloudKit sync status changes
+    static let cloudSyncStatusChanged = Notification.Name("cloudSyncStatusChanged")
 }

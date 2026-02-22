@@ -47,23 +47,60 @@ struct HeroSourceBox: View {
     }
 }
 
+// MARK: - Identifier-based hero source (for local PHAsset photos)
+
+struct HeroSourceLocalModifier: ViewModifier {
+    @Environment(HeroCoordinator.self) private var heroCoordinator
+
+    var identifier: String
+    var image: UIImage?
+    let action: () -> Void
+
+    func body(content: Content) -> some View {
+        ZStack {
+            Rectangle()
+                .fill(.clear)
+                .anchorPreference(key: HeroKey.self, value: .bounds) { anchor in
+                    [identifier + "SOURCE": anchor]
+                }
+
+            content
+                .opacity(heroCoordinator.heroIdentifier == identifier ? 0 : 1)
+                .onTapGesture {
+                    action()
+                    heroCoordinator.heroIdentifier = identifier
+                    heroCoordinator.heroImage = image
+                }
+        }
+        .contentShape(.rect)
+    }
+}
+
+extension View {
+    func heroSourceLocal(identifier: String, image: UIImage?, action: @escaping () -> Void) -> some View {
+        self.modifier(HeroSourceLocalModifier(identifier: identifier, image: image, action: action))
+    }
+}
+
+// MARK: - Hero Overlay
+
 struct HeroOverlayModifier<DetailView: View>: ViewModifier {
     @Environment(HeroCoordinator.self) private var heroCoordinator
-    
+
     let detailView: () -> DetailView
-    
+
     func body(content: Content) -> some View {
         content
             .overlay {
-                if heroCoordinator.imageUrls != nil {
+                if heroCoordinator.activeHeroKey != nil {
                     detailView()
                         .allowsHitTesting(heroCoordinator.showDetailView)
                 }
             }
             .overlayPreferenceValue(HeroKey.self) { value in
-                if let selectedImage = heroCoordinator.imageUrls?.highQualityUrl, // ✅ Access the high-quality url
-                   let sAnchor = value[selectedImage + "SOURCE"],
-                   let dAnchor = value[selectedImage + "DEST"] {
+                if let selectedKey = heroCoordinator.activeHeroKey,
+                   let sAnchor = value[selectedKey + "SOURCE"],
+                   let dAnchor = value[selectedKey + "DEST"] {
                     HeroLayer(
                         sAnchor: sAnchor,
                         dAnchor: dAnchor

@@ -62,6 +62,17 @@ extension Toasts {
     }
 }
 
+// MARK: Shared Albums
+extension Toasts {
+    static let albumLinked = ToastValue(icon: Image(systemName: "link.circle.fill"), message: "Shared album linked")
+
+    static let albumUnlinked = ToastValue(icon: Image(systemName: "link.badge.plus"), message: "Shared album unlinked")
+
+    static let exportComplete = ToastValue(icon: Image(systemName: "square.and.arrow.down"), message: "Collection exported to album")
+
+    static let exportFailed = ToastValue(icon: Image(systemName: "exclamationmark.circle.fill"), message: "Export failed")
+}
+
 // MARK: Reports
 extension Toasts {
     static let reportSuccess = ToastValue(icon: Image("check-circle-filled"), message: "Report sent")

@@ -8,6 +8,11 @@
 import Foundation
 import SwiftUI
 
+struct CloudCliqueDestination: Hashable {
+    let cliqueId: String
+    let cliqueName: String
+}
+
 /// Central navigation destination registry for type-safe navigation throughout the app.
 ///
 /// This modifier defines all global navigation destinations that can be accessed
@@ -113,6 +118,14 @@ struct NavigationDestinationsModifier: ViewModifier {
                     }
                 }
                 .navigationBarBackButtonHidden()
+            }
+
+            // MARK: - CloudKit Destinations
+
+            /// Navigate to cloud clique detail views
+            .navigationDestination(for: CloudCliqueDestination.self) { dest in
+                CloudCliqueDetailView(cliqueId: dest.cliqueId, cliqueName: dest.cliqueName)
+                    .navigationBarBackButtonHidden()
             }
 
             // MARK: - String-Based Special Destinations
